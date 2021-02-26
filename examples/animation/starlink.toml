@@ -1,0 +1,72 @@
+model = "SGP4"
+
+bbox = [-6.8596, -11.0020, 19.7872, 22.2767]
+interval = 1
+animation = true
+hosts = ["192.168.0.11:1969", "192.168.0.12:1969", "192.168.0.13:1969", "192.168.0.14:1969"]
+peeringhosts = ["192.168.0.11:1970", "192.168.0.12:1970", "192.168.0.13:1970", "192.168.0.14:1970"]
+database = false
+
+[sgp4params]
+starttime = 2021-05-01T12:00:00+00:00
+
+[networkparams]
+islpropagation = 3.336e-6
+bandwidth = 10_000
+mincommsaltitude = 100_000
+minelevation = 40
+gstpropagation = 3.336e-6
+groundstationconnectiontype = "all"
+
+[computeparams]
+vcpu_count = 2
+mem_size_mib = 512
+ht_enabled = false
+bootparams = ""
+kernel = ""
+rootfs = ""
+
+[[shell]]
+planes = 72
+sats = 22
+altitude = 550
+inclination = 53.0
+arcofascendingnodes = 360.0
+eccentricity = 0.0
+
+[[shell]]
+planes = 32
+sats = 50
+altitude = 1110
+inclination = 53.8
+arcofascendingnodes = 360.0
+eccentricity = 0.0
+
+[[shell]]
+planes = 8
+sats = 50
+altitude = 1130
+inclination = 74.0
+arcofascendingnodes = 360.0
+eccentricity = 0.0
+
+[[shell]]
+planes = 5
+sats = 75
+altitude = 1275
+inclination = 81.0
+arcofascendingnodes = 360.0
+eccentricity = 0.0
+
+[[shell]]
+planes = 6
+sats = 75
+altitude = 1325
+inclination = 70.0
+arcofascendingnodes = 360.0
+eccentricity = 0.0
+
+[[groundstation]]
+name = "San Jose"
+lat = 37.3382082
+long = -121.8863286
