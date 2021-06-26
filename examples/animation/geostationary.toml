@@ -22,9 +22,9 @@ groundstationconnectiontype = "all"
 vcpu_count = 2
 mem_size_mib = 512
 ht_enabled = false
-bootparams = "quiet"
-kernel = "server-linux.bin"
-rootfs = "server.ext4"
+bootparams = ""
+kernel = "x"
+rootfs = "x"
 
 [[shell]]
 planes = 1

@@ -23,8 +23,8 @@ vcpu_count = 2
 mem_size_mib = 512
 ht_enabled = false
 bootparams = ""
-kernel = ""
-rootfs = ""
+kernel = "x"
+rootfs = "x"
 
 [[shell]]
 planes = 72

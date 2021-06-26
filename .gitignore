@@ -5,6 +5,7 @@
 .idea/
 .mypy_cache/
 *.bin
+animation
 
 ~$*
 

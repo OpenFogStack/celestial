@@ -92,6 +92,7 @@ class Animation():
         self.current_simulation_time = 0
         self.last_animate = 0
         self.frequency = frequency
+        self.frameCount = 0
 
         self.makeEarthActor(EARTH_RADIUS)
 
@@ -273,7 +274,16 @@ class Animation():
             self.gst_link_actor.gstLinkPolyData.SetLines(self.gst_link_actor.gstLinkLines)
 
         # #
+        self.frameCount += 1
+
         obj.GetRenderWindow().Render()
+
+        # hi there! looks like you're poking around the animation code. if you
+        # want to get a PNG (including transparent background) for each frame
+        # of the animation, just uncomment the line below. make sure to create
+        # an "animation" directory.
+
+        # self.renderToPng()
 
     def makeRenderWindow(self) -> None:
         """
@@ -635,6 +645,38 @@ class Animation():
         # set color
         self.sphereActor.GetProperty().SetColor(EARTH_BASE_COLOR)
         self.sphereActor.GetProperty().SetOpacity(EARTH_OPACITY)
+
+    def renderToPng(self, path: str="animation/p") -> None:
+        """
+        Take a .png of the render window, and save it.
+        Parameters
+        ----------
+        path : str
+        The relative path of where to save the image
+        """
+
+        # make sure the path exists
+        if not path:
+            return
+
+        # connect the image writer to the render window
+        w2i = vtk.vtkWindowToImageFilter()
+        w2i.SetInputBufferTypeToRGBA()
+        w2i.SetInput(self.renderWindow)
+        w2i.Update()
+        pngfile = vtk.vtkPNGWriter()
+        pngfile.SetInputConnection(w2i.GetOutputPort())
+
+        # name the file with 7 digit int, leading zeros
+        mask = ['0', '0', '0', '0', '0', '0', '0']
+        var = list(str(self.frameCount))
+        t = len(mask) - len(var)
+        for i in range(len(var)):
+            mask[i+t] = var[i]
+        f = ''.join(mask)
+
+        pngfile.SetFileName(path + "_" + f + ".png")
+        pngfile.Write()
 
     def controlThreadHandler(self) -> None:
         """
