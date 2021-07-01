@@ -120,6 +120,10 @@ Docker.
 Docker is obviously a bit easier but running it directly lets you activate the
 cool animation as well.
 
+In order to use the database feature (more about that in the [Services](#services)
+section), you must open a TCP port of your choice on your client and it must be
+reachable from your servers.
+
 #### Python3
 
 To run the client with Python3, make sure you have `python3` and `pip`/`pip3` installed.
@@ -159,6 +163,15 @@ docker run --rm -it -v $(pwd)/[YOUR-CONFIG-FILE]:/config.toml celestial /config.
 This maps your config file as a volume within the container.
 If you set `animation = true` within that config file, you will probably run
 into errors, so don't do it.
+
+If you want to enable the database, e.g., on port `8000`, instruct Docker to
+forward that port:
+
+```sh
+docker run --rm -it -p8000:8000 \
+    -v $(pwd)/[YOUR-CONFIG-FILE]:/config.toml \
+    celestial /config.toml
+```
 
 ### Server
 
