@@ -133,15 +133,12 @@ Install the dependencies with:
 pip3 install -r requirements.txt --user
 ```
 
-Additionally, install the VTK package for showing the animation.
+Additionally, install the VTK package to enable the animation (requires a somewhat
+up-to-date computer):
 
 ```sh
 pip3 install vtk --user
 ```
-
-**Note: showing the animation requires the `vtk` package, which is not yet
-available for [Python 3.9](https://gitlab.kitware.com/vtk/vtk/-/issues/18074)!**
-You can, however, [build it yourself](https://docs.pyvista.org/extras/building_vtk.html).
 
 Then run the client with:
 
