@@ -357,6 +357,9 @@ def fill_configuration(config: typing.MutableMapping[str, typing.Any]) -> Config
 
         shell["networkparams"] = network
 
+    if "groundstation" not in config:
+        config["groundstation"] = []
+
     for groundstation in config["groundstation"]:
         network = {}
 
