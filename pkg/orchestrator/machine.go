@@ -49,6 +49,7 @@ type localmachine struct {
 	m               *firecracker.Machine
 	drivePath       string
 	kernelImagePath string
+	diskSizeMiB 	uint64
 	htEnabled       bool
 	memSizeMiB      uint64
 	vCPUCount       uint64
@@ -164,7 +165,7 @@ func (o *Orchestrator) setActive(m *localmachine) error {
 }
 
 // CreateMachine creates a new firecracker microVM.
-func (o *Orchestrator) CreateMachine(m commons.MachineID, vCPUCount uint64, memSizeMiB uint64, htEnabled bool, bootparams string, kernel string, rootfs string, bandwidth uint64, active bool) error {
+func (o *Orchestrator) CreateMachine(m commons.MachineID, vCPUCount uint64, memSizeMiB uint64, htEnabled bool, diskSizeMiB uint64, bootparams string, kernel string, rootfs string, bandwidth uint64, active bool) error {
 
 	atomic.AddInt64(&o.outstanding, 1)
 	defer atomic.AddInt64(&o.outstanding, -1)
@@ -204,7 +205,7 @@ func (o *Orchestrator) CreateMachine(m commons.MachineID, vCPUCount uint64, memS
 	defer machine.Unlock()
 
 	// create the machine
-	err := machine.create(m.ID, m.Shell, m.Name, vCPUCount, memSizeMiB, htEnabled, bandwidth, kernel, rootfs, bootparams, o.networkInterface)
+	err := machine.create(m.ID, m.Shell, m.Name, vCPUCount, memSizeMiB, htEnabled, diskSizeMiB, bandwidth, kernel, rootfs, bootparams, o.networkInterface)
 
 	if err != nil {
 		return errors.WithStack(err)

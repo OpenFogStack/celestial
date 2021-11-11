@@ -29,7 +29,7 @@ of networking settings so we can't guarantee that it doesn't destroy any of your
 other stuff.
 
 Please note that the article is still pending publication, but [a preprint is
-available on arXiv](https://www.youtube.com/watch?v=W2jZMtG2UAw).
+not yet available on arXiv](https://www.youtube.com/watch?v=W2jZMtG2UAw).
 
 A full list of our [publications](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/)
 and [prototypes](https://www.mcc.tu-berlin.de/menue/forschung/prototypes/parameter/en/)
@@ -127,17 +127,25 @@ reachable from your servers.
 #### Python3
 
 To run the client with Python3, make sure you have `python3` and `pip`/`pip3` installed.
+We recommend setting up a virtual environment (`venv`) for Celestial:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
 Install the dependencies with:
 
 ```sh
-pip3 install -r requirements.txt --user
+python3 -m pip install -r requirements.txt
 ```
 
-Additionally, install the VTK package to enable the animation (requires a somewhat
-up-to-date computer):
+Additionally, install the `VTK` and `seaborn` packages to enable the animation
+(requires a somewhat up-to-date computer):
 
 ```sh
-pip3 install vtk --user
+python3 -m pip install vtk
+python3 -m pip install vtk
 ```
 
 Then run the client with:
@@ -152,6 +160,7 @@ To run the client from within Docker, have `docker` installed and run:
 
 ```sh
 # build the container
+# this builds python-igraph from source, don't worry if it takes a while
 docker build -t celestial .
 # run the container with your config file mapped as a volume
 docker run --rm -it -v $(pwd)/[YOUR-CONFIG-FILE]:/config.toml celestial /config.toml
@@ -173,7 +182,7 @@ docker run --rm -it -p8000:8000 \
 ### Server
 
 You can run as many servers as you want, Celestial will inform you whether
-resources are appropriately allocated for the microVMs you're simulating.
+resources are appropriately allocated for the microVMs you're planning to run.
 
 We recommend that you run identical servers, that just makes it easier.
 How about cloud VMs?
@@ -196,7 +205,7 @@ could lead to conflicts with the Firecracker networks.
 #### A Word On Virtualization Capabilities
 
 To use Firecracker on cloud VMs, those must support what is called _nested virtualization_.
-Not all cloud VMs support this.
+Not all cloud VMs support this, e.g., on AWS EC2 you must use `metal` instances.
 
 You can read more about this setup [here](https://github.com/firecracker-microvm/firecracker/blob/main/docs/dev-machine-setup.md).
 
@@ -251,11 +260,10 @@ We don't make compiled versions of the server software available at the moment.
 To compile the celestial binary, use `go` >1.16:
 
 ```sh
-go build -o celestial.bin .
+GOOS=linux GOARCH=amd64 go build -o celestial.bin .
 ```
 
 This should output a `celestial.bin` binary for you.
-Configure this depending on your operating system or processor architecture.
 
 #### Running the Server Software
 
@@ -369,32 +377,20 @@ information on how to do that.
 
 You also need a filesystem that has your application and any dependencies.
 You can either create this directly on your machine or using a Docker container.
+Celestial uses union filesystems.
+Instead of creating thousands of copies of the same disk image, we have one that
+has all the data but is read-only, and we then create a writable overlay for each
+machine, which helps with storage.
 
 ##### Directly on Your Machine
 
-This documentation is adapted from the [UNIK documentation](https://github.com/solo-io/unik/blob/master/docs/compilers/firecracker/make_artifacts.md).
+This documentation is adapted from the [UNIK documentation](https://github.com/solo-io/unik/blob/master/docs/compilers/firecracker/make_artifacts.md)
+with additional help by [Nils](https://github.com/njapke/overlayfs-in-firecracker).
 
 The easiest way to get started with this is to use a base filesystem that is already
 finished.
 To that end, we'll be extracting files from alpine Linux.
-
-But first, we will need to create an empty `ext4` filesystem:
-
-```sh
-# put 50MB of zeros into rootfs
-dd if=/dev/zero of=rootfs bs=1M count=50
-# make an ext4 filesystem
-mkfs.ext4 rootfs
-```
-
-Now, we want to mount that filesystem so we can copy files into it:
-
-```sh
-mkdir tmp
-sudo mount rootfs tmp -o loop
-```
-
-We can now pull an alpine Linux image and extract that:
+Pull an alpine Linux image and extract that
 
 ```sh
 # get our base filesystem
@@ -404,7 +400,8 @@ wget http://dl-cdn.alpinelinux.org/alpine/v3.8/releases/x86_64/alpine-minirootfs
 mkdir -p minirootfs
 tar xzf ../alpine-minirootfs-3.8.1-x86_64.tar.gz -C minirootfs
 
-# copy
+# create a new empty file system and copy
+mkdir tmp
 cp -r minirootfs/* tmp/
 ```
 
@@ -455,6 +452,15 @@ ttyS0::respawn:/bin/ash /start.sh
 `start-script`:
 
 ```sh
+# in addition to the base file system, here we mount our overlay
+/bin/mount -t ext4 "/dev/$overlay_root" /overlay
+mkdir -p /overlay/root /overlay/work
+
+/bin/mount \
+    -o noatime,lowerdir=/,upperdir=/overlay/root,workdir=/overlay/work \
+    -t overlay "overlayfs:/overlay/root" /mnt
+pivot_root /mnt /mnt/rom
+
 # do some minimal init
 rc-service sysfs start
 rc-service networking start
@@ -466,12 +472,18 @@ rc-service networking start
 reboot
 ```
 
-We can copy these files into our custom filesystem as well:
+We need to copy these files into our custom filesystem as well:
 
 ```sh
 cat interfaces | sudo tee ./tmp/etc/network/interfaces
 cat inittab | sudo tee ./tmp/etc/inittab
 cat start-script | sudo tee ./tmp/start.sh
+
+# these are the mount points we need to create
+sudo mkdir -p ./tmp/overlay/root \
+    ./tmp/overlay/work \
+    ./tmp/mnt \
+    ./tmp/rom
 ```
 
 You can see from the `start-script` that it runs a program called `/usr/local/bin/program`.
@@ -496,14 +508,13 @@ apk add -u openrc ca-certificates
 exit
 ```
 
-Now all we need to do is unmount the filesystem and remove our mount point:
+Now all we need to do is build a `squashfs` filesystem from our files:
 
 ```sh
-sudo umount tmp
-rmdir tmp
+sudo mksquashfs ./tmp rootfs.img -noappend
 ```
 
-Then you can use `rootfs` as a root filesystem for your machines.
+Then you can use `rootfs.img` as a root filesystem for your machines.
 
 ##### Using Docker
 
@@ -545,15 +556,10 @@ To build your rootFS, use the container we have just created:
 docker run --rm --privileged -v [PATH_TO_APP.SH]:/client.sh \
     -v [OPTIONAL_PATH_TO_ADDITIONAL_FILES]:/files \
     -v [OPTIONAL_PATH_TO_PREPARATION_SCRIPT]:/base.sh \
-    -v $(pwd):/opt/code rootfsbuilder [SIZE] [OUTPUT]
+    -v $(pwd):/opt/code rootfsbuilder [OUTPUT]
 ```
 
 You must run the container as `--privileged` to allow it to mount the new filesystem.
-
-Set `SIZE` to the size of your rootFS in MB.
-The base filesystem is 5MB in size.
-If you get a `no space left on device` error during the build process, this is a
-likely cause.
 
 The important part is how the files are mapped into the container.
 Your `app.sh` must be mounted as a volume in `/app.sh`.
@@ -685,6 +691,11 @@ argpo = 0.0
 vcpu_count = 1
 # Set the memory allocation for each server in MiB.
 mem_size_mib = 128
+# Set the maximum disk size for your machine. An empty sparse file will be
+# created with a MAXIMUM size of disk_size_mib, and that file expands as your
+# machine writes into it. Depending on the storage available on your hosts, you
+# may run into problems.
+disk_size_mib = 20_000
 # You can enable Hyperthreading for your microVMs. The default for this setting
 # is "off".
 ht_enabled = false
@@ -702,7 +713,7 @@ ht_enabled = false
 #   quiet
 #   ipv6.disable=1
 #   nomodules
-#   rw
+#   overlay_root=vdb
 #
 # Additionally, Firecracker passes these parameters:
 #
@@ -717,7 +728,7 @@ bootparams = "8250.nr_uarts=0"
 kernel = "test.bin"
 # Specify the root filesystem image to use for your microVMs. The filename you
 # specify here must be available in the "/celestial" folder on your servers.
-rootfs = "rootfs.ext4"
+rootfs = "rootfs.img"
 # You can specify which host a machine or group of machines should be deployed
 # to by setting the hostaffinity parameter. This parameter should be a list of
 # integers in the range [0, len(hosts)] - this skips the normal even
@@ -791,10 +802,10 @@ long = 13.32666938
 # By default, ground stations inherit the computeparams parameters defined
 # before, but those can of course be overridden. Generally, you may want to
 # allocate more resources at ground stations.
-# each ground station needs compute params
 [groundstation.computeparams]
 vcpu_count = 4
 mem_size_mib = 8192
+disk_size_mib = 5_000
 ht_enabled = true
 hostaffinity = [1]
 
@@ -844,6 +855,17 @@ root hard nproc 64000
 
 This sets both file handler and process limits to 64,000, which should be enough
 for most use cases.
+
+#### ARP Cache
+
+To avoid garbage collection in the ARP cache, you may need to resize ARP cache
+thresholds depending on the number of machines you plan to run.
+
+```sh
+sudo sysctl -w net.ipv4.neigh.default.gc_thresh1=2048
+sudo sysctl -w net.ipv4.neigh.default.gc_thresh2=4096
+sudo sysctl -w net.ipv4.neigh.default.gc_thresh3=8192
+```
 
 #### Randomness
 
@@ -1089,9 +1111,10 @@ Returns:
   "compute": {
     "vcpu": 1,
     "mem": 128,
+    "disk": 20000,
     "ht": false,
     "kernel": "test.bin",
-    "rootfs": "empty.ext4"
+    "rootfs": "empty.img"
   }
 }
 ```
@@ -1151,9 +1174,10 @@ Returns:
   "compute": {
     "vcpu": 2,
     "mem": 256,
+    "disk": 5000,
     "ht": false,
     "kernel": "test.bin",
-    "rootfs": "tester.ext4"
+    "rootfs": "tester.img"
   },
   "connectedSats": [
     { "shell": 0, "sat": 0 },
@@ -1252,11 +1276,10 @@ a lot of data to your host disk in this way can be slow.
 
 If your software manipulates files on your microVM filesystem, you also have the
 option to retrieve those files later.
-Celestial creates a copy of your configured root filesystem for each microVM as
-`[FILESYSTEM_NAME]-ce[SHELL]-[ID]` for satellites or `[FILESYSTEM_NAME]-ce[NAME]`
-for ground stations.
-Note that if you use multiple hosts, the filesystem copy will only be created on
-the host that hosts that particular machine.
+Celestial creates an overlay filesystem for each microVM as
+`ce[SHELL]-[ID].ext4` for satellites or `ce[NAME].ext4` for ground stations.
+Note that if you use multiple hosts, the filesystem will only be created on the
+host that hosts that particular machine.
 
 You can mount this filesystem to copy files (either directly on the host or by
 downloading a copy of the filesystem).
@@ -1268,7 +1291,7 @@ For example, to copy a file named `output.csv` from the filesystem of satellite
 sudo mkdir -p ./tmp-dir
 
 # mount the filesystem
-sudo mount /celestial/satellite.ext4-ce1-840 ./tmp-dir -o loop
+sudo mount /celestial/ce1-840.ext4 ./tmp-dir -o loop
 
 # copy the relevant file to your directory
 sudo cp ./tmp-dir/output.csv sat1-840-output.csv

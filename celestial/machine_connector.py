@@ -38,7 +38,7 @@ class MachineConnector():
         self.id = id
         self.name = name
 
-    def create_machine(self, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, kernel: str, rootfs: str, bootparams: str, active: bool, bandwidth: int) -> None:
+    def create_machine(self, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, disk_size_mib: int, kernel: str, rootfs: str, bootparams: str, active: bool, bandwidth: int) -> None:
 
         cmr = celestial_pb2.CreateMachineRequest()
         cmr.machine.shell = self.shell
@@ -48,6 +48,7 @@ class MachineConnector():
         cmr.firecrackerconfig.vcpu = vcpu_count
         cmr.firecrackerconfig.mem = mem_size_mib
         cmr.firecrackerconfig.ht = ht_enabled
+        cmr.firecrackerconfig.disk = disk_size_mib
         cmr.firecrackerconfig.kernel = kernel
         cmr.firecrackerconfig.rootfs = rootfs
         cmr.firecrackerconfig.bootparams = bootparams

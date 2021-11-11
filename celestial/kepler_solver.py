@@ -21,7 +21,7 @@ import math
 
 EARTH_RADIUS = 6371000
 
-STD_GRAVITATIONAL_PARAMATER_EARTH = 3.986004418e14
+STD_GRAVITATIONAL_PARAMETER_EARTH = 3.986004418e14
 
 # number of seconds per earth rotation (day)
 SECONDS_PER_DAY = 86400
@@ -51,7 +51,7 @@ class KeplerSolver():
 
         raan_offsets = [(self.arcOfAscendingNodes / self.number_of_planes)* i for i in range(0, self.number_of_planes)]
 
-        self.period = int(2.0 * math.pi * math.sqrt(math.pow(self.semi_major_axis, 3) / STD_GRAVITATIONAL_PARAMATER_EARTH))
+        self.period = int(2.0 * math.pi * math.sqrt(math.pow(self.semi_major_axis, 3) / STD_GRAVITATIONAL_PARAMETER_EARTH))
 
         self.plane_solvers = []
         for raan in raan_offsets:

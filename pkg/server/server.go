@@ -141,7 +141,7 @@ func (s *Server) CreateMachine(_ context.Context, r *celestial.CreateMachineRequ
 		Shell: r.Machine.Shell,
 		ID:    r.Machine.Id,
 		Name:  r.Machine.Name,
-	}, r.Firecrackerconfig.Vcpu, r.Firecrackerconfig.Mem, r.Firecrackerconfig.Ht, r.Firecrackerconfig.Bootparams, r.Firecrackerconfig.Kernel, r.Firecrackerconfig.Rootfs, r.Networkconfig.Bandwidth, r.Status)
+	}, r.Firecrackerconfig.Vcpu, r.Firecrackerconfig.Mem, r.Firecrackerconfig.Ht, r.Firecrackerconfig.Disk, r.Firecrackerconfig.Bootparams, r.Firecrackerconfig.Kernel, r.Firecrackerconfig.Rootfs, r.Networkconfig.Bandwidth, r.Status)
 
 	if err != nil {
 		log.Errorf("%+v\n", err)

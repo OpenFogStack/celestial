@@ -17,35 +17,47 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# $1 = size of rootfs in MB
-# $2 = filename for your rootfs
-
-dd if=/dev/zero of=rootfs bs=1M count="$1"
-mkfs.ext4 rootfs
+# $1 = filename for your rootfs
 
 mkdir -p ./tmp
-mount rootfs ./tmp -o loop
 
 cp -r  minirootfs/* ./tmp/
-
-# if you don't do this, apk can't access its repositories
-echo nameserver 1.1.1.1 > ./tmp/etc/resolv.conf
-cp interfaces ./tmp/etc/network/interfaces
-cp inittab ./tmp/etc/inittab
-cp start-script ./tmp/start.sh
-cp /app.sh ./tmp/app.sh
 
 if [ -d "/files" ]; then
     cp -rv /files/* ./tmp/
 fi
 
+# if you don't do this, apk can't access its repositories
+ls ./tmp/etc/
+cat ./tmp/etc/resolv.conf
+echo nameserver 2001:4860:4860::8888 > ./tmp/etc/resolv.conf
+ping -c 4 dl-cdn.alpinelinux.org
+
 cat > ./tmp/prepare.sh <<EOF
+cat /etc/resolv.conf
+ip a s
+ping -c 4 151.101.114.133
+ping -c 4 8.8.8.8
+ping -c 4 dl-cdn.alpinelinux.org
+ping -c 4 google.com
+wget https://dl-cdn.alpinelinux.org/alpine/v3.14/main/x86_64/APKINDEX.tar.gz
+apk -vv update
 passwd root -d root
-apk add -u openrc ca-certificates
+# apk add -uvv openrc ca-certificates
 exit
 EOF
 
 chroot ./tmp/ /bin/sh /prepare.sh
+
+cp interfaces ./tmp/etc/network/interfaces
+cp inittab ./tmp/etc/inittab
+cp start-script ./tmp/start.sh
+cp /app.sh ./tmp/app.sh
+# these are the mount points we need to create
+mkdir -p ./tmp/overlay/root \
+    ./tmp/overlay/work \
+    ./tmp/mnt \
+    ./tmp/rom
 
 if [ -f "/base.sh" ]; then
     cp /base.sh ./tmp/base.sh
@@ -55,7 +67,6 @@ fi
 
 rm ./tmp/prepare.sh
 
-umount ./tmp
-rmdir ./tmp
+mksquashfs ./tmp rootfs.img -noappend
 
-cp rootfs /opt/code/"$2"
+mv rootfs.img /opt/code/"$1"

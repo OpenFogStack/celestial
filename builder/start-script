@@ -15,6 +15,15 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+# in addition to the base file system, here we mount our overlay
+/bin/mount -t ext4 "/dev/$overlay_root" /overlay
+mkdir -p /overlay/root /overlay/work
+
+/bin/mount \
+    -o noatime,lowerdir=/,upperdir=/overlay/root,workdir=/overlay/work \
+    -t overlay "overlayfs:/overlay/root" /mnt
+pivot_root /mnt /mnt/rom
+
 # do some minimal init
 rc-service sysfs start
 rc-service networking start

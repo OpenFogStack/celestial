@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=b'Z\013.;celestial',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x0f\x63\x65lestial.proto\x12 openfogstack.celestial.celestial\"\x07\n\x05\x45mpty\"$\n\x08HostInfo\x12\x0b\n\x03\x63pu\x18\x01 \x01(\x04\x12\x0b\n\x03mem\x18\x02 \x01(\x04\"+\n\tReadyInfo\x12\r\n\x05ready\x18\x01 \x01(\x08\x12\x0f\n\x07\x63reated\x18\x02 \x01(\x04\"#\n\x05Shell\x12\n\n\x02id\x18\x01 \x01(\x04\x12\x0e\n\x06planes\x18\x02 \x01(\x04\"\x82\x01\n\x0bInitRequest\x12\x10\n\x08\x64\x61tabase\x18\x01 \x01(\x08\x12\x14\n\x0c\x64\x61tabaseHost\x18\x02 \x01(\t\x12\x12\n\nshellcount\x18\x03 \x01(\x04\x12\x37\n\x06shells\x18\x04 \x03(\x0b\x32\'.openfogstack.celestial.celestial.Shell\")\n\nRemoteHost\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04\x61\x64\x64r\x18\x02 \x01(\t\"f\n\x12InitRemotesRequest\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x41\n\x0bremotehosts\x18\x02 \x03(\x0b\x32,.openfogstack.celestial.celestial.RemoteHost\"2\n\x07Machine\x12\r\n\x05shell\x18\x01 \x01(\x03\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0c\n\x04name\x18\x03 \x01(\t\"n\n\x11\x46irecrackerConfig\x12\x0c\n\x04vcpu\x18\x01 \x01(\x04\x12\x0b\n\x03mem\x18\x02 \x01(\x04\x12\n\n\x02ht\x18\x03 \x01(\x08\x12\x0e\n\x06kernel\x18\x04 \x01(\t\x12\x0e\n\x06rootfs\x18\x05 \x01(\t\x12\x12\n\nbootparams\x18\x06 \x01(\t\"\"\n\rNetworkConfig\x12\x11\n\tbandwidth\x18\x01 \x01(\x04\"\xfa\x01\n\x14\x43reateMachineRequest\x12:\n\x07machine\x18\x01 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12N\n\x11\x66irecrackerconfig\x18\x02 \x01(\x0b\x32\x33.openfogstack.celestial.celestial.FirecrackerConfig\x12\x46\n\rnetworkconfig\x18\x03 \x01(\x0b\x32/.openfogstack.celestial.celestial.NetworkConfig\x12\x0e\n\x06status\x18\x04 \x01(\x08\"\xa0\x01\n\x1a\x43reateRemoteMachineRequest\x12:\n\x07machine\x18\x01 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12\x46\n\rnetworkconfig\x18\x03 \x01(\x0b\x32/.openfogstack.celestial.celestial.NetworkConfig\"b\n\x14ModifyMachineRequest\x12:\n\x07machine\x18\x01 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12\x0e\n\x06status\x18\x02 \x01(\x08\"\xd4\x01\n\x12ModifyLinksRequest\x12\x34\n\x01\x61\x18\x01 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12\x43\n\x06remove\x18\x02 \x03(\x0b\x32\x33.openfogstack.celestial.celestial.RemoveLinkRequest\x12\x43\n\x06modify\x18\x03 \x03(\x0b\x32\x33.openfogstack.celestial.celestial.ModifyLinkRequest\"I\n\x11RemoveLinkRequest\x12\x34\n\x01\x62\x18\x02 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\"m\n\x11ModifyLinkRequest\x12\x34\n\x01\x62\x18\x02 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12\x0f\n\x07latency\x18\x03 \x01(\x01\x12\x11\n\tbandwidth\x18\x04 \x01(\x04\x32\xd4\x06\n\tCelestial\x12\x62\n\x0bGetHostInfo\x12\'.openfogstack.celestial.celestial.Empty\x1a*.openfogstack.celestial.celestial.HostInfo\x12\x61\n\tHostReady\x12\'.openfogstack.celestial.celestial.Empty\x1a+.openfogstack.celestial.celestial.ReadyInfo\x12^\n\x04Init\x12-.openfogstack.celestial.celestial.InitRequest\x1a\'.openfogstack.celestial.celestial.Empty\x12l\n\x0bInitRemotes\x12\x34.openfogstack.celestial.celestial.InitRemotesRequest\x1a\'.openfogstack.celestial.celestial.Empty\x12`\n\x0cStartPeering\x12\'.openfogstack.celestial.celestial.Empty\x1a\'.openfogstack.celestial.celestial.Empty\x12p\n\rCreateMachine\x12\x36.openfogstack.celestial.celestial.CreateMachineRequest\x1a\'.openfogstack.celestial.celestial.Empty\x12p\n\rModifyMachine\x12\x36.openfogstack.celestial.celestial.ModifyMachineRequest\x1a\'.openfogstack.celestial.celestial.Empty\x12l\n\x0bModifyLinks\x12\x34.openfogstack.celestial.celestial.ModifyLinksRequest\x1a\'.openfogstack.celestial.celestial.EmptyB\rZ\x0b.;celestialb\x06proto3'
+  serialized_pb=b'\n\x0f\x63\x65lestial.proto\x12 openfogstack.celestial.celestial\"\x07\n\x05\x45mpty\"$\n\x08HostInfo\x12\x0b\n\x03\x63pu\x18\x01 \x01(\x04\x12\x0b\n\x03mem\x18\x02 \x01(\x04\"+\n\tReadyInfo\x12\r\n\x05ready\x18\x01 \x01(\x08\x12\x0f\n\x07\x63reated\x18\x02 \x01(\x04\"#\n\x05Shell\x12\n\n\x02id\x18\x01 \x01(\x04\x12\x0e\n\x06planes\x18\x02 \x01(\x04\"\x82\x01\n\x0bInitRequest\x12\x10\n\x08\x64\x61tabase\x18\x01 \x01(\x08\x12\x14\n\x0c\x64\x61tabaseHost\x18\x02 \x01(\t\x12\x12\n\nshellcount\x18\x03 \x01(\x04\x12\x37\n\x06shells\x18\x04 \x03(\x0b\x32\'.openfogstack.celestial.celestial.Shell\")\n\nRemoteHost\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04\x61\x64\x64r\x18\x02 \x01(\t\"f\n\x12InitRemotesRequest\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x41\n\x0bremotehosts\x18\x02 \x03(\x0b\x32,.openfogstack.celestial.celestial.RemoteHost\"2\n\x07Machine\x12\r\n\x05shell\x18\x01 \x01(\x03\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0c\n\x04name\x18\x03 \x01(\t\"|\n\x11\x46irecrackerConfig\x12\x0c\n\x04vcpu\x18\x01 \x01(\x04\x12\x0b\n\x03mem\x18\x02 \x01(\x04\x12\n\n\x02ht\x18\x03 \x01(\x08\x12\x0c\n\x04\x64isk\x18\x04 \x01(\x04\x12\x0e\n\x06kernel\x18\x05 \x01(\t\x12\x0e\n\x06rootfs\x18\x06 \x01(\t\x12\x12\n\nbootparams\x18\x07 \x01(\t\"\"\n\rNetworkConfig\x12\x11\n\tbandwidth\x18\x01 \x01(\x04\"\xfa\x01\n\x14\x43reateMachineRequest\x12:\n\x07machine\x18\x01 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12N\n\x11\x66irecrackerconfig\x18\x02 \x01(\x0b\x32\x33.openfogstack.celestial.celestial.FirecrackerConfig\x12\x46\n\rnetworkconfig\x18\x03 \x01(\x0b\x32/.openfogstack.celestial.celestial.NetworkConfig\x12\x0e\n\x06status\x18\x04 \x01(\x08\"\xa0\x01\n\x1a\x43reateRemoteMachineRequest\x12:\n\x07machine\x18\x01 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12\x46\n\rnetworkconfig\x18\x03 \x01(\x0b\x32/.openfogstack.celestial.celestial.NetworkConfig\"b\n\x14ModifyMachineRequest\x12:\n\x07machine\x18\x01 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12\x0e\n\x06status\x18\x02 \x01(\x08\"\xd4\x01\n\x12ModifyLinksRequest\x12\x34\n\x01\x61\x18\x01 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12\x43\n\x06remove\x18\x02 \x03(\x0b\x32\x33.openfogstack.celestial.celestial.RemoveLinkRequest\x12\x43\n\x06modify\x18\x03 \x03(\x0b\x32\x33.openfogstack.celestial.celestial.ModifyLinkRequest\"I\n\x11RemoveLinkRequest\x12\x34\n\x01\x62\x18\x02 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\"m\n\x11ModifyLinkRequest\x12\x34\n\x01\x62\x18\x02 \x01(\x0b\x32).openfogstack.celestial.celestial.Machine\x12\x0f\n\x07latency\x18\x03 \x01(\x01\x12\x11\n\tbandwidth\x18\x04 \x01(\x04\x32\xd4\x06\n\tCelestial\x12\x62\n\x0bGetHostInfo\x12\'.openfogstack.celestial.celestial.Empty\x1a*.openfogstack.celestial.celestial.HostInfo\x12\x61\n\tHostReady\x12\'.openfogstack.celestial.celestial.Empty\x1a+.openfogstack.celestial.celestial.ReadyInfo\x12^\n\x04Init\x12-.openfogstack.celestial.celestial.InitRequest\x1a\'.openfogstack.celestial.celestial.Empty\x12l\n\x0bInitRemotes\x12\x34.openfogstack.celestial.celestial.InitRemotesRequest\x1a\'.openfogstack.celestial.celestial.Empty\x12`\n\x0cStartPeering\x12\'.openfogstack.celestial.celestial.Empty\x1a\'.openfogstack.celestial.celestial.Empty\x12p\n\rCreateMachine\x12\x36.openfogstack.celestial.celestial.CreateMachineRequest\x1a\'.openfogstack.celestial.celestial.Empty\x12p\n\rModifyMachine\x12\x36.openfogstack.celestial.celestial.ModifyMachineRequest\x1a\'.openfogstack.celestial.celestial.Empty\x12l\n\x0bModifyLinks\x12\x34.openfogstack.celestial.celestial.ModifyLinksRequest\x1a\'.openfogstack.celestial.celestial.EmptyB\rZ\x0b.;celestialb\x06proto3'
 )
 
 
@@ -374,22 +374,29 @@ _FIRECRACKERCONFIG = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='kernel', full_name='openfogstack.celestial.celestial.FirecrackerConfig.kernel', index=3,
-      number=4, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
+      name='disk', full_name='openfogstack.celestial.celestial.FirecrackerConfig.disk', index=3,
+      number=4, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='rootfs', full_name='openfogstack.celestial.celestial.FirecrackerConfig.rootfs', index=4,
+      name='kernel', full_name='openfogstack.celestial.celestial.FirecrackerConfig.kernel', index=4,
       number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='bootparams', full_name='openfogstack.celestial.celestial.FirecrackerConfig.bootparams', index=5,
+      name='rootfs', full_name='openfogstack.celestial.celestial.FirecrackerConfig.rootfs', index=5,
       number=6, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='bootparams', full_name='openfogstack.celestial.celestial.FirecrackerConfig.bootparams', index=6,
+      number=7, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -407,7 +414,7 @@ _FIRECRACKERCONFIG = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=514,
-  serialized_end=624,
+  serialized_end=638,
 )
 
 
@@ -438,8 +445,8 @@ _NETWORKCONFIG = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=626,
-  serialized_end=660,
+  serialized_start=640,
+  serialized_end=674,
 )
 
 
@@ -491,8 +498,8 @@ _CREATEMACHINEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=663,
-  serialized_end=913,
+  serialized_start=677,
+  serialized_end=927,
 )
 
 
@@ -530,8 +537,8 @@ _CREATEREMOTEMACHINEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=916,
-  serialized_end=1076,
+  serialized_start=930,
+  serialized_end=1090,
 )
 
 
@@ -569,8 +576,8 @@ _MODIFYMACHINEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1078,
-  serialized_end=1176,
+  serialized_start=1092,
+  serialized_end=1190,
 )
 
 
@@ -615,8 +622,8 @@ _MODIFYLINKSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1179,
-  serialized_end=1391,
+  serialized_start=1193,
+  serialized_end=1405,
 )
 
 
@@ -647,8 +654,8 @@ _REMOVELINKREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1393,
-  serialized_end=1466,
+  serialized_start=1407,
+  serialized_end=1480,
 )
 
 
@@ -693,8 +700,8 @@ _MODIFYLINKREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1468,
-  serialized_end=1577,
+  serialized_start=1482,
+  serialized_end=1591,
 )
 
 _INITREQUEST.fields_by_name['shells'].message_type = _SHELL
@@ -850,8 +857,8 @@ _CELESTIAL = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1580,
-  serialized_end=2432,
+  serialized_start=1594,
+  serialized_end=2446,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetHostInfo',

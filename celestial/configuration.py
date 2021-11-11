@@ -60,6 +60,10 @@ COMPUTEPARAMS_SCHEMA = {
     "ht_enabled": {
         "type": "boolean",
     },
+    "disk_size_mib": {
+        "type": "integer",
+        "min": 1,
+    },
     "kernel": {
         "type": "string",
         "empty": False,
@@ -452,6 +456,7 @@ def config_object_from_configuration(config: typing.MutableMapping[str, typing.A
                 vcpu_count=s["computeparams"]["vcpu_count"],
                 mem_size_mib=s["computeparams"]["mem_size_mib"],
                 ht_enabled=s["computeparams"]["ht_enabled"],
+                disk_size_mib=s["computeparams"]["disk_size_mib"],
                 kernel=s["computeparams"]["kernel"],
                 rootfs=s["computeparams"]["rootfs"],
                 bootparams=s["computeparams"]["bootparams"],
@@ -482,6 +487,7 @@ def config_object_from_configuration(config: typing.MutableMapping[str, typing.A
                 vcpu_count=g["computeparams"]["vcpu_count"],
                 mem_size_mib=g["computeparams"]["mem_size_mib"],
                 ht_enabled=g["computeparams"]["ht_enabled"],
+                disk_size_mib=g["computeparams"]["disk_size_mib"],
                 kernel=g["computeparams"]["kernel"],
                 rootfs=g["computeparams"]["rootfs"],
                 bootparams=g["computeparams"]["bootparams"],

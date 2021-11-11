@@ -50,6 +50,7 @@ class ComputeParamsConfig():
         vcpu_count: int,
         mem_size_mib: int,
         ht_enabled: bool,
+        disk_size_mib: int,
         kernel: str,
         rootfs: str,
         bootparams: str,
@@ -58,6 +59,7 @@ class ComputeParamsConfig():
         self.vcpu_count = vcpu_count
         self.mem_size_mib = mem_size_mib
         self.ht_enabled = ht_enabled
+        self.disk_size_mib = disk_size_mib
         self.kernel = kernel
         self.rootfs = rootfs
         self.bootparams = bootparams

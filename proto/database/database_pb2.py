@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=b'Z\n.;database',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x0e\x64\x61tabase.proto\x12\x1fopenfogstack.celestial.database\x1a\x1fgoogle/protobuf/timestamp.proto\"\x07\n\x05\x45mpty\"|\n\x11\x43onstellationInfo\x12\r\n\x05model\x18\x01 \x01(\t\x12\x0e\n\x06shells\x18\x02 \x01(\r\x12H\n\x0egroundstations\x18\x03 \x03(\x0b\x32\x30.openfogstack.celestial.database.GroundStationId\"\x1d\n\x0cShellRequest\x12\r\n\x05shell\x18\x01 \x01(\r\"\x85\x01\n\x0bSGP4Options\x12-\n\tstarttime\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\r\n\x05model\x18\x02 \x01(\t\x12\x0c\n\x04mode\x18\x03 \x01(\t\x12\r\n\x05\x62star\x18\x04 \x01(\x01\x12\x0c\n\x04ndot\x18\x05 \x01(\x01\x12\r\n\x05\x61rgpo\x18\x06 \x01(\x01\"\xa7\x01\n\rNetworkConfig\x12\x11\n\tbandwidth\x18\x01 \x01(\r\x12\x16\n\x0eislpropagation\x18\x02 \x01(\x01\x12\x18\n\x10mincommsaltitude\x18\x03 \x01(\r\x12\x14\n\x0cminelevation\x18\x04 \x01(\x01\x12\x16\n\x0egstpropagation\x18\x05 \x01(\x01\x12#\n\x1bgroundstationconnectiontype\x18\x06 \x01(\t\"V\n\rComputeConfig\x12\x0c\n\x04vcpu\x18\x01 \x01(\r\x12\x0b\n\x03mem\x18\x02 \x01(\r\x12\n\n\x02ht\x18\x03 \x01(\x08\x12\x0e\n\x06kernel\x18\x04 \x01(\t\x12\x0e\n\x06rootfs\x18\x05 \x01(\t\"\x92\x03\n\tShellInfo\x12\x0e\n\x06planes\x18\x01 \x01(\r\x12\x0c\n\x04sats\x18\x02 \x01(\r\x12\x10\n\x08\x61ltitude\x18\x03 \x01(\x01\x12\x13\n\x0binclination\x18\x04 \x01(\x01\x12\x1c\n\x14\x61rcofascendingsnodes\x18\x05 \x01(\x01\x12\x14\n\x0c\x65\x63\x63\x65ntricity\x18\x06 \x01(\x01\x12@\n\nactiveSats\x18\x07 \x03(\x0b\x32,.openfogstack.celestial.database.SatelliteId\x12?\n\x07network\x18\x08 \x01(\x0b\x32..openfogstack.celestial.database.NetworkConfig\x12?\n\x07\x63ompute\x18\t \x01(\x0b\x32..openfogstack.celestial.database.ComputeConfig\x12?\n\x04sgp4\x18\n \x01(\x0b\x32,.openfogstack.celestial.database.SGP4OptionsH\x00\x88\x01\x01\x42\x07\n\x05_sgp4\")\n\x0bSatelliteId\x12\r\n\x05shell\x18\x01 \x01(\r\x12\x0b\n\x03sat\x18\x02 \x01(\r\"&\n\x03Pos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\"\xe4\x01\n\rSatelliteInfo\x12\x36\n\x08position\x18\x01 \x01(\x0b\x32$.openfogstack.celestial.database.Pos\x12\x0e\n\x06\x61\x63tive\x18\x02 \x01(\x08\x12\x43\n\rconnectedSats\x18\x03 \x03(\x0b\x32,.openfogstack.celestial.database.SatelliteId\x12\x46\n\x0c\x63onnectedGST\x18\x04 \x03(\x0b\x32\x30.openfogstack.celestial.database.GroundStationId\"\x1f\n\x0fGroundStationId\x12\x0c\n\x04name\x18\x01 \x01(\t\"\xb7\x02\n\x11GroundStationInfo\x12\x36\n\x08position\x18\x01 \x01(\x0b\x32$.openfogstack.celestial.database.Pos\x12\x10\n\x08latitude\x18\x02 \x01(\x01\x12\x11\n\tlongitute\x18\x03 \x01(\x01\x12?\n\x07network\x18\x04 \x01(\x0b\x32..openfogstack.celestial.database.NetworkConfig\x12?\n\x07\x63ompute\x18\x05 \x01(\x0b\x32..openfogstack.celestial.database.ComputeConfig\x12\x43\n\rconnectedSats\x18\x06 \x03(\x0b\x32,.openfogstack.celestial.database.SatelliteId\"\x8d\x01\n\x07Segment\x12\x13\n\x0bsourceShell\x18\x01 \x01(\x05\x12\x11\n\tsourceSat\x18\x02 \x01(\r\x12\x13\n\x0btargetShell\x18\x03 \x01(\x05\x12\x11\n\ttargetSat\x18\x04 \x01(\r\x12\r\n\x05\x64\x65lay\x18\x05 \x01(\x01\x12\x10\n\x08\x64istance\x18\x06 \x01(\x01\x12\x11\n\tbandwidth\x18\x07 \x01(\x01\"]\n\x0bPathRequest\x12\x13\n\x0bsourceShell\x18\x01 \x01(\x05\x12\x11\n\tsourceSat\x18\x02 \x01(\r\x12\x13\n\x0btargetShell\x18\x03 \x01(\x05\x12\x11\n\ttargetSat\x18\x04 \x01(\r\"@\n\x08PathInfo\x12\x34\n\x05paths\x18\x01 \x03(\x0b\x32%.openfogstack.celestial.database.Path\"v\n\x04Path\x12\x10\n\x08\x64istance\x18\x01 \x01(\x01\x12\r\n\x05\x64\x65lay\x18\x02 \x01(\x01\x12\x11\n\tbandwidth\x18\x03 \x01(\x01\x12:\n\x08segments\x18\x04 \x03(\x0b\x32(.openfogstack.celestial.database.Segment2\x9e\x04\n\x08\x44\x61tabase\x12k\n\rConstellation\x12&.openfogstack.celestial.database.Empty\x1a\x32.openfogstack.celestial.database.ConstellationInfo\x12\x62\n\x05Shell\x12-.openfogstack.celestial.database.ShellRequest\x1a*.openfogstack.celestial.database.ShellInfo\x12i\n\tSatellite\x12,.openfogstack.celestial.database.SatelliteId\x1a..openfogstack.celestial.database.SatelliteInfo\x12u\n\rGroundStation\x12\x30.openfogstack.celestial.database.GroundStationId\x1a\x32.openfogstack.celestial.database.GroundStationInfo\x12_\n\x04Path\x12,.openfogstack.celestial.database.PathRequest\x1a).openfogstack.celestial.database.PathInfoB\x0cZ\n.;databaseb\x06proto3'
+  serialized_pb=b'\n\x0e\x64\x61tabase.proto\x12\x1fopenfogstack.celestial.database\x1a\x1fgoogle/protobuf/timestamp.proto\"\x07\n\x05\x45mpty\"|\n\x11\x43onstellationInfo\x12\r\n\x05model\x18\x01 \x01(\t\x12\x0e\n\x06shells\x18\x02 \x01(\r\x12H\n\x0egroundstations\x18\x03 \x03(\x0b\x32\x30.openfogstack.celestial.database.GroundStationId\"\x1d\n\x0cShellRequest\x12\r\n\x05shell\x18\x01 \x01(\r\"\x85\x01\n\x0bSGP4Options\x12-\n\tstarttime\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\r\n\x05model\x18\x02 \x01(\t\x12\x0c\n\x04mode\x18\x03 \x01(\t\x12\r\n\x05\x62star\x18\x04 \x01(\x01\x12\x0c\n\x04ndot\x18\x05 \x01(\x01\x12\r\n\x05\x61rgpo\x18\x06 \x01(\x01\"\xa7\x01\n\rNetworkConfig\x12\x11\n\tbandwidth\x18\x01 \x01(\r\x12\x16\n\x0eislpropagation\x18\x02 \x01(\x01\x12\x18\n\x10mincommsaltitude\x18\x03 \x01(\r\x12\x14\n\x0cminelevation\x18\x04 \x01(\x01\x12\x16\n\x0egstpropagation\x18\x05 \x01(\x01\x12#\n\x1bgroundstationconnectiontype\x18\x06 \x01(\t\"d\n\rComputeConfig\x12\x0c\n\x04vcpu\x18\x01 \x01(\r\x12\x0b\n\x03mem\x18\x02 \x01(\r\x12\n\n\x02ht\x18\x03 \x01(\x08\x12\x0c\n\x04\x64isk\x18\x04 \x01(\r\x12\x0e\n\x06kernel\x18\x05 \x01(\t\x12\x0e\n\x06rootfs\x18\x06 \x01(\t\"\x92\x03\n\tShellInfo\x12\x0e\n\x06planes\x18\x01 \x01(\r\x12\x0c\n\x04sats\x18\x02 \x01(\r\x12\x10\n\x08\x61ltitude\x18\x03 \x01(\x01\x12\x13\n\x0binclination\x18\x04 \x01(\x01\x12\x1c\n\x14\x61rcofascendingsnodes\x18\x05 \x01(\x01\x12\x14\n\x0c\x65\x63\x63\x65ntricity\x18\x06 \x01(\x01\x12@\n\nactiveSats\x18\x07 \x03(\x0b\x32,.openfogstack.celestial.database.SatelliteId\x12?\n\x07network\x18\x08 \x01(\x0b\x32..openfogstack.celestial.database.NetworkConfig\x12?\n\x07\x63ompute\x18\t \x01(\x0b\x32..openfogstack.celestial.database.ComputeConfig\x12?\n\x04sgp4\x18\n \x01(\x0b\x32,.openfogstack.celestial.database.SGP4OptionsH\x00\x88\x01\x01\x42\x07\n\x05_sgp4\")\n\x0bSatelliteId\x12\r\n\x05shell\x18\x01 \x01(\r\x12\x0b\n\x03sat\x18\x02 \x01(\r\"&\n\x03Pos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\"\xe4\x01\n\rSatelliteInfo\x12\x36\n\x08position\x18\x01 \x01(\x0b\x32$.openfogstack.celestial.database.Pos\x12\x0e\n\x06\x61\x63tive\x18\x02 \x01(\x08\x12\x43\n\rconnectedSats\x18\x03 \x03(\x0b\x32,.openfogstack.celestial.database.SatelliteId\x12\x46\n\x0c\x63onnectedGST\x18\x04 \x03(\x0b\x32\x30.openfogstack.celestial.database.GroundStationId\"\x1f\n\x0fGroundStationId\x12\x0c\n\x04name\x18\x01 \x01(\t\"\xb7\x02\n\x11GroundStationInfo\x12\x36\n\x08position\x18\x01 \x01(\x0b\x32$.openfogstack.celestial.database.Pos\x12\x10\n\x08latitude\x18\x02 \x01(\x01\x12\x11\n\tlongitute\x18\x03 \x01(\x01\x12?\n\x07network\x18\x04 \x01(\x0b\x32..openfogstack.celestial.database.NetworkConfig\x12?\n\x07\x63ompute\x18\x05 \x01(\x0b\x32..openfogstack.celestial.database.ComputeConfig\x12\x43\n\rconnectedSats\x18\x06 \x03(\x0b\x32,.openfogstack.celestial.database.SatelliteId\"\x8d\x01\n\x07Segment\x12\x13\n\x0bsourceShell\x18\x01 \x01(\x05\x12\x11\n\tsourceSat\x18\x02 \x01(\r\x12\x13\n\x0btargetShell\x18\x03 \x01(\x05\x12\x11\n\ttargetSat\x18\x04 \x01(\r\x12\r\n\x05\x64\x65lay\x18\x05 \x01(\x01\x12\x10\n\x08\x64istance\x18\x06 \x01(\x01\x12\x11\n\tbandwidth\x18\x07 \x01(\x01\"]\n\x0bPathRequest\x12\x13\n\x0bsourceShell\x18\x01 \x01(\x05\x12\x11\n\tsourceSat\x18\x02 \x01(\r\x12\x13\n\x0btargetShell\x18\x03 \x01(\x05\x12\x11\n\ttargetSat\x18\x04 \x01(\r\"@\n\x08PathInfo\x12\x34\n\x05paths\x18\x01 \x03(\x0b\x32%.openfogstack.celestial.database.Path\"v\n\x04Path\x12\x10\n\x08\x64istance\x18\x01 \x01(\x01\x12\r\n\x05\x64\x65lay\x18\x02 \x01(\x01\x12\x11\n\tbandwidth\x18\x03 \x01(\x01\x12:\n\x08segments\x18\x04 \x03(\x0b\x32(.openfogstack.celestial.database.Segment2\x9e\x04\n\x08\x44\x61tabase\x12k\n\rConstellation\x12&.openfogstack.celestial.database.Empty\x1a\x32.openfogstack.celestial.database.ConstellationInfo\x12\x62\n\x05Shell\x12-.openfogstack.celestial.database.ShellRequest\x1a*.openfogstack.celestial.database.ShellInfo\x12i\n\tSatellite\x12,.openfogstack.celestial.database.SatelliteId\x1a..openfogstack.celestial.database.SatelliteInfo\x12u\n\rGroundStation\x12\x30.openfogstack.celestial.database.GroundStationId\x1a\x32.openfogstack.celestial.database.GroundStationInfo\x12_\n\x04Path\x12,.openfogstack.celestial.database.PathRequest\x1a).openfogstack.celestial.database.PathInfoB\x0cZ\n.;databaseb\x06proto3'
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
@@ -294,15 +294,22 @@ _COMPUTECONFIG = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='kernel', full_name='openfogstack.celestial.database.ComputeConfig.kernel', index=3,
-      number=4, type=9, cpp_type=9, label=1,
+      name='disk', full_name='openfogstack.celestial.database.ComputeConfig.disk', index=3,
+      number=4, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='kernel', full_name='openfogstack.celestial.database.ComputeConfig.kernel', index=4,
+      number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='rootfs', full_name='openfogstack.celestial.database.ComputeConfig.rootfs', index=4,
-      number=5, type=9, cpp_type=9, label=1,
+      name='rootfs', full_name='openfogstack.celestial.database.ComputeConfig.rootfs', index=5,
+      number=6, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -320,7 +327,7 @@ _COMPUTECONFIG = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=556,
-  serialized_end=642,
+  serialized_end=656,
 )
 
 
@@ -419,8 +426,8 @@ _SHELLINFO = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=645,
-  serialized_end=1047,
+  serialized_start=659,
+  serialized_end=1061,
 )
 
 
@@ -458,8 +465,8 @@ _SATELLITEID = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1049,
-  serialized_end=1090,
+  serialized_start=1063,
+  serialized_end=1104,
 )
 
 
@@ -504,8 +511,8 @@ _POS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1092,
-  serialized_end=1130,
+  serialized_start=1106,
+  serialized_end=1144,
 )
 
 
@@ -557,8 +564,8 @@ _SATELLITEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1133,
-  serialized_end=1361,
+  serialized_start=1147,
+  serialized_end=1375,
 )
 
 
@@ -589,8 +596,8 @@ _GROUNDSTATIONID = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1363,
-  serialized_end=1394,
+  serialized_start=1377,
+  serialized_end=1408,
 )
 
 
@@ -656,8 +663,8 @@ _GROUNDSTATIONINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1397,
-  serialized_end=1708,
+  serialized_start=1411,
+  serialized_end=1722,
 )
 
 
@@ -730,8 +737,8 @@ _SEGMENT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1711,
-  serialized_end=1852,
+  serialized_start=1725,
+  serialized_end=1866,
 )
 
 
@@ -783,8 +790,8 @@ _PATHREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1854,
-  serialized_end=1947,
+  serialized_start=1868,
+  serialized_end=1961,
 )
 
 
@@ -815,8 +822,8 @@ _PATHINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1949,
-  serialized_end=2013,
+  serialized_start=1963,
+  serialized_end=2027,
 )
 
 
@@ -868,8 +875,8 @@ _PATH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2015,
-  serialized_end=2133,
+  serialized_start=2029,
+  serialized_end=2147,
 )
 
 _CONSTELLATIONINFO.fields_by_name['groundstations'].message_type = _GROUNDSTATIONID
@@ -1030,8 +1037,8 @@ _DATABASE = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=2136,
-  serialized_end=2678,
+  serialized_start=2150,
+  serialized_end=2692,
   methods=[
   _descriptor.MethodDescriptor(
     name='Constellation',

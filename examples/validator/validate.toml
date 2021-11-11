@@ -21,10 +21,11 @@ groundstationconnectiontype = "all"
 [computeparams]
 vcpu_count = 2
 mem_size_mib = 512
+disk_size_mib = 10
 ht_enabled = false
 bootparams = ""
 kernel = "vmlinux.bin"
-rootfs = "server.ext4"
+rootfs = "server.img"
 
 [[shell]]
 planes = 72
@@ -74,4 +75,5 @@ long = -121.8863286
 [[groundstation.computeparams]]
 vcpu_count = 4
 mem_size_mib = 4096
-rootfs = "validator.ext4"
+disk_size_mib = 100
+rootfs = "validator.img"

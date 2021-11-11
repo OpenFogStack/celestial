@@ -15,15 +15,16 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-FROM debian:latest
+FROM debian:buster
 
 RUN apt update
 RUN apt install -y wget
+RUN apt install -y squashfs-tools
 
 RUN mkdir minirootfs
-RUN wget http://dl-cdn.alpinelinux.org/alpine/v3.8/releases/x86_64/alpine-minirootfs-3.8.1-x86_64.tar.gz
+RUN wget http://dl-cdn.alpinelinux.org/alpine/v3.14/releases/x86_64/alpine-minirootfs-3.14.2-x86_64.tar.gz
 RUN cd minirootfs && \
-    tar xzf ../alpine-minirootfs-3.8.1-x86_64.tar.gz
+    tar xzf ../alpine-minirootfs-3.14.2-x86_64.tar.gz
 
 COPY inittab inittab
 COPY interfaces interfaces

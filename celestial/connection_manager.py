@@ -68,18 +68,18 @@ class ConnectionManager():
         for host in self.hosts:
             self.mutexes[host] = td.Semaphore(self.allowed_concurrent)
 
-    def __register(self, conn: MachineConnector, bandwidth: int, active: bool, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, kernel: str, rootfs: str, bootparams: str) -> None:
+    def __register(self, conn: MachineConnector, bandwidth: int, active: bool, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, disk_size_mib: int, kernel: str, rootfs: str, bootparams: str) -> None:
 
         self.mutexes[conn.host].acquire()
         try:
-            conn.create_machine(vcpu_count=vcpu_count, mem_size_mib=mem_size_mib, ht_enabled=ht_enabled, kernel=kernel, rootfs=rootfs, bootparams=bootparams, active=active, bandwidth=bandwidth)
+            conn.create_machine(vcpu_count=vcpu_count, mem_size_mib=mem_size_mib, ht_enabled=ht_enabled, disk_size_mib=disk_size_mib, kernel=kernel, rootfs=rootfs, bootparams=bootparams, active=active, bandwidth=bandwidth)
         except Exception as e:
             print("❌ caught exception while trying to create machine %d shell %d:" % (conn.id, conn.shell), e)
 
         self.mutexes[conn.host].release()
 
 
-    def register_machine(self, shell_no: int, id: int, bandwidth: int, active: bool, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, kernel: str, rootfs: str, bootparams: str, host_affinity: typing.List[int], name: str="") -> MachineConnector:
+    def register_machine(self, shell_no: int, id: int, bandwidth: int, active: bool, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, disk_size_mib: int, kernel: str, rootfs: str, bootparams: str, host_affinity: typing.List[int], name: str="") -> MachineConnector:
 
         # assign a random stub to this connection
         #
@@ -102,6 +102,7 @@ class ConnectionManager():
             "vcpu_count": vcpu_count,
             "mem_size_mib": mem_size_mib,
             "ht_enabled": ht_enabled,
+            "disk_size_mib": disk_size_mib,
             "kernel": kernel,
             "rootfs": rootfs,
             "bootparams": bootparams,

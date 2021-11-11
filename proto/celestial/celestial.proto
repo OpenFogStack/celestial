@@ -77,9 +77,10 @@ message FirecrackerConfig {
   uint64 vcpu = 1;
   uint64 mem = 2;
   bool ht = 3;
-  string kernel = 4;
-  string rootfs = 5;
-  string bootparams = 6;
+  uint64 disk = 4;
+  string kernel = 5;
+  string rootfs = 6;
+  string bootparams = 7;
 }
 
 message NetworkConfig { uint64 bandwidth = 1; }

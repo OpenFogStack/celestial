@@ -45,47 +45,24 @@ func makeMachineID(shell int64, id uint64) string {
 	return fmt.Sprintf("%d-%d", shell, id)
 }
 
-func prepareRootFS(rootFS string, machineID string) (string, error) {
-	targetFile := fmt.Sprintf("%s-ce%s", rootFS, machineID)
+func prepareRootFS(machineID string, diskSizeMiB uint64) (string, error) {
+	targetOverlayFile := fmt.Sprintf("ce%s.ext4", machineID)
 
-	sourceFileStat, err := os.Stat(rootFS)
-	if err != nil {
-		return targetFile, errors.WithStack(err)
+	// dd if=/dev/zero of=[TARGET_OVERLAY_FILE] conv=sparse bs=1M count=[DISK_SIZE]
+	cmd := exec.Command("dd", "if=/dev/zero", fmt.Sprintf("of=%s", targetOverlayFile), "conv=sparse", "bs=1M", fmt.Sprintf("count=%d", diskSizeMiB))
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return targetOverlayFile, errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	if !sourceFileStat.Mode().IsRegular() {
-		return targetFile, errors.Errorf("%s is not a regular file", rootFS)
+	// mkfs.ext4 [TARGET_OVERLAY_FILE]
+	cmd = exec.Command("mkfs.ext4", targetOverlayFile)
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return targetOverlayFile, errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	source, err := os.Open(rootFS)
-
-	if err != nil {
-		return targetFile, errors.WithStack(err)
-	}
-
-	defer func(source *os.File) {
-		err := source.Close()
-		if err != nil {
-			log.Error(err.Error())
-		}
-	}(source)
-
-	destination, err := os.Create(targetFile)
-
-	if err != nil {
-		return targetFile, errors.WithStack(err)
-	}
-
-	defer func(destination *os.File) {
-		err := destination.Close()
-		if err != nil {
-			log.Error(err.Error())
-		}
-	}(destination)
-
-	_, err = io.Copy(destination, source)
-
-	return targetFile, errors.WithStack(err)
+	return targetOverlayFile, nil
 }
 
 func getFirecrackerProcessRunner(socketPath string, outFile io.Writer, errFile io.Writer) (firecracker.Opt, error) {
@@ -142,7 +119,9 @@ func (lm *localmachine) initialize() error {
 		return errors.WithStack(err)
 	}
 
-	drive, err := prepareRootFS(path.Join(FCROOTPATH, lm.drivePath), lm.name)
+	rootDrive := path.Join(FCROOTPATH, lm.drivePath)
+
+	overlayDrive, err := prepareRootFS(lm.name, lm.diskSizeMiB)
 
 	if err != nil {
 		return errors.WithStack(err)
@@ -181,13 +160,21 @@ func (lm *localmachine) initialize() error {
 	m, err := firecracker.NewMachine(context.Background(), firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: path.Join(FCROOTPATH, lm.kernelImagePath),
-		KernelArgs:      "console=ttyS0 noapic reboot=k panic=1 pci=off tsc=reliable quiet ipv6.disable=1 nomodules rw" + lm.bootparams,
-		Drives: []models.Drive{{
-			DriveID:      firecracker.String("1"),
-			PathOnHost:   firecracker.String(drive),
-			IsRootDevice: firecracker.Bool(true),
-			IsReadOnly:   firecracker.Bool(false),
-		}},
+		KernelArgs:      "console=ttyS0 noapic reboot=k panic=1 pci=off tsc=reliable quiet ipv6.disable=1 nomodules overlay_root=vdb" + lm.bootparams,
+		Drives: []models.Drive{
+			{
+				DriveID:      firecracker.String("root"),
+				PathOnHost:   firecracker.String(rootDrive),
+				IsRootDevice: firecracker.Bool(true),
+				IsReadOnly:   firecracker.Bool(true),
+			},
+			{
+				DriveID:      firecracker.String("overlay"),
+				PathOnHost:   firecracker.String(overlayDrive),
+				IsRootDevice: firecracker.Bool(false),
+				IsReadOnly:   firecracker.Bool(false),
+			},
+		},
 		MachineCfg: models.MachineConfiguration{
 			HtEnabled:  firecracker.Bool(lm.htEnabled),
 			MemSizeMib: firecracker.Int64(int64(lm.memSizeMiB)),
@@ -250,8 +237,8 @@ func (lm *localmachine) initialize() error {
 	return nil
 }
 
-func (m *machine) create(i uint64, shell int64, name string, vCPUCount uint64, memSizeMiB uint64, htEnabled bool, bandwidth uint64, kernelImagePath string, drivePath string, bootparams string, hostInterface string) error {
-	log.Infof("Creating machine %d with %d vcpus, %d MiB memory, ht=%t", i, vCPUCount, memSizeMiB, htEnabled)
+func (m *machine) create(i uint64, shell int64, name string, vCPUCount uint64, memSizeMiB uint64, htEnabled bool, diskSizeMiB uint64, bandwidth uint64, kernelImagePath string, drivePath string, bootparams string, hostInterface string) error {
+	log.Infof("Creating machine %d with %d vcpus, %d MiB memory, %d MiB disk, ht=%t", i, vCPUCount, memSizeMiB, diskSizeMiB, htEnabled)
 
 	if name == "" {
 		name = makeMachineID(shell, i)
@@ -287,6 +274,7 @@ func (m *machine) create(i uint64, shell int64, name string, vCPUCount uint64, m
 
 	m.localmachine.drivePath = drivePath
 	m.localmachine.kernelImagePath = kernelImagePath
+	m.localmachine.diskSizeMiB = diskSizeMiB
 	m.localmachine.htEnabled = htEnabled
 	m.localmachine.memSizeMiB = memSizeMiB
 	m.localmachine.vCPUCount = vCPUCount
