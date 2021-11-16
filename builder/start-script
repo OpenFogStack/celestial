@@ -23,10 +23,14 @@ mkdir -p /overlay/root /overlay/work
     -o noatime,lowerdir=/,upperdir=/overlay/root,workdir=/overlay/work \
     -t overlay "overlayfs:/overlay/root" /mnt
 pivot_root /mnt /mnt/rom
+cd /
+mount --move /rom/sys /sys
+mount --move /rom/proc /proc
+mount --move /rom/dev /dev
 
 # do some minimal init
-rc-service sysfs start
-rc-service networking start
+rc-service sysfs restart
+rc-service networking restart
 
 # run program. the firecracker compiler would place this here.
 /bin/sh app.sh

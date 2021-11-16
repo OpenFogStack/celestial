@@ -46,8 +46,7 @@ const (
 	MASK        = "/26"
 
 	// setting the path directly means we don't have to consult lookpath for each command
-	// in theory we should probably add a LookPath to this
-	// TODO
+	// TODO: in theory we should probably add a LookPath to this
 	TC       = "/sbin/tc"
 	IPTABLES = "/sbin/iptables"
 	IPSET    = "/sbin/ipset"

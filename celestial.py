@@ -78,6 +78,7 @@ if __name__ == "__main__":
 
     animation_conn = None
     if config.animation:
+        print("🎨 Starting animation...")
         from celestial.animation import Animation
 
         animation_conn, animation_constellation_conn = mp.Pipe()
@@ -89,6 +90,7 @@ if __name__ == "__main__":
 
     db_conn = None
     if config.database:
+        print("📀 Starting database...")
         from celestial.database import Database
 
         db_conn, db_constellation_conn = mp.Pipe()
@@ -103,6 +105,7 @@ if __name__ == "__main__":
 
         database.start()
 
+    print("📠 Starting machine manager...")
     mm = mp.Process(target=MachineManager, kwargs={
         "shells": config.shells,
         "groundstations": config.groundstations,
@@ -112,6 +115,7 @@ if __name__ == "__main__":
 
     mm.start()
 
+    print("✨ Starting constellation...")
     c = Constellation(model=config.model, shells=config.shells, groundstations=config.groundstations, mm_conn=mm_conn, interval=config.interval, animate=config.animation, bbox=config.bbox, animation_conn=animation_conn, database=config.database, db_conn=db_conn)
 
     c.update()

@@ -23,7 +23,7 @@ vcpu_count = 2
 mem_size_mib = 512
 disk_size_mib = 10
 ht_enabled = false
-bootparams = ""
+bootparams = "random.trust_cpu=on"
 kernel = "vmlinux.bin"
 rootfs = "server.img"
 
@@ -72,7 +72,7 @@ name = "validator"
 lat = 37.3382082
 long = -121.8863286
 
-[[groundstation.computeparams]]
+[groundstation.computeparams]
 vcpu_count = 4
 mem_size_mib = 4096
 disk_size_mib = 100

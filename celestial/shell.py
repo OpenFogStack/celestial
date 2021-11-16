@@ -27,6 +27,7 @@ from .solver import Solver
 from .types import BoundingBoxConfig, GroundstationConfig, GroundstationConnectionTypeConfig, NetworkParamsConfig, Path, Segment
 
 import numba
+import tqdm
 
 EARTH_RADIUS = 6371000
 
@@ -391,40 +392,39 @@ class Shell():
 
         paths: typing.List[Path] = []
 
-        for sat_1 in targets:
+        def __get_paths(sat_1: int) -> typing.List[Path]:
 
-            consider_range = []
-            for sat_2 in targets:
-                if sat_1 < sat_2:
-                    consider_range.append(sat_2)
+            consider_sat = G.vs.select([sat_2 for sat_2 in targets if sat_1 < sat_2])
 
-            consider_sat = G.vs.select(consider_range)
+            sp = G.get_shortest_paths(v=sat_1, to=consider_sat,     weights="weight")
 
-            sp = G.get_shortest_paths(v=sat_1, to=consider_sat, weights="weight")
-
-            for path in sp:
-                eids = G.get_eids(path=path)
-                pathweight = 0
-                segments: typing.List[Segment] = []
-                for eid in eids:
-                    weight = (G.es)()[eid]["weight"]
-                    pathweight += weight
-                    segments.append(Segment(
-                        node_1=(G.es)()[eid].source,
-                        node_2=(G.es)()[eid].target,
-                        distance=weight,
-                        bandwidth=self.bandwidth,
-                        delay=weight * self.islpropagation,
-                    ))
-
-                paths.append(Path(
+            sat_paths = [
+                Path(
                     node_1= sat_1,
                     node_2=path[-1],
-                    delay=pathweight * self.islpropagation,
-                    distance=pathweight,
+                    delay=0.0,
+                    distance=0.0,
                     bandwidth=self.bandwidth,
-                    segments=segments,
-                ))
+                    segments=[Segment(
+                        node_1=(G.es)()[eid].source,
+                        node_2=(G.es)()[eid].target,
+                        distance=(G.es)()[eid]["weight"],
+                        bandwidth=self.bandwidth,
+                        delay=(G.es)()[eid]["weight"] * self.islpropagation,
+                    ) for eid in G.get_eids(path=path)],
+                ) for path in sp
+            ]
+
+            def __calc_distance(p: Path) -> Path:
+                p.distance = sum([x.distance for x in p.segments])
+                p.delay = p.distance * self.islpropagation
+
+                return p
+
+            return list(map(__calc_distance, sat_paths))
+
+        for sub_paths in map(__get_paths, tqdm.tqdm(targets)):
+            paths.extend(sub_paths)
 
         assert len(paths) == len_path_array
 

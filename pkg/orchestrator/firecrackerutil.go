@@ -46,7 +46,7 @@ func makeMachineID(shell int64, id uint64) string {
 }
 
 func prepareRootFS(machineID string, diskSizeMiB uint64) (string, error) {
-	targetOverlayFile := fmt.Sprintf("ce%s.ext4", machineID)
+	targetOverlayFile := path.Join(FCROOTPATH, fmt.Sprintf("ce%s.ext4", machineID))
 
 	// dd if=/dev/zero of=[TARGET_OVERLAY_FILE] conv=sparse bs=1M count=[DISK_SIZE]
 	cmd := exec.Command("dd", "if=/dev/zero", fmt.Sprintf("of=%s", targetOverlayFile), "conv=sparse", "bs=1M", fmt.Sprintf("count=%d", diskSizeMiB))
@@ -160,7 +160,7 @@ func (lm *localmachine) initialize() error {
 	m, err := firecracker.NewMachine(context.Background(), firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: path.Join(FCROOTPATH, lm.kernelImagePath),
-		KernelArgs:      "console=ttyS0 noapic reboot=k panic=1 pci=off tsc=reliable quiet ipv6.disable=1 nomodules overlay_root=vdb" + lm.bootparams,
+		KernelArgs:      "console=ttyS0 noapic reboot=k panic=1 pci=off tsc=reliable quiet ipv6.disable=1 nomodules overlay_root=vdb " + lm.bootparams,
 		Drives: []models.Drive{
 			{
 				DriveID:      firecracker.String("root"),

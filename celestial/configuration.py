@@ -51,7 +51,6 @@ NETWORKPARAMS_SCHEMA = {
 COMPUTEPARAMS_SCHEMA = {
     "vcpu_count": {
         "type": "integer",
-        "min": 1,
     },
     "mem_size_mib": {
         "type": "integer",

@@ -37,6 +37,9 @@ fi
 cat > ./tmp/prepare.sh <<EOF
 passwd root -d root
 apk add -u openrc ca-certificates
+rc-update add devfs boot
+rc-update add procfs boot
+rc-update add sysfs boot
 exit
 EOF
 
@@ -53,12 +56,6 @@ mkdir -p ./tmp/overlay/root \
     ./tmp/overlay/work \
     ./tmp/mnt \
     ./tmp/rom
-
-if [ -f "/base.sh" ]; then
-    cp /base.sh ./tmp/base.sh
-    chroot ./tmp/ /bin/sh base.sh
-    rm ./tmp/base.sh
-fi
 
 # now switch back to a public name server
 echo nameserver 1.1.1.1 > ./tmp/etc/resolv.conf
