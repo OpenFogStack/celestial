@@ -1162,7 +1162,7 @@ Returns:
 {
   "position": { "x": 6296904, "y": 752587, "z": 611161 },
   "latitude": 5.504684,
-  "longitute": 5.765499,
+  "longitude": 5.765499,
   "network": {
     "bandwidth": 10000,
     "islpropagation": 0.000003336,

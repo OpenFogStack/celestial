@@ -93,19 +93,33 @@ message Pos {
 message SatelliteInfo {
   Pos position = 1;
   bool active = 2;
-  repeated SatelliteId connectedSats = 3;
+  repeated ConnectedSatInfo connectedSats = 3;
   repeated GroundStationId connectedGST = 4;
 }
+
+message ConnectedSatInfo {
+  SatelliteId sat = 1;
+  double distance = 2;
+  double delay = 3;
+  double bandwidth = 4;
+}
+
+message ConnectedGSTInfo {
+    GroundStationId gst = 1;
+    double distance = 2;
+    double delay = 3;
+    double bandwidth = 4;
+  }
 
 message GroundStationId { string name = 1; }
 
 message GroundStationInfo {
   Pos position = 1;
   double latitude = 2;
-  double longitute = 3;
+  double longitude = 3;
   NetworkConfig network = 4;
   ComputeConfig compute = 5;
-  repeated SatelliteId connectedSats = 6;
+  repeated ConnectedSatInfo connectedSats = 6;
 }
 
 message Segment {

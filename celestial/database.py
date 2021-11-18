@@ -227,13 +227,16 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
             links = [x for x in self.paths[shell] if len(x.segments) == 1 and x.node_1 == sat or x.node_2 == sat]
 
             for l in links:
-                sat2 = database_pb2.SatelliteId()
-                sat2.shell = shell
+                sat2 = database_pb2.ConnectedSatInfo()
+                sat2.sat.shell = shell
                 if l.node_1 == sat:
-                    sat2.sat = l.node_2
+                    sat2.sat.sat = l.node_2
                 elif l.node_2 == sat:
-                    sat2.sat = l.node_1
+                    sat2.sat.sat = l.node_1
                 else: continue
+                sat2.bandwidth = l.bandwidth
+                sat2.delay = l.distance
+                sat2.distance = l.distance
                 si.connectedSats.append(sat2)
 
             gst_links = [x for x in self.gst_sat_paths[shell] if len(x.segments) == 1 and x.node_2 == sat]
@@ -281,7 +284,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
             gsi.position.z = pos["z"]
 
             gsi.latitude = self.groundstations[index].lat
-            gsi.longitute = self.groundstations[index].lng
+            gsi.longitude = self.groundstations[index].lng
 
             gsi.network.islpropagation = self.groundstations[index].networkparams.islpropagation
             gsi.network.bandwidth = self.groundstations[index].networkparams.bandwidth
@@ -301,9 +304,12 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
                 gst_links = [x for x in self.gst_sat_paths[shell_no] if len(x.segments) == 1 and x.node_1 == index]
 
                 for l in gst_links:
-                    sat = database_pb2.SatelliteId()
-                    sat.shell = shell_no
-                    sat.sat = l.node_2
+                    sat = database_pb2.ConnectedSatInfo()
+                    sat.sat.shell = shell_no
+                    sat.sat.sat = l.node_2
+                    sat.bandwidth = l.bandwidth
+                    sat.delay = l.delay
+                    sat.distance = l.distance
 
                     gsi.connectedSats.append(sat)
 

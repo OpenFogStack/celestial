@@ -94,7 +94,7 @@ class Shell():
         solver: Solver,
         include_paths: bool=True):
 
-        self.profile_time = False
+        self.profile_time = True
 
         self.current_time = 0
 

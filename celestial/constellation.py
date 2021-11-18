@@ -64,7 +64,9 @@ class Constellation():
 
                 solver = KeplerSolver(planes=shell.planes, sats=shell.sats, altitude=shell.altitude, inclination=shell.inclination, arcOfAscendingNodes=shell.arcofascendingnodes, eccentricity=shell.eccentricity)
 
-            s = Shell(planes=shell.planes, sats=shell.sats, altitude=shell.altitude, bbox=bbox, groundstations=groundstations, network=shell.networkparams, solver=solver, include_paths=not animate_only)
+            # TODO: adapted for Nils - normally, animation_only means that paths are not calculated
+            # s = Shell(planes=shell.planes, sats=shell.sats, altitude=shell.altitude, bbox=bbox, groundstations=groundstations, network=shell.networkparams, solver=solver, include_paths=not animate_only)
+            s = Shell(planes=shell.planes, sats=shell.sats, altitude=shell.altitude, bbox=bbox, groundstations=groundstations, network=shell.networkparams, solver=solver, include_paths=True)
 
             self.shells.append(s)
 

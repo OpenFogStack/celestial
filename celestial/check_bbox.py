@@ -104,7 +104,7 @@ def check_bbox(bbox: BoundingBoxConfig, shells: typing.List[ShellConfig], ground
 
         if not is_in_bbox(g.lat, g.lng, bbox):
             print("\033[91m❌ Ground station %s is not within your bounding box!\033[0m" % g.name)
-            return False
+            ok =  False
 
         d = sat_dist(max_altitude, g.networkparams.minelevation)
 
