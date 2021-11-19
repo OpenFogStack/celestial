@@ -379,7 +379,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
 
                 found = False
                 for p in self.paths[ss]:
-                    if (p.node_1 == int(s) and p.node_2 == int(t)) or (p.node_2 == int(s) and p.node_1 == int(t)):
+                    if ((p.node_1 == int(s) and p.node_2 == int(t)) or (p.node_2 == int(s) and p.node_1 == int(t))) and not p.node_2_is_gst and not p.node_1_is_gst:
                         path = database_pb2.Path()
                         path.distance = p.distance
                         path.delay = p.delay
@@ -429,8 +429,8 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
                     return pi
 
                 for p in self.gst_sat_paths[ts]:
-                    if p.node_2 == int(t):
-                        if p.node_1 == int(s):
+                    if (p.node_2 == int(t) and not p.node_2_is_gst) or (p.node_1 == int(t) and not p.node_1_is_gst):
+                        if (p.node_2 == int(s) and p.node_2_is_gst) or (p.node_1 == int(s) and p.node_1_is_gst):
                             path = database_pb2.Path()
                             path.distance = p.distance
                             path.delay = p.delay
@@ -481,7 +481,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
 
                 for shell_no in range(len(self.shells)):
                     for p in self.gst_paths[shell_no]:
-                        if (p.node_1 == int(s) and p.node_2 == int(t)) or (p.node_1 == int(t) and p.node_2 == int(s)):
+                        if ((p.node_1 == int(s) and p.node_2 == int(t)) or (p.node_1 == int(t) and p.node_2 == int(s))) and p.node_2_is_gst and p.node_1_is_gst:
 
                             path = database_pb2.Path()
                             path.distance = p.distance

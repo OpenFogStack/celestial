@@ -21,6 +21,9 @@ import time as tm
 
 import igraph as ig
 
+import scipy.sparse
+import scipy.sparse.csgraph
+
 import typing
 
 from .solver import Solver
@@ -129,7 +132,8 @@ class Shell():
 
         self.paths: typing.List[Path] = []
 
-        self.gst_array = np.zeros(len(groundstations),dtype=GROUNDPOINT_DTYPE)
+        self.total_gst = len(groundstations)
+        self.gst_array = np.zeros(self.total_gst,dtype=GROUNDPOINT_DTYPE)
 
         self.gst_links_array_size = LINK_ARRAY_SIZE
         self.gst_links_array = np.zeros(self.gst_links_array_size, dtype=GST_SAT_LINK_DTYPE)
@@ -201,8 +205,6 @@ class Shell():
         if self.include_paths:
             self.calculate_paths()
 
-            self.calculate_gst_paths()
-
     def set_time(self, time: int) -> None:
 
         start_time = tm.time()
@@ -249,9 +251,6 @@ class Shell():
             self.calculate_paths()
 
         paths_time = tm.time()
-
-        if self.include_paths:
-            self.calculate_gst_paths()
 
         gst_paths_time = tm.time()
 
@@ -382,179 +381,254 @@ class Shell():
         targets = set([x["ID"] for x in self.satellites_array if x["in_bbox"]]).union([x["sat"] for x in self.gst_links_array[:self.total_gst_links]])
 
         # generate a network graph
-
-        edges = [[n["node_1"], n["node_2"], n["distance"]] for n in self.link_array[:self.total_links] if n["node_1"] >= 0 and n["node_2"] >= 0]
-
-        G = ig.Graph.TupleList(edges, weights=True)
+        # start with sat links
+        edges = [[e["node_1"], e["node_2"], e["distance"]] for e in self.link_array[:self.total_links] if e["node_1"] >= 0 and e["node_2"] >= 0]
 
         # gaussian sum of len(targets)-1 because we don't store stuff twice
         len_path_array = int( ( (len(targets)-1) * len(targets) ) /2 )
 
         paths: typing.List[Path] = []
+        gst_paths: typing.List[Path] = []
+        gst_sat_paths: typing.List[Path] = []
 
-        def __get_paths(sat_1: int) -> typing.List[Path]:
+        if len(targets) > math.sqrt(self.total_sats):
+            # use the more efficient floyd warshall algorithm for large graphs where we need to find everything
 
-            consider_sat = G.vs.select([sat_2 for sat_2 in targets if sat_1 < sat_2])
+            # add gst links
+            # simply add them add the end, so the first gst id is self.total_sats
+            print("have %d sat edges" % len(edges))
+            edges.extend([[e["gst"]+self.total_sats, e["sat"], e["distance"]] for e in self.gst_links_array[:self.total_gst_links]])
+            print("have %d gst links" % self.total_gst_links)
+            print("have %d total edges" % len(edges))
+            # print("gst links:", self.gst_links_array[:self.total_gst_links])
 
-            sp = G.get_shortest_paths(v=sat_1, to=consider_sat,     weights="weight")
+            graph = np.zeros((self.total_sats+self.total_gst, self.total_sats+self.total_gst))
 
-            sat_paths = [
-                Path(
-                    node_1= sat_1,
-                    node_2=path[-1],
-                    delay=0.0,
-                    distance=0.0,
-                    bandwidth=self.bandwidth,
-                    segments=[Segment(
-                        node_1=(G.es)()[eid].source,
-                        node_2=(G.es)()[eid].target,
-                        distance=(G.es)()[eid]["weight"],
+            # fill the graph with our edges
+            for e in edges:
+                graph[e[0], e[1]] = e[2]
+                graph[e[1], e[0]] = e[2]
+
+            # generate a list of all paths
+            dist_matrix, predecessors = scipy.sparse.csgraph.floyd_warshall(csgraph=scipy.sparse.csr_matrix(graph), directed=False, return_predecessors=True)
+            print("done with scipy\n")
+
+            path_list: typing.List[typing.List[typing.Tuple[int, int, int, float]]] = []
+            gst_sat_paths_list: typing.List[typing.Tuple[int, int, typing.List[typing.Tuple[int, int, int, float]]]] = []
+            gst_paths_list: typing.List[typing.Tuple[int, int, typing.List[typing.Tuple[int, int, int, float]]]] = []
+
+            known_paths: typing.Dict[int, typing.Dict[int, typing.List[typing.Tuple[int, int, int, float]]]] = {}
+
+            targets = targets.union(range(self.total_sats, self.total_sats+self.total_gst))
+
+            # def __segments(dist_matrix: np.ndarray, predecessors:)
+
+            for node_1 in tqdm.tqdm(targets):
+                for node_2 in targets:
+                    if node_1 >= node_2:
+                        continue
+
+                    # find the shortest path segments from the predecessor matrix
+                    a = node_1
+                    b = node_1
+                    sp: typing.List[typing.Tuple[int, int, int, float]] = []
+
+                    while a != node_2:
+                        # do we know the path from this node to the target already? great, use it
+                        if a in known_paths and node_2 in known_paths[a]:
+                            sp.extend(known_paths[a][node_2])
+                            break
+                        if node_2 in known_paths and a in known_paths[node_2]:
+                            sp.extend([(x[1], x[0], x[2], x[3]) for x in reversed(known_paths[node_2][a])])
+                            break
+
+                        b = predecessors[node_2, a]
+
+                        if b == -9999:
+                            break
+
+                        sp.append((a, b, dist_matrix[a, b], dist_matrix[a, b] * self.islpropagation))
+
+                        if not node_1 in known_paths:
+                            known_paths[node_1] = {}
+                        known_paths[node_1][b] = sp
+                        # print("adding %d on way from %d to %d" % (b, sat_1, sat_2))
+                        a = b
+
+                    if b == -9999:
+                        continue
+
+                    if not node_1 in known_paths:
+                        known_paths[node_1] = {}
+                    known_paths[node_1][node_2] = sp
+
+                    # find out to which path list to append this
+                    if node_1 < self.total_sats and node_2 < self.total_sats:
+                        # this is a sat<->sat path
+                        path_list.append(sp)
+                        continue
+                    elif node_1 < self.total_sats and node_2 >= self.total_sats:
+                        # this is a sat<->gst path
+                        # note that node_2 must come first, since it is the more important gst
+                        gst_sat_paths_list.append((node_2, node_1, sp))
+
+                        if node_1 == 10 and node_2 == 1 + self.total_sats:
+                            print("found path:", sp)
+
+                        continue
+                    elif node_1 >= self.total_sats and node_2 >= self.total_sats:
+                        # this is a gst<->gst path
+                        gst_paths_list.append((node_1, node_2, sp))
+                        continue
+                    else:
+                        # this cannot happen, as node_1 must be smaller than node_2
+                        pass
+
+
+            print("done creating tuples\n")
+
+            paths = [Path(
+                node_1=p[0][0],
+                node_1_is_gst=False,
+                node_2=p[-1][1],
+                node_2_is_gst=False,
+                delay=sum([x[3] for x in p]),
+                distance=sum([x[2] for x in p]),
+                bandwidth=self.bandwidth,
+                segments=(Segment(
+                                node_1=s[0] if s[0] < self.total_sats else s[0] - self.total_sats,
+                                node_1_is_gst=s[0] >= self.total_sats,
+                                node_2=s[1] if s[1] < self.total_sats else s[1] - self.total_sats,
+                                node_2_is_gst=s[1] >= self.total_sats,
+                                distance=s[2],
+                                bandwidth=self.bandwidth,
+                                delay=s[3],
+                            ) for s in p)
+            ) for p in tqdm.tqdm(path_list)]
+
+            # and now get the gst_sat_paths
+            gst_sat_paths = [Path(
+                node_1=p[0]-self.total_sats,
+                node_1_is_gst=True,
+                node_2=p[1],
+                node_2_is_gst=False,
+                delay=sum([x[3] for x in p[2]]),
+                distance=sum([x[2] for x in p[2]]),
+                bandwidth=self.bandwidth,
+                segments=(Segment(
+                                node_1=s[0] if s[0] < self.total_sats else s[0] - self.total_sats,
+                                node_1_is_gst=s[0] >= self.total_sats,
+                                node_2=s[1] if s[1] < self.total_sats else s[1] - self.total_sats,
+                                node_2_is_gst=s[1] >= self.total_sats,
+                                distance=s[2],
+                                bandwidth=self.bandwidth,
+                                delay=s[3],
+                            ) for s in p[2])
+            ) for p in tqdm.tqdm(gst_sat_paths_list)]
+
+            gst_paths = [Path(
+                node_1=p[0]-self.total_sats,
+                node_1_is_gst=True,
+                node_2=p[1]-self.total_sats,
+                node_2_is_gst=True,
+                delay=sum([x[3] for x in p[2]]),
+                distance=sum([x[2] for x in p[2]]),
+                bandwidth=self.bandwidth,
+                segments=(Segment(
+                                node_1=s[0] if s[0] < self.total_sats else s[0] - self.total_sats,
+                                node_1_is_gst=s[0] >= self.total_sats,
+                                node_2=s[1] if s[1] < self.total_sats else s[1] - self.total_sats,
+                                node_2_is_gst=s[1] >= self.total_sats,
+                                distance=s[2],
+                                bandwidth=self.bandwidth,
+                                delay=s[3],
+                            ) for s in p[2])
+            ) for p in tqdm.tqdm(gst_paths_list)]
+
+            print("getting gst path 91")
+            print(vars(gst_paths[91]))
+            print(len(list(gst_paths[91].segments)))
+            for s in gst_paths[91].segments:
+                print(vars(s))
+
+            print("done doing actual paths\n")
+        else:
+            G = ig.Graph.TupleList(edges, weights=True)
+
+            def __get_paths(sat_1: int) -> typing.List[Path]:
+
+                consider_sat = G.vs.select([sat_2 for sat_2 in targets if sat_1 < sat_2])
+
+                sp = G.get_shortest_paths(v=sat_1, to=consider_sat,     weights="weight")
+
+                sat_paths = [
+                    Path(
+                        node_1= sat_1,
+                        node_1_is_gst=False,
+                        node_2=path[-1],
+                        node_2_is_gst=False,
+                        delay=0.0,
+                        distance=0.0,
                         bandwidth=self.bandwidth,
-                        delay=(G.es)()[eid]["weight"] * self.islpropagation,
-                    ) for eid in G.get_eids(path=path)],
-                ) for path in sp
-            ]
+                        segments=[Segment(
+                            node_1=(G.es)()[eid].source,
+                            node_1_is_gst=False,
+                            node_2=(G.es)()[eid].target,
+                            node_2_is_gst=False,
+                            distance=(G.es)()[eid]["weight"],
+                            bandwidth=self.bandwidth,
+                            delay=(G.es)()[eid]["weight"] * self.islpropagation,
+                        ) for eid in G.get_eids(path=path)],
+                    ) for path in sp
+                ]
 
-            def __calc_distance(p: Path) -> Path:
-                p.distance = sum([x.distance for x in p.segments])
-                p.delay = p.distance * self.islpropagation
+                def __calc_distance(p: Path) -> Path:
+                    p.distance = sum([x.distance for x in p.segments])
+                    p.delay = p.distance * self.islpropagation
 
-                return p
+                    return p
 
-            return list(map(__calc_distance, sat_paths))
+                return list(map(__calc_distance, sat_paths))
 
-        for sub_paths in map(__get_paths, tqdm.tqdm(targets)):
-            paths.extend(sub_paths)
+            for sub_paths in map(__get_paths, tqdm.tqdm(targets)):
+                paths.extend(sub_paths)
 
-        assert len(paths) == len_path_array
+            print("done with igraph\n")
 
-        self.paths = paths
+            # generate an array of active satellites
+            active = [x for x in self.satellites_array if x["in_bbox"]]
 
-    def get_paths(self) -> typing.List[Path]:
-        return self.paths
+            start_time = tm.time()
 
-    def calculate_gst_paths(self) -> None:
-        """calculate the shortest paths between all ground stations and all active satellites + other ground stations
-        """
+            # get all links a ground station has
+            # thankfully these are appended into the list in order
+            start, end = 0, 0
+            while start < self.total_gst_links:
 
-        # generate an array of active satellites
-        active = [x for x in self.satellites_array if x["in_bbox"]]
+                source_gst = self.gst_links_array[start]["gst"]
 
-        gst_sat_paths = []
+                while end < self.total_gst_links and self.gst_links_array[end]["gst"] == source_gst:
+                    end += 1
 
-        start_time = tm.time()
+                for sat in active:
 
-        # get all links a ground station has
-        # thankfully these are appended into the list in order
-        start, end = 0, 0
-        while start < self.total_gst_links:
+                    best_sat_path: typing.Optional[Path] = None
 
-            source_gst = self.gst_links_array[start]["gst"]
+                    for sat_link in self.gst_links_array[start:end]:
 
-            while end < self.total_gst_links and self.gst_links_array[end]["gst"] == source_gst:
-                end += 1
-
-            for sat in active:
-
-                best_sat_path: typing.Optional[Path] = None
-
-                for sat_link in self.gst_links_array[start:end]:
-
-                    first_leg = Segment(
-                        node_1=source_gst,
-                        node_2=sat_link["sat"],
-                        distance=sat_link["distance"],
-                        bandwidth=sat_link["bandwidth"],
-                        delay=sat_link["delay"],
-                    )
-
-                    segments = [first_leg]
-                    if sat_link["sat"] != sat["ID"]:
-                        source, target = sat_link["sat"], sat["ID"]
-
-                        if source > target:
-                            source, target = target, source
-
-                        # check our path list for that
-                        filtered_path_list = [x for x in self.paths if x.node_1 == source and x.node_2 == target]
-
-                        # there is no path? just continue
-                        if len(filtered_path_list) == 0:
-                            continue
-
-                        # there is more than one path? this should never happen
-                        assert len(filtered_path_list) <= 1
-
-                        segments += filtered_path_list[0].segments
-
-                    path = Path(
-                        node_1=source_gst,
-                        node_2=sat["ID"],
-                        distance=sum(s.distance for s in segments),
-                        bandwidth=min(s.bandwidth for s in segments),
-                        delay=sum(s.delay for s in segments),
-                        segments=segments,
-                    )
-
-                    if best_sat_path is None or path.delay < best_sat_path.delay or (path.delay == best_sat_path.delay and path.bandwidth > best_sat_path.bandwidth):
-                        best_sat_path = path
-
-                if best_sat_path is not None:
-                    gst_sat_paths.append(best_sat_path)
-
-            start = end
-
-        self.gst_sat_paths = gst_sat_paths
-
-        gst_sat_time = tm.time()
-
-        gst_paths = []
-
-        # get all links a ground station has
-        # thankfully these are appended into the list in order
-        outer_start, outer_end = 0, 0
-        while outer_start < self.total_gst_links:
-
-            source_gst = self.gst_links_array[outer_start]["gst"]
-            while outer_end < self.total_gst_links and self.gst_links_array[outer_end]["gst"] == source_gst:
-                outer_end += 1
-
-            #do stuff
-
-            inner_start, inner_end = outer_end, outer_end
-
-            while inner_start < self.total_gst_links:
-
-                target_gst = self.gst_links_array[inner_start]["gst"]
-                while inner_end < self.total_gst_links and self.gst_links_array[inner_end]["gst"] == target_gst:
-                    inner_end += 1
-
-                best_path: typing.Optional[Path] = None
-
-                for l1 in self.gst_links_array[outer_start:outer_end]:
-
-                    first_leg = Segment(
-                        node_1=l1["gst"],
-                        node_2=l1["sat"],
-                        distance=l1["distance"],
-                        bandwidth=l1["bandwidth"],
-                        delay=l1["delay"],
-                    )
-
-                    for l2 in self.gst_links_array[inner_start:inner_end]:
-
-                        last_leg = Segment(
-                            node_1=l2["gst"],
-                            node_2=l2["sat"],
-                            distance=l2["distance"],
-                            bandwidth=l2["bandwidth"],
-                            delay=l2["delay"],
+                        first_leg = Segment(
+                            node_1=source_gst,
+                            node_1_is_gst=True,
+                            node_2=sat_link["sat"],
+                            node_2_is_gst=False,
+                            distance=sat_link["distance"],
+                            bandwidth=sat_link["bandwidth"],
+                            delay=sat_link["delay"],
                         )
 
                         segments = [first_leg]
-                        if l1["sat"] != l2["sat"]:
-
-                            source, target = l1["sat"], l2["sat"]
+                        if sat_link["sat"] != sat["ID"]:
+                            source, target = sat_link["sat"], sat["ID"]
 
                             if source > target:
                                 source, target = target, source
@@ -571,34 +645,133 @@ class Shell():
 
                             segments += filtered_path_list[0].segments
 
-                        segments += [last_leg]
-
                         path = Path(
-                            node_1=l1["gst"],
-                            node_2=l2["gst"],
+                            node_1=source_gst,
+                            node_1_is_gst=True,
+                            node_2=sat["ID"],
+                            node_2_is_gst=False,
                             distance=sum(s.distance for s in segments),
                             bandwidth=min(s.bandwidth for s in segments),
                             delay=sum(s.delay for s in segments),
                             segments=segments,
                         )
 
-                        if best_path is None or path.delay < best_path.delay or (path.delay == best_path.delay and path.bandwidth > best_path.bandwidth):
-                            best_path = path
+                        if best_sat_path is None or path.delay < best_sat_path.delay or (path.delay == best_sat_path.delay and path.bandwidth > best_sat_path.bandwidth):
+                            best_sat_path = path
 
-                if best_path is not None:
-                    gst_paths.append(best_path)
+                    if best_sat_path is not None:
+                        gst_sat_paths.append(best_sat_path)
 
-                inner_start = inner_end
+                start = end
 
-            outer_start = outer_end
+            gst_sat_time = tm.time()
 
+            # get all links a ground station has
+            # thankfully these are appended into the list in order
+            outer_start, outer_end = 0, 0
+            while outer_start < self.total_gst_links:
+
+                source_gst = self.gst_links_array[outer_start]["gst"]
+                while outer_end < self.total_gst_links and self.gst_links_array[outer_end]["gst"] == source_gst:
+                    outer_end += 1
+
+                #do stuff
+
+                inner_start, inner_end = outer_end, outer_end
+
+                while inner_start < self.total_gst_links:
+
+                    target_gst = self.gst_links_array[inner_start]["gst"]
+                    while inner_end < self.total_gst_links and self.gst_links_array[inner_end]["gst"] == target_gst:
+                        inner_end += 1
+
+                    best_path: typing.Optional[Path] = None
+
+                    for l1 in self.gst_links_array[outer_start:outer_end]:
+
+                        first_leg = Segment(
+                            node_1=l1["gst"],
+                            node_1_is_gst=True,
+                            node_2=l1["sat"],
+                            node_2_is_gst=False,
+                            distance=l1["distance"],
+                            bandwidth=l1["bandwidth"],
+                            delay=l1["delay"],
+                        )
+
+                        for l2 in self.gst_links_array[inner_start:inner_end]:
+
+                            last_leg = Segment(
+                                node_1=l2["gst"],
+                                node_1_is_gst=True,
+                                node_2=l2["sat"],
+                                node_2_is_gst=False,
+                                distance=l2["distance"],
+                                bandwidth=l2["bandwidth"],
+                                delay=l2["delay"],
+                            )
+
+                            segments = [first_leg]
+                            if l1["sat"] != l2["sat"]:
+
+                                source, target = l1["sat"], l2["sat"]
+
+                                if source > target:
+                                    source, target = target, source
+
+                                # check our path list for that
+                                filtered_path_list = [x for x in self.paths if x.node_1 == source and x.node_2 == target]
+
+                                # there is no path? just continue
+                                if len(filtered_path_list) == 0:
+                                    continue
+
+                                # there is more than one path? this should never happen
+                                assert len(filtered_path_list) <= 1
+
+                                segments += filtered_path_list[0].segments
+
+                            segments += [last_leg]
+
+                            path = Path(
+                                node_1=l1["gst"],
+                                node_1_is_gst=True,
+                                node_2=l2["gst"],
+                                node_2_is_gst=True,
+                                distance=sum(s.distance for s in segments),
+                                bandwidth=min(s.bandwidth for s in segments),
+                                delay=sum(s.delay for s in segments),
+                                segments=segments,
+                            )
+
+                            if best_path is None or path.delay < best_path.delay or (path.delay == best_path.delay and path.bandwidth > best_path.bandwidth):
+                                best_path = path
+
+                    if best_path is not None:
+                        gst_paths.append(best_path)
+
+                    inner_start = inner_end
+
+                outer_start = outer_end
+
+            gst_time = tm.time()
+
+            if self.profile_time:
+                print("⏱ GST SAT Paths: %.3f" % (gst_sat_time - start_time))
+                print("⏱ GST Paths %.3f" % (gst_time - gst_sat_time))
+
+        print("found %d paths" % len(paths))
+        print("expected %d paths" % len_path_array)
+        assert len(paths) == len_path_array
+
+        self.paths = paths
+        print("found %d gst_paths" % len(gst_paths))
         self.gst_paths = gst_paths
+        print("found %d gst_sat_paths" % len(gst_sat_paths))
+        self.gst_sat_paths = gst_sat_paths
 
-        gst_time = tm.time()
-
-        if self.profile_time:
-            print("⏱ GST SAT Paths: %.3f" % (gst_sat_time - start_time))
-            print("⏱ GST Paths %.3f" % (gst_time - gst_sat_time))
+    def get_paths(self) -> typing.List[Path]:
+        return self.paths
 
     def get_gst_paths(self) -> typing.List[Path]:
         """
@@ -868,9 +1041,12 @@ class Shell():
 
                     if gst_link_id < link_array_size - 1:
                         # if we allow only one link and the one we found is shorter than the old one overwrite the old one
-                        if gst["conn_type"] == 1 and d < shortest_d:
+                        if gst["conn_type"] == 1:
+                            if d > shortest_d:
+                                continue
+
                             # but can't overwrite if we're haven't written anything yet
-                            if shortest_d == np.inf:
+                            if shortest_d != np.inf:
                                 gst_link_id -= 1
 
                             shortest_d = d

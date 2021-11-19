@@ -175,30 +175,44 @@ class Segment():
     def __init__(
         self,
         node_1: int,
+        node_1_is_gst: bool,
         node_2: int,
+        node_2_is_gst: bool,
         distance: float,
         delay: float,
         bandwidth: int,
     ):
         self.node_1 = node_1
+        self.node_1_is_gst = node_1_is_gst
         self.node_2 = node_2
+        self.node_2_is_gst = node_2_is_gst
         self.distance = distance
         self.delay = delay
         self.bandwidth = bandwidth
 
-class Path():
+class Path(object):
     def __init__(
         self,
         node_1: int,
+        node_1_is_gst: bool,
         node_2: int,
+        node_2_is_gst: bool,
         distance: float,
         delay: float,
         bandwidth: int,
-        segments: typing.List[Segment],
+        segments: typing.Iterable[Segment],
     ):
         self.node_1 = node_1
+        self.node_1_is_gst = node_1_is_gst
         self.node_2 = node_2
+        self.node_2_is_gst = node_2_is_gst
         self.distance = distance
         self.delay = delay
         self.bandwidth = bandwidth
-        self.segments = segments
+        self.__segments = segments
+
+    def __getattribute__(self, name: str) -> typing.Any:
+        if name == "segments":
+            if not "segments" in self.__dict__:
+                self.segments = [s for s in self.__segments]
+        return object.__getattribute__(self, name)
