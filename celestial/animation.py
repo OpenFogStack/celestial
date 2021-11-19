@@ -179,7 +179,6 @@ class Animation():
 
         # update sat points
         for s in range(self.num_shells):
-
             for i in range(self.shell_sats[s]):
                 x = float(self.sat_positions[s][i]['x'])
                 y = float(self.sat_positions[s][i]['y'])

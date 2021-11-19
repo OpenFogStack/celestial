@@ -413,98 +413,25 @@ class Shell():
             dist_matrix, predecessors = scipy.sparse.csgraph.floyd_warshall(csgraph=scipy.sparse.csr_matrix(graph), directed=False, return_predecessors=True)
             print("done with scipy\n")
 
-            path_list: typing.List[typing.List[typing.Tuple[int, int, int, float]]] = []
-            gst_sat_paths_list: typing.List[typing.Tuple[int, int, typing.List[typing.Tuple[int, int, int, float]]]] = []
-            gst_paths_list: typing.List[typing.Tuple[int, int, typing.List[typing.Tuple[int, int, int, float]]]] = []
-
-            known_paths: typing.Dict[int, typing.Dict[int, typing.List[typing.Tuple[int, int, int, float]]]] = {}
-
-            targets = targets.union(range(self.total_sats, self.total_sats+self.total_gst))
-
-            # def __segments(dist_matrix: np.ndarray, predecessors:)
-
-            for node_1 in tqdm.tqdm(targets):
-                for node_2 in targets:
-                    if node_1 >= node_2:
-                        continue
-
-                    # find the shortest path segments from the predecessor matrix
-                    a = node_1
-                    b = node_1
-                    sp: typing.List[typing.Tuple[int, int, int, float]] = []
-
-                    while a != node_2:
-                        # do we know the path from this node to the target already? great, use it
-                        if a in known_paths and node_2 in known_paths[a]:
-                            sp.extend(known_paths[a][node_2])
-                            break
-                        if node_2 in known_paths and a in known_paths[node_2]:
-                            sp.extend([(x[1], x[0], x[2], x[3]) for x in reversed(known_paths[node_2][a])])
-                            break
-
-                        b = predecessors[node_2, a]
-
-                        if b == -9999:
-                            break
-
-                        sp.append((a, b, dist_matrix[a, b], dist_matrix[a, b] * self.islpropagation))
-
-                        if not node_1 in known_paths:
-                            known_paths[node_1] = {}
-                        known_paths[node_1][b] = sp
-                        # print("adding %d on way from %d to %d" % (b, sat_1, sat_2))
-                        a = b
-
-                    if b == -9999:
-                        continue
-
-                    if not node_1 in known_paths:
-                        known_paths[node_1] = {}
-                    known_paths[node_1][node_2] = sp
-
-                    # find out to which path list to append this
-                    if node_1 < self.total_sats and node_2 < self.total_sats:
-                        # this is a sat<->sat path
-                        path_list.append(sp)
-                        continue
-                    elif node_1 < self.total_sats and node_2 >= self.total_sats:
-                        # this is a sat<->gst path
-                        # note that node_2 must come first, since it is the more important gst
-                        gst_sat_paths_list.append((node_2, node_1, sp))
-
-                        if node_1 == 10 and node_2 == 1 + self.total_sats:
-                            print("found path:", sp)
-
-                        continue
-                    elif node_1 >= self.total_sats and node_2 >= self.total_sats:
-                        # this is a gst<->gst path
-                        gst_paths_list.append((node_1, node_2, sp))
-                        continue
-                    else:
-                        # this cannot happen, as node_1 must be smaller than node_2
-                        pass
-
+            gst_targets = range(self.total_sats, self.total_sats+self.total_gst)
 
             print("done creating tuples\n")
 
+            propagation_delays = np.multiply(dist_matrix, self.islpropagation)
+
             paths = [Path(
-                node_1=p[0][0],
+                node_1=p[0],
                 node_1_is_gst=False,
-                node_2=p[-1][1],
+                node_2=p[-1],
                 node_2_is_gst=False,
-                delay=sum([x[3] for x in p]),
-                distance=sum([x[2] for x in p]),
+                delay=propagation_delays[p[0], p[1]],
+                distance=dist_matrix[p[0], p[1]],
                 bandwidth=self.bandwidth,
-                segments=(Segment(
-                                node_1=s[0] if s[0] < self.total_sats else s[0] - self.total_sats,
-                                node_1_is_gst=s[0] >= self.total_sats,
-                                node_2=s[1] if s[1] < self.total_sats else s[1] - self.total_sats,
-                                node_2_is_gst=s[1] >= self.total_sats,
-                                distance=s[2],
-                                bandwidth=self.bandwidth,
-                                delay=s[3],
-                            ) for s in p)
-            ) for p in tqdm.tqdm(path_list)]
+                dist_matrix=dist_matrix,
+                predecessors=predecessors,
+                islpropagation=self.islpropagation,
+                total_sats=self.total_sats,
+            ) for p in tqdm.tqdm([(node_1, node_2) for node_1 in targets for node_2 in targets if node_1 < node_2]) if dist_matrix[p[0], p[1]] != np.inf ]
 
             # and now get the gst_sat_paths
             gst_sat_paths = [Path(
@@ -512,38 +439,28 @@ class Shell():
                 node_1_is_gst=True,
                 node_2=p[1],
                 node_2_is_gst=False,
-                delay=sum([x[3] for x in p[2]]),
-                distance=sum([x[2] for x in p[2]]),
+                delay=propagation_delays[p[0], p[1]],
+                distance=dist_matrix[p[0], p[1]],
                 bandwidth=self.bandwidth,
-                segments=(Segment(
-                                node_1=s[0] if s[0] < self.total_sats else s[0] - self.total_sats,
-                                node_1_is_gst=s[0] >= self.total_sats,
-                                node_2=s[1] if s[1] < self.total_sats else s[1] - self.total_sats,
-                                node_2_is_gst=s[1] >= self.total_sats,
-                                distance=s[2],
-                                bandwidth=self.bandwidth,
-                                delay=s[3],
-                            ) for s in p[2])
-            ) for p in tqdm.tqdm(gst_sat_paths_list)]
+                dist_matrix=dist_matrix,
+                predecessors=predecessors,
+                islpropagation=self.islpropagation,
+                total_sats=self.total_sats,
+            ) for p in tqdm.tqdm([(node_1, node_2) for node_1 in gst_targets for node_2 in targets]) if dist_matrix[p[0], p[1]] != np.inf ]
 
             gst_paths = [Path(
                 node_1=p[0]-self.total_sats,
                 node_1_is_gst=True,
                 node_2=p[1]-self.total_sats,
                 node_2_is_gst=True,
-                delay=sum([x[3] for x in p[2]]),
-                distance=sum([x[2] for x in p[2]]),
+                delay=propagation_delays[p[0], p[1]],
+                distance=dist_matrix[p[0], p[1]],
                 bandwidth=self.bandwidth,
-                segments=(Segment(
-                                node_1=s[0] if s[0] < self.total_sats else s[0] - self.total_sats,
-                                node_1_is_gst=s[0] >= self.total_sats,
-                                node_2=s[1] if s[1] < self.total_sats else s[1] - self.total_sats,
-                                node_2_is_gst=s[1] >= self.total_sats,
-                                distance=s[2],
-                                bandwidth=self.bandwidth,
-                                delay=s[3],
-                            ) for s in p[2])
-            ) for p in tqdm.tqdm(gst_paths_list)]
+                dist_matrix=dist_matrix,
+                predecessors=predecessors,
+                islpropagation=self.islpropagation,
+                total_sats=self.total_sats,
+            ) for p in tqdm.tqdm([(node_1, node_2) for node_1 in gst_targets for node_2 in gst_targets if node_1 < node_2]) if dist_matrix[p[0], p[1]] != np.inf]
 
             print("getting gst path 91")
             print(vars(gst_paths[91]))

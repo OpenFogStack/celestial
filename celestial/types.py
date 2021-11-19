@@ -17,6 +17,7 @@
 import typing
 import datetime
 from enum import Enum
+import numpy as np
 
 class Model(Enum):
     SGP4 = "SGP4"
@@ -200,7 +201,11 @@ class Path(object):
         distance: float,
         delay: float,
         bandwidth: int,
-        segments: typing.Iterable[Segment],
+        segments: typing.Optional[typing.Iterable[Segment]] = None,
+        dist_matrix: typing.Optional[np.ndarray] = None,
+        predecessors: typing.Optional[np.ndarray] = None,
+        islpropagation: typing.Optional[float] = None,
+        total_sats: typing.Optional[int] = None,
     ):
         self.node_1 = node_1
         self.node_1_is_gst = node_1_is_gst
@@ -209,10 +214,48 @@ class Path(object):
         self.distance = distance
         self.delay = delay
         self.bandwidth = bandwidth
-        self.__segments = segments
+        if segments is not None:
+            self.segments = segments
+        elif dist_matrix is not None and predecessors is not None and islpropagation is not None and total_sats is not None:
+            self.__dist_matrix = dist_matrix
+            self.__predecessors = predecessors
+            self.__islpropagation = islpropagation
+            self.__total_sats = total_sats
+        else:
+            raise ValueError("Either segments or dist_matrix and predecessors must be set")
+
+    def __make_segments(self) -> typing.List[typing.Tuple[int, int, int, float]]:
+                    # find the shortest path segments from the predecessor matrix
+                    node_1 = self.node_1 if not self.node_1_is_gst else self.node_1 + self.__total_sats
+                    node_2 = self.node_2 if not self.node_2_is_gst else self.node_2 + self.__total_sats
+                    a = node_1
+                    b = node_1
+                    sp: typing.List[typing.Tuple[int, int, int, float]] = []
+                    # print("getting shortest segment from %d to %d" % (node_1, node_2))
+
+                    while a != node_2:
+                        b = self.__predecessors[node_2, a]
+                        # print("going from %d to %d", a, b)
+                        if b == -9999:
+                            break
+                        sp.append((a, b, self.__dist_matrix[a, b], self.__dist_matrix[a, b] * self.__islpropagation))
+                        a = b
+
+                    if b == -9999:
+                        return []
+
+                    return sp
 
     def __getattribute__(self, name: str) -> typing.Any:
         if name == "segments":
             if not "segments" in self.__dict__:
-                self.segments = [s for s in self.__segments]
+                self.segments = [Segment(
+                                node_1=s[0] if s[0] < self.__total_sats else s[0] - self.__total_sats,
+                                node_1_is_gst=s[0] >= self.__total_sats,
+                                node_2=s[1] if s[1] < self.__total_sats else s[1] - self.__total_sats,
+                                node_2_is_gst=s[1] >= self.__total_sats,
+                                distance=s[2],
+                                bandwidth=self.bandwidth,
+                                delay=s[3],
+                            ) for s in self.__make_segments()]
         return object.__getattribute__(self, name)
