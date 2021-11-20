@@ -20,6 +20,7 @@ import typing
 import numpy as np
 import time
 from tqdm.auto import tqdm
+# import tqdm
 from multiprocessing.connection import Connection as MultiprocessingConnection
 
 from .machine import Machine
@@ -273,7 +274,7 @@ class MachineManager():
         # threads_started_time2 = time.time()
         # print("threads_started_time2", threads_started_time2 - start_link_threads_time)
 
-        for t in link_threads:
+        for t in tqdm(link_threads):
             t.join()
 
         # threads_joined_time = time.time()

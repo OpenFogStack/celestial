@@ -97,7 +97,7 @@ class Shell():
         solver: Solver,
         include_paths: bool=True):
 
-        self.profile_time = True
+        self.profile_time = False
 
         self.current_time = 0
 
@@ -396,10 +396,10 @@ class Shell():
 
             # add gst links
             # simply add them add the end, so the first gst id is self.total_sats
-            print("have %d sat edges" % len(edges))
+            # print("have %d sat edges" % len(edges))
             edges.extend([[e["gst"]+self.total_sats, e["sat"], e["distance"]] for e in self.gst_links_array[:self.total_gst_links]])
-            print("have %d gst links" % self.total_gst_links)
-            print("have %d total edges" % len(edges))
+            # print("have %d gst links" % self.total_gst_links)
+            # print("have %d total edges" % len(edges))
             # print("gst links:", self.gst_links_array[:self.total_gst_links])
 
             graph = np.zeros((self.total_sats+self.total_gst, self.total_sats+self.total_gst))
@@ -411,11 +411,11 @@ class Shell():
 
             # generate a list of all paths
             dist_matrix, predecessors = scipy.sparse.csgraph.floyd_warshall(csgraph=scipy.sparse.csr_matrix(graph), directed=False, return_predecessors=True)
-            print("done with scipy\n")
+            # print("done with scipy\n")
 
             gst_targets = range(self.total_sats, self.total_sats+self.total_gst)
 
-            print("done creating tuples\n")
+            # print("done creating tuples\n")
 
             propagation_delays = np.multiply(dist_matrix, self.islpropagation)
 
@@ -462,13 +462,13 @@ class Shell():
                 total_sats=self.total_sats,
             ) for p in tqdm.tqdm([(node_1, node_2) for node_1 in gst_targets for node_2 in gst_targets if node_1 < node_2]) if dist_matrix[p[0], p[1]] != np.inf]
 
-            print("getting gst path 91")
-            print(vars(gst_paths[91]))
-            print(len(list(gst_paths[91].segments)))
-            for s in gst_paths[91].segments:
-                print(vars(s))
+            # print("getting gst path 91")
+            # print(vars(gst_paths[91]))
+            # print(len(list(gst_paths[91].segments)))
+            # for s in gst_paths[91].segments:
+            #     print(vars(s))
 
-            print("done doing actual paths\n")
+            # print("done doing actual paths\n")
         else:
             G = ig.Graph.TupleList(edges, weights=True)
 
@@ -510,7 +510,7 @@ class Shell():
             for sub_paths in map(__get_paths, tqdm.tqdm(targets)):
                 paths.extend(sub_paths)
 
-            print("done with igraph\n")
+            # print("done with igraph\n")
 
             # generate an array of active satellites
             active = [x for x in self.satellites_array if x["in_bbox"]]
@@ -677,14 +677,14 @@ class Shell():
                 print("⏱ GST SAT Paths: %.3f" % (gst_sat_time - start_time))
                 print("⏱ GST Paths %.3f" % (gst_time - gst_sat_time))
 
-        print("found %d paths" % len(paths))
-        print("expected %d paths" % len_path_array)
+        # print("found %d paths" % len(paths))
+        # print("expected %d paths" % len_path_array)
         assert len(paths) == len_path_array
 
         self.paths = paths
-        print("found %d gst_paths" % len(gst_paths))
+        # print("found %d gst_paths" % len(gst_paths))
         self.gst_paths = gst_paths
-        print("found %d gst_sat_paths" % len(gst_sat_paths))
+        # print("found %d gst_sat_paths" % len(gst_sat_paths))
         self.gst_sat_paths = gst_sat_paths
 
     def get_paths(self) -> typing.List[Path]:
