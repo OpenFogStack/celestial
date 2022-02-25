@@ -25,6 +25,7 @@ ht_enabled = false
 bootparams = ""
 kernel = "x"
 rootfs = "x"
+disk_size_mib =  20_000
 
 [[shell]]
 planes = 72

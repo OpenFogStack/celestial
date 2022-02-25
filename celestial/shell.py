@@ -298,7 +298,11 @@ class Shell():
 
         # convert that position into lat lon
 
-        lat = np.degrees(np.arcsin(z/self.semi_major_axis))
+        div = z/self.semi_major_axis
+        if np.abs(div) > 1:
+            lat = np.degrees(np.arccos(1 if div > 0 else -1))
+        else:
+            lat = np.degrees(np.arcsin(z/self.semi_major_axis))
         lon = np.degrees(np.arctan2(y, x))
 
 

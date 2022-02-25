@@ -29,7 +29,7 @@ if __name__ == "__main__":
     if not len(sys.argv) == 2:
         exit("Usage: python3 animate.py [config.toml]")
 
-# read toml
+    # read toml
     try:
         text_config = toml.load(sys.argv[1])
     except Exception as e:

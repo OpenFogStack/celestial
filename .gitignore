@@ -8,7 +8,7 @@ test.toml
 .idea/
 .mypy_cache/
 *.bin
-animation
+/animation/
 
 ~$*
 
