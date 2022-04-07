@@ -58,7 +58,7 @@ GROUNDPOINT_DTYPE = np.dtype([
     # depends on minelevation
     ("gstpropagation", np.float64), # max stg range of ground stations
     # depends on minelevation
-    ("bandwidth", np.int32), # bandwidth this ground station supports
+    ("bandwidth", np.int32), # bandwidth this ground station supports in Kbps
     ("init_x", np.int32),  # initial x position in meters
     ("init_y", np.int32),  # initial y position in meters
     ("init_z", np.int32),  # initial z position in meters
@@ -81,7 +81,7 @@ GST_SAT_LINK_DTYPE = np.dtype([
     ("sat", np.int16),        # satellite endpoint of the link
     ("distance", np.int32),   # distance of the link in meters
     ("delay", np.float64),    # delay of this link in ms
-    ("bandwidth", np.int32)]) # bandwidth of this link
+    ("bandwidth", np.int32)]) # bandwidth of this link in Kbps
 
 LINK_ARRAY_SIZE = 10000000  # 10 million indices = 80 megabyte array (huge)
 
@@ -732,7 +732,7 @@ class Shell():
         a = (b * math.sin(A)) / math.sin(B)
         return int(a * 2)
 
-    def calculate_max_space_to_gst_distance(self, min_elevation: int) -> int:
+    def calculate_max_space_to_gst_distance(self, min_elevation: float) -> int:
         """
         Return max satellite to ground coms distance
 
@@ -743,7 +743,7 @@ class Shell():
 
         Parameters
         ----------
-        min_elevation : int
+        min_elevation : float
             min elevation in degrees, range: 0<val<90
 
         Returns

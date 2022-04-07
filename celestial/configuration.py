@@ -35,7 +35,7 @@ NETWORKPARAMS_SCHEMA = {
         "min": 0,
     },
     "minelevation": {
-        "type": "integer",
+        "type": "float",
         "min": 0,
     },
     "gstpropagation": {
@@ -413,7 +413,7 @@ def fill_configuration(config: typing.MutableMapping[str, typing.Any]) -> Config
                 "argpo": 0.0,
             }
 
-            if "sgp4params" in config:
+            if "sgp4params" in config and config["sgp4params"] is not None:
                 for key, value in config["sgp4params"].items():
                     sgp4_kwargs[key] = value
 

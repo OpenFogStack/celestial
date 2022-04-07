@@ -91,19 +91,19 @@ func updateDelay(tapName string, index int64, delay float64, bandwidth int) erro
 
 	log.Debugf("updating delay for tap %s with index %d, delay %.2f, bandwidth %d", tapName, index, delay, bandwidth)
 
-	//rate := fmt.Sprintf("%d.0Mbps", bandwidth)
+	rate := fmt.Sprintf("%d.0kbit", bandwidth)
 
 	// tc class change dev [TAP_NAME] parent 1: classid 1:[INDEX] htb rate [RATE] quantum 1514
 
-	//cmd := exec.Command(TC, "class", "change", "dev", tapName, "parent", "1:", "classid", fmt.Sprintf("1:%d", index), "htb", "rate", rate, "quantum", "1514")
+	cmd := exec.Command(TC, "class", "change", "dev", tapName, "parent", "1:", "classid", fmt.Sprintf("1:%d", index), "htb", "rate", rate, "quantum", "1514")
 
-	//if out, err := cmd.CombinedOutput(); err != nil {
-	//	return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	//}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
 
 	// tc qdisc change dev [TAP_NAME] parent 1:[INDEX] handle [INDEX]: netem delay [DELAY].0ms limit 1000000
 
-	cmd := exec.Command(TC, "qdisc", "change", "dev", tapName, "parent", fmt.Sprintf("1:%d", index), "handle", fmt.Sprintf("%d:", index), "netem", "delay", fmt.Sprintf("%.1fms", delay), "limit", "1000000")
+	cmd = exec.Command(TC, "qdisc", "change", "dev", tapName, "parent", fmt.Sprintf("1:%d", index), "handle", fmt.Sprintf("%d:", index), "netem", "delay", fmt.Sprintf("%.1fms", delay), "limit", "1000000")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)

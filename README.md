@@ -330,11 +330,11 @@ You need three things:
 You can get the kernel sources by cloning the Linux repository:
 
 ```sh
-# warning! this is about 3.1GB in size so sit back and wait
+# warning! this is about 3.5GB in size so sit back and wait
 git clone https://github.com/torvalds/linux.git linux.git
 cd linux.git
 
-# then checkout the version you want, e.g. v4.20
+# then checkout the version you want, e.g. v4.19
 git checkout v4.19
 ```
 
@@ -624,9 +624,9 @@ peeringhosts = ["192.168.0.40:1970"]
 # factor is in ms/m, with lasers in a vacuum this should be about 1/c.
 islpropagation = 3.336e-6
 
-# Bandwidth sets the available bandwidth for each ISL in Mbit/s. Current
+# Bandwidth sets the available bandwidth for each ISL in Kbit/s. Current
 # estimates set this at 10Gbit/s.
-bandwidth = 10_000
+bandwidth = 10_000_000
 
 # ISLs don't work at all altitudes given atmospheric refractions of lasers.
 # Set the minimum altitude for ISLs here. For example, set it to 100km so that
@@ -780,7 +780,7 @@ mem_size_mib = 256
 # Finally, you can also set networkparams for specific shells. For example,
 # you may want to set higher bandwidths for a specific shell.
 [shell.networkparams]
-bandwidth = 10_000
+bandwidth = 10_000_000
 
 # In addition to satellites, ground stations are another important part of your
 # constellation. Each ground station is a server on earth that communicates
@@ -813,7 +813,7 @@ hostaffinity = [1]
 # station if you want to override the standard values set above.
 [groundstation.networkparams]
 gstpropagation = 3.336e-6
-bandwidth = 1_000
+bandwidth = 1_000_000
 ```
 
 ### Known Limitations
@@ -1101,10 +1101,10 @@ Returns:
     { "shell": 0, "sat": 262 }
   ],
   "network": {
-    "bandwidth": 10000,
+    "bandwidth": 10000000,
     "islpropagation": 0.000003336,
     "mincommsaltitude": 100000,
-    "minelevation": 40,
+    "minelevation": 40.0,
     "gstpropagation": 0.000006672,
     "groundstationconnectiontype": "all"
   },
@@ -1164,10 +1164,10 @@ Returns:
   "latitude": 5.504684,
   "longitude": 5.765499,
   "network": {
-    "bandwidth": 10000,
+    "bandwidth": 10000000,
     "islpropagation": 0.000003336,
     "mincommsaltitude": 100000,
-    "minelevation": 40,
+    "minelevation": 40.0,
     "gstpropagation": 0.000006672,
     "groundstationconnectiontype": "all"
   },
@@ -1214,7 +1214,7 @@ Returns:
     {
       "distance": 2385036,
       "delay": 15.91296,
-      "bandwidth": 10000,
+      "bandwidth": 10000000,
       "segments": [
         {
           "sourceShell": -1,
@@ -1223,7 +1223,7 @@ Returns:
           "targetSat": 258,
           "delay": 11.612529,
           "distance": 1740487,
-          "bandwidth": 10000
+          "bandwidth": 10000000
         },
         {
           "sourceShell": -1,
@@ -1232,7 +1232,7 @@ Returns:
           "targetSat": 258,
           "delay": 2.1502154,
           "distance": 644549,
-          "bandwidth": 10000
+          "bandwidth": 10000000
         }
       ]
     }

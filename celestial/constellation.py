@@ -49,6 +49,10 @@ class Constellation():
 
         self.interval = interval
 
+        # if a fixed time offset is ever needed, this is how to do it
+        # START_TIME_OFFSET = 4 * 60 * 60
+        # self.start_time = time.time() - START_TIME_OFFSET
+
         self.start_time = time.time()
 
         for shell in shells:

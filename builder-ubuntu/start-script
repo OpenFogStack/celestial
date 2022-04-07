@@ -1,0 +1,39 @@
+#
+# This file is part of Celestial (https://github.com/OpenFogStack/celestial).
+# Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+# in addition to the base file system, here we mount our overlay
+/bin/mount -t ext4 "/dev/$overlay_root" /overlay
+mkdir -p /overlay/root /overlay/work
+
+/bin/mount \
+    -o noatime,lowerdir=/,upperdir=/overlay/root,workdir=/overlay/work \
+    -t overlay "overlayfs:/overlay/root" /mnt
+pivot_root /mnt /mnt/rom
+cd /
+mount --move /rom/sys /sys
+mount --move /rom/proc /proc
+mount --move /rom/dev /dev
+
+# do some minimal init
+rc-service sysfs restart
+rc-service networking restart
+
+# run program. the firecracker compiler would place this here.
+/bin/sh app.sh
+
+# shutdown firecracker
+reboot

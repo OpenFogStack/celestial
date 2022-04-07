@@ -167,6 +167,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
             si.compute.vcpu = self.shells[shell_no].computeparams.vcpu_count
             si.compute.mem = self.shells[shell_no].computeparams.mem_size_mib
             si.compute.ht = self.shells[shell_no].computeparams.ht_enabled
+            si.compute.disk = self.shells[shell_no].computeparams.disk_size_mib
             si.compute.kernel = self.shells[shell_no].computeparams.kernel
             si.compute.rootfs = self.shells[shell_no].computeparams.rootfs
 
@@ -295,6 +296,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
 
             gsi.compute.vcpu = self.groundstations[index].computeparams.vcpu_count
             gsi.compute.mem = self.groundstations[index].computeparams.mem_size_mib
+            gsi.compute.disk = self.groundstations[index].computeparams.disk_size_mib
             gsi.compute.ht = self.groundstations[index].computeparams.ht_enabled
             gsi.compute.kernel = self.groundstations[index].computeparams.kernel
             gsi.compute.rootfs = self.groundstations[index].computeparams.rootfs
@@ -312,6 +314,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
                     sat.distance = l.distance
 
                     gsi.connectedSats.append(sat)
+
 
         except:
             context.set_code(grpc.StatusCode.INTERNAL)

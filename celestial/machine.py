@@ -25,7 +25,7 @@ DEBUG = False
 # update threshold for updating latency in ms
 LATENCY_UPDATE_THRESHOLD = 0.5
 
-# update threshold for updating bandwidth in Mbit
+# update threshold for updating bandwidth in Kbit
 BANDWIDTH_UPDATE_THRESHOLD = 1
 
 class Machine():

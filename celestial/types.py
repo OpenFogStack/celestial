@@ -34,7 +34,7 @@ class NetworkParamsConfig():
         islpropagation: float,
         bandwidth: int,
         mincommsaltitude: int,
-        minelevation: int,
+        minelevation: float,
         gstpropagation: float,
         groundstationconnectiontype: GroundstationConnectionTypeConfig,
     ):
