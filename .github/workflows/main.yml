@@ -27,9 +27,10 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: mypy-check
-        uses: jpetrucciani/mypy-check@master
+        uses: theCapypara/mypy-check@master
         with:
-          path: "*.py"
+          requirements: types-toml
+
   go:
     name: go
 
