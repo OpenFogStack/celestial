@@ -19,17 +19,39 @@ Celestial...
 
 Check out [`celestial-videoconferencing-evaluation`](https://github.com/OpenFogStack/celestial-videoconferencing-evaluation)
 for an example application on Celestial!
-Further examples can be found in [the `examples` directory](./examples).
+Also check out the [`celestial-buoy-evaluation`](https://github.com/OpenFogStack/celestial-buoy-evaluation)
+and the [`celestial-twissandra-evaluation`](https://github.com/OpenFogStack/celestial-twissandra-evaluation).
+Even more examples can be found in [the `examples` directory](./examples).
 
-A word of caution: you can technically run the server-side software on any
+**A word of caution**: you can technically run the server-side software on any
 computer you want, but it requires root access to fiddle with your network settings.
 Therefore, we _highly_ encourage you to only run it on dedicated servers.
-It's doing its best to clean up everything but it has to make changes to a lot
-of networking settings so we can't guarantee that it doesn't destroy any of your
+It's doing its best to clean up everything, but it has to make changes to a lot
+of networking settings, so we can't guarantee that it doesn't destroy any of your
 other stuff.
 
-Please note that the article is still pending publication, but [a preprint is
-not yet available on arXiv](https://www.youtube.com/watch?v=W2jZMtG2UAw).
+## Research
+
+If you use this software in a publication, please cite it as:
+
+### Text
+
+T. Pfandzelter and D. Bermbach, **Celestial: Virtual Software System Testbeds
+for the LEO Edge**, 23rd ACM/IFIP International Middleware Conference
+(Middleware '22), Quebec City, Canada, 2022, doi: 10.1145/3528535.3531517.
+
+### BibTeX
+
+```bibtex
+@inproceedings{pfandzelter2022celestial,
+    title = "Celestial: Virtual Software System Testbeds for the LEO Edge",
+    booktitle = "23rd ACM/IFIP International Middleware Conference (Middleware '22)",
+    author = "Pfandzelter, Tobias and Bermbach, David",
+    year = 2022
+}
+```
+
+For a full list of publications, please see [our website](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/).
 
 A full list of our [publications](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/)
 and [prototypes](https://www.mcc.tu-berlin.de/menue/forschung/prototypes/parameter/en/)
@@ -39,6 +61,15 @@ is available on our group website.
 
 The code in this repository is licensed under the terms of the [GPLv3](./LICENSE)
 license.
+
+## Quick Start
+
+Unfortunately, there is no quick way to get into using Celestial.
+If you want to test your application on an emulated testbed, you should read on
+to find out how to use Celestial.
+
+You can, however, look at the examples we provide
+-- those should give you an idea on what you can do with Celestial.
 
 ## Contributing
 
@@ -145,7 +176,7 @@ Additionally, install the `VTK` and `seaborn` packages to enable the animation
 
 ```sh
 python3 -m pip install vtk
-python3 -m pip install vtk
+python3 -m pip install seaborn
 ```
 
 Then run the client with:
@@ -885,6 +916,14 @@ option set.
 You can read more about this issue [here](https://github.com/firecracker-microvm/firecracker/blob/main/docs/snapshotting/random-for-clones.md)
 and [here](https://github.com/firecracker-microvm/firecracker/issues/663).
 
+#### Docker Networking
+
+There may be an issue where having Docker installed on your host machine
+prevents Firecracker networking to work.
+Even uninstalling Docker did not help us with this.
+If you have Docker installed on your host server, find a fresh host server to
+run Celestial on.
+
 ## Runtime
 
 When you develop your applications for use in Celestial, there are some details
@@ -1010,7 +1049,7 @@ To access the HTTP API, make an HTTP GET request to your microVM's gateway on po
 
 ##### Self
 
-```http
+```
   GET /self
 ```
 
@@ -1049,7 +1088,7 @@ For satellites, this is left empty.
 
 ##### Info
 
-```http
+```
   GET /info
 ```
 
@@ -1067,7 +1106,7 @@ Returns:
 
 ##### Get Shell Info
 
-```http
+```
   GET /shell/${shell}
 ```
 
@@ -1121,7 +1160,7 @@ Returns:
 
 ##### Get Satellite Info
 
-```http
+```
   GET /shell/${shell}/${sat}
 ```
 
@@ -1148,7 +1187,7 @@ Returns:
 
 ##### Get Ground Station Info
 
-```http
+```
   GET /gst/${name}
 ```
 
@@ -1195,7 +1234,7 @@ Returns:
 
 ##### Get Path Info
 
-```http
+```
   GET /path/${source_shell}/${source_sat}/${target_shell}/${target_sat}
 ```
 
