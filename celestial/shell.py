@@ -124,19 +124,19 @@ class Shell():
         self.islpropagation: float = network.islpropagation
         self.bandwidth: int = network.bandwidth
 
-        self.satellites_array = np.empty(self.total_sats, dtype=SATELLITE_DTYPE)
+        self.satellites_array: np.ndarray = np.empty(self.total_sats, dtype=SATELLITE_DTYPE) # type: ignore
 
         self.link_array_size = LINK_ARRAY_SIZE
-        self.link_array = np.zeros(self.link_array_size, dtype=SAT_LINK_DTYPE)
+        self.link_array: np.ndarray = np.zeros(self.link_array_size, dtype=SAT_LINK_DTYPE) # type: ignore
         self.total_links = 0
 
         self.paths: typing.List[Path] = []
 
         self.total_gst = len(groundstations)
-        self.gst_array = np.zeros(self.total_gst,dtype=GROUNDPOINT_DTYPE)
+        self.gst_array: np.ndarray = np.zeros(self.total_gst,dtype=GROUNDPOINT_DTYPE) # type: ignore
 
         self.gst_links_array_size = LINK_ARRAY_SIZE
-        self.gst_links_array = np.zeros(self.gst_links_array_size, dtype=GST_SAT_LINK_DTYPE)
+        self.gst_links_array: np.ndarray = np.zeros(self.gst_links_array_size, dtype=GST_SAT_LINK_DTYPE) # type: ignore
         self.total_gst_links = 0
 
         self.gst_sat_paths: typing.List[Path] = []
@@ -178,7 +178,7 @@ class Shell():
             init_pos[1] = (EARTH_RADIUS + 100.0) * math.cos(latitude) * math.sin(longitude)
             init_pos[2] = (EARTH_RADIUS + 100.0) * math.sin(latitude)
 
-            temp = np.zeros(1, dtype=GROUNDPOINT_DTYPE)
+            temp: np.ndarray = np.zeros(1, dtype=GROUNDPOINT_DTYPE) # type: ignore
             temp[0]["ID"] = np.int16(i)
             if g.networkparams.groundstationconnectiontype == GroundstationConnectionTypeConfig.All:
                 temp[0]["conn_type"] = 0
@@ -262,7 +262,7 @@ class Shell():
             print("⏱ Paths: %.3f" % (paths_time - links_time))
             print("⏱ GST Paths: %.3f" % (gst_paths_time - paths_time))
 
-    def get_rotation_matrix(self, degrees: float) -> np.ndarray:
+    def get_rotation_matrix(self, degrees: float) -> np.ndarray: # type: ignore
         """
         Return the rotation matrix associated with counterclockwise rotation about
         the given axis by theta radians.
@@ -277,7 +277,7 @@ class Shell():
         theta = math.radians(degrees)
         # earth"s z axis (eg a vector in the positive z direction)
         # EARTH_ROTATION_AXIS = [0, 0, 1]
-        axis = np.asarray([0,0,1])
+        axis: np.ndarray = np.asarray([0,0,1]) # type: ignore
         axis = axis / math.sqrt(np.dot(axis, axis))
         a = math.cos(theta / 2.0)
         b, c, d = -axis * math.sin(theta / 2.0)
@@ -288,7 +288,7 @@ class Shell():
             [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
             [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
-    def is_in_bbox(self, pos: typing.Tuple[float, float, float], rotation_matrix: np.ndarray) -> bool:
+    def is_in_bbox(self, pos: typing.Tuple[float, float, float], rotation_matrix: np.ndarray) -> bool: # type: ignore
         # take cartesian coordinates and convert to lat long
         l = np.dot(rotation_matrix, np.array(pos))
 
@@ -316,7 +316,7 @@ class Shell():
 
         return bool(lat >= self.bbox.lat1 and lat <= self.bbox.lat2)
 
-    def get_sat_positions(self) -> np.ndarray:
+    def get_sat_positions(self) -> np.ndarray: # type: ignore
         """copies a sub array of only position data from
         satellite array
 
@@ -326,11 +326,11 @@ class Shell():
             a copied sub array of the satellite array, that only contains positions data
         """
 
-        sat_positions: np.ndarray = np.copy(self.satellites_array[["ID", "x", "y", "z", "in_bbox"]])
+        sat_positions: np.ndarray = np.copy(self.satellites_array[["ID", "x", "y", "z", "in_bbox"]]) # type: ignore
 
         return sat_positions
 
-    def get_gst_positions(self) -> np.ndarray:
+    def get_gst_positions(self) -> np.ndarray: # type: ignore
         """copies a sub array of only position data from
          groundpoint array
 
@@ -340,11 +340,11 @@ class Shell():
             a copied sub array of the ground point array, that only contains positions
         """
 
-        ground_positions: np.ndarray = np.copy(self.gst_array[["x", "y", "z"]])
+        ground_positions: np.ndarray = np.copy(self.gst_array[["x", "y", "z"]]) # type: ignore
 
         return ground_positions
 
-    def get_links(self) -> np.ndarray:
+    def get_links(self) -> np.ndarray: # type: ignore
         """copies a sub array of link data
 
         Returns
@@ -353,11 +353,11 @@ class Shell():
             contains all links
         """
         total_links = self.total_links
-        links: np.ndarray = np.copy(self.link_array[:total_links])
+        links: np.ndarray = np.copy(self.link_array[:total_links]) # type: ignore
 
         return links
 
-    def get_gst_links(self) -> np.ndarray:
+    def get_gst_links(self) -> np.ndarray: # type: ignore
         """copies a sub array of gst link data
 
         Returns
@@ -366,7 +366,7 @@ class Shell():
             contains all links
         """
         total_gst_links = self.total_gst_links
-        gst_links: np.ndarray = np.copy(self.gst_links_array[:total_gst_links])
+        gst_links: np.ndarray = np.copy(self.gst_links_array[:total_gst_links]) # type: ignore
 
         return gst_links
 
@@ -838,7 +838,7 @@ class Shell():
     @staticmethod
     @numba.njit # type: ignore
     def numba_init_plus_grid_links(
-            link_array: np.ndarray,
+            link_array: np.ndarray, # type: ignore
             link_array_size: int,
             number_of_planes: int,
             nodes_per_plane: int,
@@ -920,12 +920,12 @@ class Shell():
     @numba.njit # type: ignore
     def numba_update_plus_grid_links(
             total_sats: int,
-            satellites_array: np.ndarray,
-            link_array: np.ndarray,
+            satellites_array: np.ndarray, # type: ignore
+            link_array: np.ndarray, # type: ignore
             link_array_size: int,
             number_of_isl_links: int,
-            gst_array: np.ndarray,
-            gst_links_array: np.ndarray,
+            gst_array: np.ndarray, # type: ignore
+            gst_links_array: np.ndarray, # type: ignore
             bandwidth: int,
             islpropagation: float,
             max_isl_range: int = (2**31)-1) -> typing.Tuple[int]:

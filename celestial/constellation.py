@@ -72,7 +72,7 @@ class Constellation():
 
             self.shells.append(s)
 
-        sat_positions: typing.List[np.ndarray] = []
+        sat_positions: typing.List[np.ndarray] = [] # type: ignore
         paths: typing.List[typing.List[Path]] = []
         gst_sat_paths: typing.List[typing.List[Path]] = []
         gst_paths: typing.List[typing.List[Path]] = []
@@ -83,7 +83,7 @@ class Constellation():
             gst_sat_paths.append(s.get_gst_sat_paths())
             gst_paths.append(s.get_gst_paths())
 
-        gst_positions: np.ndarray = self.shells[0].get_gst_positions()
+        gst_positions: np.ndarray = self.shells[0].get_gst_positions() # type: ignore
 
         self.animate = animate
         self.animate_only = animate_only
@@ -146,7 +146,7 @@ class Constellation():
         if self.animate:
             self.animation_conn.send(["time", int(time.time() - self.start_time)])
 
-        sat_positions: typing.List[np.ndarray] = []
+        sat_positions: typing.List[np.ndarray] = [] # type: ignore
         paths: typing.List[typing.List[Path]] = []
         gst_sat_paths: typing.List[typing.List[Path]] = []
         gst_paths: typing.List[typing.List[Path]] = []

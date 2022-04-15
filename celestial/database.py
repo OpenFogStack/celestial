@@ -225,7 +225,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
 
             si.active = bool(pos["in_bbox"])
 
-            links = [x for x in self.paths[shell] if len(x.segments) == 1 and x.node_1 == sat or x.node_2 == sat]
+            links = [x for x in self.paths[shell] if len(list(x.segments)) == 1 and x.node_1 == sat or x.node_2 == sat]
 
             for l in links:
                 sat2 = database_pb2.ConnectedSatInfo()
@@ -240,7 +240,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
                 sat2.distance = l.distance
                 si.connectedSats.append(sat2)
 
-            gst_links = [x for x in self.gst_sat_paths[shell] if len(x.segments) == 1 and x.node_2 == sat]
+            gst_links = [x for x in self.gst_sat_paths[shell] if len(list(x.segments)) == 1 and x.node_2 == sat]
 
             for l in gst_links:
                 gst = database_pb2.GroundStationId()
@@ -303,7 +303,7 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
 
             for shell_no in range(len(self.shells)):
 
-                gst_links = [x for x in self.gst_sat_paths[shell_no] if len(x.segments) == 1 and x.node_1 == index]
+                gst_links = [x for x in self.gst_sat_paths[shell_no] if len(list(x.segments)) == 1 and x.node_1 == index]
 
                 for l in gst_links:
                     sat = database_pb2.ConnectedSatInfo()
@@ -434,6 +434,8 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
                 for p in self.gst_sat_paths[ts]:
                     if (p.node_2 == int(t) and not p.node_2_is_gst) or (p.node_1 == int(t) and not p.node_1_is_gst):
                         if (p.node_2 == int(s) and p.node_2_is_gst) or (p.node_1 == int(s) and p.node_1_is_gst):
+                            p.segments = list(p.segments)
+
                             path = database_pb2.Path()
                             path.distance = p.distance
                             path.delay = p.delay
@@ -486,11 +488,12 @@ class Database(database_pb2_grpc.DatabaseServicer): # type: ignore
                     for p in self.gst_paths[shell_no]:
                         if ((p.node_1 == int(s) and p.node_2 == int(t)) or (p.node_1 == int(t) and p.node_2 == int(s))) and p.node_2_is_gst and p.node_1_is_gst:
 
+                            p.segments = list(p.segments)
+
                             path = database_pb2.Path()
                             path.distance = p.distance
                             path.delay = p.delay
                             path.bandwidth = p.bandwidth
-
 
                             first_leg = database_pb2.Segment()
                             first_leg.sourceShell = -1

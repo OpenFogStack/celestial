@@ -47,7 +47,7 @@ class KeplerSolver():
         self.altitude = altitude
         self.semi_major_axis = float(self.altitude)*1000 + EARTH_RADIUS
 
-    def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray:
+    def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray: # type: ignore
 
         raan_offsets = [(self.arcOfAscendingNodes / self.number_of_planes)* i for i in range(0, self.number_of_planes)]
 
@@ -103,7 +103,7 @@ class KeplerSolver():
 
         return satellites_array
 
-    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray:
+    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray: # type: ignore
         for sat_id in range(len(satellites_array)):
             plane = satellites_array[sat_id]['plane_number']
             offset = satellites_array[sat_id]['time_offset']

@@ -60,7 +60,7 @@ class MachineManager():
         self.control_thread = td.Thread(target=self.control_thread_handler)
         self.control_thread.start()
 
-    def init_machines(self, sat_positions: np.ndarray) -> None:
+    def init_machines(self, sat_positions: np.ndarray) -> None: # type: ignore
         if len(sat_positions) != len(self.shells):
             raise ValueError("Machine Manager: did not receive correct amount of shells for initialization")
 

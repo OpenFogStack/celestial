@@ -24,5 +24,5 @@ class Solver(typing.Protocol):
     def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray:
         ...
 
-    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray:
+    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray: # type: ignore
         ...

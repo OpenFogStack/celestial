@@ -202,8 +202,8 @@ class Path(object):
         delay: float,
         bandwidth: int,
         segments: typing.Optional[typing.Iterable[Segment]] = None,
-        dist_matrix: typing.Optional[np.ndarray] = None,
-        predecessors: typing.Optional[np.ndarray] = None,
+        dist_matrix: typing.Optional[np.ndarray] = None, # type: ignore
+        predecessors: typing.Optional[np.ndarray] = None, # type: ignore
         islpropagation: typing.Optional[float] = None,
         total_sats: typing.Optional[int] = None,
     ):

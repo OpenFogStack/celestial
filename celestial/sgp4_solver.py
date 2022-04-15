@@ -72,7 +72,7 @@ class SGP4Solver():
         else:
             raise ValueError("Unknown SGP4 model")
 
-    def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray:
+    def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray: # type: ignore
 
         raan_offsets = [(self.arcOfAscendingNodes / self.number_of_planes)* i for i in range(0, self.number_of_planes)]
 
@@ -151,7 +151,7 @@ class SGP4Solver():
 
         return satellites_array
 
-    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray:
+    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray: # type: ignore
 
         fr = self.start_fr + (time/SECONDS_PER_DAY)
 

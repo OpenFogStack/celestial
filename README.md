@@ -12,7 +12,7 @@ Celestial...
 
 - ...creates Firecracker microVMs with your custom kernel and filesystem
 - ...modifies network connections for a realistic network condition
-- ...let's you define a bounding box on earth so you only need to emulate
+- ...let's you define a bounding box on earth, so you only need to emulate
   satellites that you're actually interested in
 - ...creates/suspends microVMs as they move in to/out of your bounding box
 - ...has APIs for your satellites to retrieve some meta-information
