@@ -54,10 +54,8 @@ for the LEO Edge**, 23rd ACM/IFIP International Middleware Conference
 }
 ```
 
-For a full list of publications, please see [our website](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/).
-
-A full list of our [publications](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/)
-and [prototypes](https://www.mcc.tu-berlin.de/menue/forschung/prototypes/parameter/en/)
+A full list of our [publications](https://www.tu.berlin/en/mcc/research/publications/)
+and [prototypes](https://www.tu.berlin/en/mcc/research/prototypes/)
 is available on our group website.
 
 ### License
