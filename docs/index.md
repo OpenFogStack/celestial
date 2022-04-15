@@ -1,4 +1,10 @@
-# Celestial 🛰
+---
+layout: home
+title: About
+nav_order: 1
+---
+
+## About
 
 Celestial is an emulator for the LEO edge.
 It supports satellite servers as well as ground stations.
@@ -12,7 +18,7 @@ Celestial...
 
 - ...creates Firecracker microVMs with your custom kernel and filesystem
 - ...modifies network connections for a realistic network condition
-- ...let's you define a bounding box on earth so you only need to emulate
+- ...let's you define a bounding box on earth, so you only need to emulate
   satellites that you're actually interested in
 - ...creates/suspends microVMs as they move in to/out of your bounding box
 - ...has APIs for your satellites to retrieve some meta-information
@@ -34,14 +40,11 @@ other stuff.
 
 If you use this software in a publication, please cite it as:
 
-### Text
-
+<div class="code-example" markdown="1">
 T. Pfandzelter and D. Bermbach, **Celestial: Virtual Software System Testbeds
 for the LEO Edge**, 23rd ACM/IFIP International Middleware Conference
 (Middleware '22), Quebec City, Canada, 2022, doi: 10.1145/3528535.3531517.
-
-### BibTeX
-
+</div>
 ```bibtex
 @inproceedings{pfandzelter2022celestial,
     title = "Celestial: Virtual Software System Testbeds for the LEO Edge",
