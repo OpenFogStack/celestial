@@ -36,7 +36,7 @@ It's doing its best to clean up everything, but it has to make changes to a lot
 of networking settings, so we can't guarantee that it doesn't destroy any of your
 other stuff.
 
-## Research
+### Research
 
 If you use this software in a publication, please cite it as:
 
@@ -60,12 +60,12 @@ A full list of our [publications](https://www.mcc.tu-berlin.de/menue/forschung/p
 and [prototypes](https://www.mcc.tu-berlin.de/menue/forschung/prototypes/parameter/en/)
 is available on our group website.
 
-## License
+### License
 
 The code in this repository is licensed under the terms of the [GPLv3](./LICENSE)
 license.
 
-## Documentation
+### Documentation
 
-The complete documentation can be found at [`celestial.github.io`](https://celestial.github.io)
+The complete documentation can be found at [`openfogstack.github.io/celestial`](https://openfogstack.github.io/celestial)
 or in the `docs` directory.

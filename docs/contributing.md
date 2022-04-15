@@ -1,4 +1,10 @@
-# Contributing
+---
+layout: default
+title: Contribution
+nav_order: 2
+---
+
+## Contributing
 
 Feel free to contribute to this project in any way you see fit.
 Please note that all contributions must adhere to the terms of the GPLv3 license.

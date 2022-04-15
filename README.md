@@ -64,5 +64,5 @@ license.
 
 ## Documentation
 
-The complete documentation can be found at [`celestial.github.io`](https://celestial.github.io)
+The complete documentation can be found at [`openfogstack.github.io/celestial`](https://openfogstack.github.io/celestial)
 or in the `docs` directory.
