@@ -27,7 +27,7 @@ Check out [`celestial-videoconferencing-evaluation`](https://github.com/OpenFogS
 for an example application on Celestial!
 Also check out the [`celestial-buoy-evaluation`](https://github.com/OpenFogStack/celestial-buoy-evaluation)
 and the [`celestial-twissandra-evaluation`](https://github.com/OpenFogStack/celestial-twissandra-evaluation).
-Even more examples can be found in [the `examples` directory](./examples).
+Even more examples can be found in [the `examples` directory](https://github.com/OpenFogStack/celestial/tree/main/examples).
 
 **A word of caution**: you can technically run the server-side software on any
 computer you want, but it requires root access to fiddle with your network settings.

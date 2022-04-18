@@ -12,7 +12,7 @@ Docker.
 Docker is obviously a bit easier but running it directly lets you activate the
 cool animation as well.
 
-In order to use the database feature (more about that in the [Services](#services)
+In order to use the database feature (more about that in the [Services](/runtime/services)
 section), you must open a TCP port of your choice on your client, and it must be
 reachable from your servers.
 

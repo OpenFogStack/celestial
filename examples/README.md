@@ -11,7 +11,7 @@ program in the root of the repository like so:
 python3 animate.py ./path/to/configuration.toml
 ```
 
-![](https://storage.googleapis.com/celestial-results/celestial-constellation.gif)
+![Constellation Animation](../docs/celestial-constellation.gif)
 
 In the [`animation`](./animation) directory, you can find two example
 configuration files.
