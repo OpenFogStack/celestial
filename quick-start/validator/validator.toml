@@ -1,0 +1,48 @@
+model = "SGP4"
+
+bbox = [35.000000, -15.000000, 65.000000, 35.000000]
+interval = 1
+animation = false
+hosts = ["192.168.10.3:1969", "192.168.10.4:1969"]
+peeringhosts = ["192.168.10.3:1970", "192.168.10.4:1970"]
+database = true
+dbhost = "192.168.10.2:8000"
+
+[sgp4params]
+starttime = 2021-05-01T12:00:00+00:00
+
+[networkparams]
+islpropagation = 3.336e-6
+bandwidth = 10_000_000
+mincommsaltitude = 100_000
+minelevation = 40
+gstpropagation = 3.336e-6
+groundstationconnectiontype = "all"
+
+[computeparams]
+vcpu_count = 1
+mem_size_mib = 512
+disk_size_mib = 10
+ht_enabled = false
+bootparams = "random.trust_cpu=on"
+kernel = "vmlinux.bin"
+rootfs = "server.img"
+
+[[shell]]
+planes = 72
+sats = 22
+altitude = 550
+inclination = 53.0
+arcofascendingnodes = 360.0
+eccentricity = 0.0
+
+[[groundstation]]
+name = "validator"
+lat = 52.514182
+long = 13.328285
+
+[groundstation.computeparams]
+vcpu_count = 4
+mem_size_mib = 4096
+disk_size_mib = 100
+rootfs = "validator.img"

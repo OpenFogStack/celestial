@@ -17,7 +17,10 @@
 
 .PHONY: all
 
-all: validator.img
+all: validator.img server.img
 
-validator.img: validator.sh validator-base.sh validate.py
-	@docker run --rm -v $(PWD)/validate.py:/files/validate.py -v $(PWD)/validator.sh:/app.sh -v $(PWD)/validator-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
+validator.img: validator.sh validator-base.sh validator.py
+	@docker run --rm -v $(PWD)/validator.py:/files/validator.py -v $(PWD)/validator.sh:/app.sh -v $(PWD)/validator-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
+
+server.img: server.sh
+	@docker run --rm -v $(PWD)/server.sh:/app.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@

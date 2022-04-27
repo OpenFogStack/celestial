@@ -87,11 +87,11 @@ def get_real_latency(sat: int, shell: int) -> float:
 
 if __name__ == "__main__":
     if not len(sys.argv) == 2:
-        exit("Usage: python3 validate.py [gateway]")
+        exit("Usage: python3 validator.py [gateway]")
 
     gateway = sys.argv[1]
 
-    with open("validate.csv", "w") as f:
+    with open("validator.csv", "w") as f:
         f.write("t,shell,sat,expected_before,expected_after,actual_med,actual_avg,actual_max,actual_min,loss\n")
 
         f.flush()

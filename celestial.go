@@ -78,17 +78,20 @@ func main() {
 			panic(err.Error())
 		}
 	}()
+
 	go func() {
 		err := infoserver.Start(*infoServerPort, o)
 		if err != nil {
 			panic(err.Error())
 		}
 	}()
+
 	go func() {
 		err := s.Serve(lisS)
 		if err != nil {
 			panic(err.Error())
 		}
 	}()
+
 	panic(p.Serve(lisP))
 }

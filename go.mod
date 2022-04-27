@@ -6,7 +6,7 @@ require (
 	github.com/containernetworking/plugins v0.9.1 // indirect
 	github.com/firecracker-microvm/firecracker-go-sdk v0.22.1-0.20210310192028-095caa5caf61
 	github.com/go-ping/ping v0.0.0-20210312085107-d90f3778a8a3
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-multierror v1.1.1 // indirect

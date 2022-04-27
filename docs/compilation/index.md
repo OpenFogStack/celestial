@@ -6,30 +6,20 @@ nav_order: 4
 
 ## Compilation
 
-Use the Makefiles to compile the project.
+Use Docker to compile the project.
+
+### Building the Compile Container
+
+Run `make celestial-make` to build a container that has all the dependencies
+needed to compile the project.
 
 ### Protocol Buffer
 
-You can use the pre-compiled gRPC/protobuf files or compile your own.
-
-To compile the `proto` files (needed for communication between server and client),
-you will need the following tools:
-
-- `go`, version 1.16 or later
-- `python3`, preferably Python 3.8 or later
-- `protoc`, version 3.15.8 or later (on macOS, install with `brew install protobuf`)
-- `mypy-protobuf` (`pip3 install mypy-protobuf`) to compile type hints for
-  generated Python files
-- `grpcio-tools`, version 1.37.1 or later (`pip3 install grpcio-tools`) to
-  generate gRPC Python files
-- `protoc-gen-go` (install with `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`)
-  to generate gRPC Go files
-
-Once you have these tools installed, execute:
+You can use the pre-compiled gRPC/protobuf files or compile your own:
 
 ```sh
 # compile all protofiles for python and go
-make proto
+docker run --rm -v $(pwd):/celestial celestial-make proto/
 ```
 
 ### Python Client
@@ -46,13 +36,14 @@ You can also package that client as a Docker container if you want.
 This requires the `docker` command available on your system.
 
 ```sh
-make container
+# make container
+docker build -t celestial .
 ```
 
 ### Go Server
 
-To compile the server, you need `go` version 1.16 or later.
+Compile the host server with:
 
 ```sh
-make binary
+docker run --rm -v $(pwd):/celestial celestial-make celestial.bin
 ```

@@ -15,31 +15,21 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-.PHONY: build client server container binary runclient runserver installserver cleanupserver
+.PHONY: build container celestial-make rootfs-builder
 
-build: proto container binary
-client: proto container runclient
-server: proto binary runserver
+build: proto celestial.bin
 
 container: proto Dockerfile celestial.py celestial ## build client docker container
 	docker build -t celestial .
 
-binary: celestial.bin
-
 celestial.bin: celestial.go pkg proto ## build go binary
 	go build -o celestial.bin .
 
-proto: ## build proto files
+proto/: ## build proto files
 	cd ./proto ; make ; cd ..
 
-runclient: container ## run client
-	docker run --rm -it -v $(pwd)/config.toml:/config.toml celestial /config.toml
+celestial-make: ## build the compile container
+	docker build -f compile.Dockerfile -t celestial-make .
 
-runserver: celestial.bin ## run server
-	sudo ./celestial.bin
-
-cleanupserver: ## run server cleanup
-	bash ./cleanupserver.sh
-
-installserver: ## install dependencies on server
-	bash ./installserver.sh
+rootfsbuilder: ## build the rootfs builder container
+	cd ./builder ; make rootfsbuilder ; cd ..

@@ -103,8 +103,8 @@ class Animation():
             self.shell_actors.append(types.SimpleNamespace())
             self.isl_actors.append(types.SimpleNamespace())
 
-        self.sat_colors = sns.color_palette(n_colors=self.num_shells+3)[3:]
-        self.isl_colors = sns.color_palette(n_colors=self.num_shells+3, desat=0.5)[3:]
+        self.sat_colors = sns.color_palette(n_colors=self.num_shells)
+        self.isl_colors = sns.color_palette(n_colors=self.num_shells, desat=0.5)
 
         self.draw_links = draw_links
 

@@ -17,28 +17,9 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-rc-service chronyd start
-
-IP=$(/sbin/ip route | awk '/default/ { print $3 }')
-
-echo nameserver "$IP" > /etc/resolv.conf
-
-chronyc tracking
-
-chronyc -a makestep
-
-sleep 10
-
-chronyc tracking
-
-chronyc -a makestep
-
-chronyc tracking
-
-sleep 10
-
-chronyc tracking
-
-echo "STARTING VALIDATOR"
-
-python3 validate.py "$IP"
+# the app script runs when a microVM boots
+# this server just needs to answer to pings
+while true; do
+    echo "$(date): satellite server running"
+    sleep 60
+done

@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Contribution
+title: Contributing
 nav_order: 2
 ---
 
