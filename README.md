@@ -1,5 +1,7 @@
 # Celestial 🛰
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6640549.svg)](https://doi.org/10.5281/zenodo.6640549)
+
 Celestial is an emulator for the LEO edge.
 It supports satellite servers as well as ground stations.
 Each node is booted as a microVM.
