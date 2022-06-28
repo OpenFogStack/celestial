@@ -20,7 +20,7 @@ In order to run Celestial, make sure each server has the following:
   - WireGuard installed and available as `wg`
   - `iptables` and `ipset`
 - virtualization capabilities
-- the Firecracker binary on its `PATH` (available [here](https://github.com/firecracker-microvm/firecracker/releases))
+- the Firecracker binary on its `PATH` (currently limited to v0.25.2, available [here](https://github.com/firecracker-microvm/firecracker/releases/tag/v0.25.2))
 - port 1969 available for the client (configurable)
 - port 1970 available for other servers (configurable)
 
