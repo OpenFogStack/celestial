@@ -190,8 +190,8 @@ func getFirecrackerNetworkInterfaces(ip string, gateway string, mac string, tapN
 func initHost(hostInterface string) error {
 
 	// clear iptables
-	// iptables -F
-	cmd := exec.Command(IPTABLES, "-F")
+	// iptables -w -F
+	cmd := exec.Command(IPTABLES, "-w", "-F")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
@@ -216,17 +216,17 @@ func initHost(hostInterface string) error {
 		return errors.WithStack(err)
 	}
 
-	//sudo iptables -t nat -A POSTROUTING -o [HOSTINTERFACE] -j MASQUERADE
+	//sudo iptables -w -t nat -A POSTROUTING -o [HOSTINTERFACE] -j MASQUERADE
 
-	cmd = exec.Command(IPTABLES, "-t", "nat", "-A", "POSTROUTING", "-o", hostInterface, "-j", "MASQUERADE")
+	cmd = exec.Command(IPTABLES, "-w", "-t", "nat", "-A", "POSTROUTING", "-o", hostInterface, "-j", "MASQUERADE")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+	// sudo iptables -w -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 
-	cmd = exec.Command(IPTABLES, "-A", "FORWARD", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT")
+	cmd = exec.Command(IPTABLES, "-w", "-A", "FORWARD", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
@@ -269,25 +269,25 @@ func createNetworkDevice(gateway string, tapName string, chainName string, ipBlo
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// iptables -A FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
+	// iptables -w -A FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
 
-	cmd = exec.Command(IPTABLES, "-A", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// iptables -N [CHAIN_NAME]
-
-	cmd = exec.Command(IPTABLES, "-N", chainName)
+	cmd = exec.Command(IPTABLES, "-w", "-A", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// iptables -A FORWARD -i [TAP_NAME] -j [CHAIN_NAME]
+	// iptables -w -N [CHAIN_NAME]
 
-	cmd = exec.Command(IPTABLES, "-A", "FORWARD", "-i", tapName, "-j", chainName)
+	cmd = exec.Command(IPTABLES, "-w", "-N", chainName)
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	// iptables -w -A FORWARD -i [TAP_NAME] -j [CHAIN_NAME]
+
+	cmd = exec.Command(IPTABLES, "-w", "-A", "FORWARD", "-i", tapName, "-j", chainName)
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
@@ -301,9 +301,9 @@ func createNetworkDevice(gateway string, tapName string, chainName string, ipBlo
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// iptables -A [CHAIN_NAME] -m set --match-set [IP_BLOCK_SET] src -j REJECT --reject-with icmp-net-unreachable
+	// iptables -w -A [CHAIN_NAME] -m set --match-set [IP_BLOCK_SET] src -j REJECT --reject-with icmp-net-unreachable
 
-	cmd = exec.Command(IPTABLES, "-A", chainName, "-m", "set", "--match-set", ipBlockSet, "src", "-j", "REJECT", "--reject-with", "icmp-net-unreachable")
+	cmd = exec.Command(IPTABLES, "-w", "-A", chainName, "-m", "set", "--match-set", ipBlockSet, "src", "-j", "REJECT", "--reject-with", "icmp-net-unreachable")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
@@ -322,33 +322,33 @@ func removeNetworkDevice(tapName string, chainName string, ipBlockSet string, ho
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// iptables -D FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
+	// iptables -w -D FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
 
-	cmd = exec.Command(IPTABLES, "-D", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
-
-	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// iptables -D FORWARD -i [TAP_NAME] -j [CHAIN_NAME]
-
-	cmd = exec.Command(IPTABLES, "-D", "FORWARD", "-i", tapName, "-j", chainName)
+	cmd = exec.Command(IPTABLES, "-w", "-D", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
 
 	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// iptables -F [CHAIN_NAME]
+	// iptables -w -D FORWARD -i [TAP_NAME] -j [CHAIN_NAME]
 
-	cmd = exec.Command(IPTABLES, "-F", chainName)
+	cmd = exec.Command(IPTABLES, "-w", "-D", "FORWARD", "-i", tapName, "-j", chainName)
 
 	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// iptables -X [CHAIN_NAME]
+	// iptables -w -F [CHAIN_NAME]
 
-	cmd = exec.Command(IPTABLES, "-X", chainName)
+	cmd = exec.Command(IPTABLES, "-w", "-F", chainName)
+
+	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	// iptables -w -X [CHAIN_NAME]
+
+	cmd = exec.Command(IPTABLES, "-w", "-X", chainName)
 	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
