@@ -13,7 +13,7 @@ variable "host_type" {
 }
 
 variable "host_count" {
-  default = 1
+  default = 2
 }
 
 # change this only if you know what you're doing!

@@ -41,7 +41,7 @@ We are not responsible for any costs that your project may incur.
 
 Before we can start setting up Celestial, there are some dependencies we need
 to take care of.
-These steps are correct as of April 2022, but things change quickly.
+These steps are correct as of October 2022, but things change quickly.
 
 1. Set up Docker to build everything.
     This follows the official [Docker documentation](https://docs.docker.com/engine/install/ubuntu/):
@@ -91,6 +91,10 @@ These steps are correct as of April 2022, but things change quickly.
     gcloud init
     # press Y when asked to log in
     # follow the steps required to log in to your account
+
+    gcloud auth application-default login
+    # add your gcloud accoount to the Application Default Credentials
+    # this let's Terraform use it
     ```
 
 1. Clone the Celestial repository:
@@ -238,17 +242,19 @@ COORDINATOR_INSTANCE="celestial-coordinator"
 
 # the first copy command can take a while because gcloud copies access keys
 # to the instance
-gcloud compute scp ~/celestial/Dockerfile $COORDINATOR_INSTANCE:.
-gcloud compute scp ~/celestial/*.py $COORDINATOR_INSTANCE:.
-gcloud compute scp ~/celestial/requirements.txt $COORDINATOR_INSTANCE:.
-gcloud compute scp --recurse ~/celestial/celestial $COORDINATOR_INSTANCE:.
-gcloud compute scp --recurse ~/celestial/proto $COORDINATOR_INSTANCE:.
+gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" ~/celestial/Dockerfile $COORDINATOR_INSTANCE:.
+gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" ~/celestial/*.py $COORDINATOR_INSTANCE:.
+gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" ~/celestial/requirements.txt $COORDINATOR_INSTANCE:.
+gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" --recurse \
+    ~/celestial/celestial $COORDINATOR_INSTANCE:.
+gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" --recurse ~/celestial/proto $COORDINATOR_INSTANCE:.
 
-gcloud compute scp ~/celestial/quick-start/validator/validator.toml $COORDINATOR_INSTANCE:.
+gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" \
+    ~/celestial/quick-start/validator/validator.toml $COORDINATOR_INSTANCE:.
 
 # build the coordinator
 # this can take a minute, you can continue with something else
-gcloud compute ssh $COORDINATOR_INSTANCE \
+gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" $COORDINATOR_INSTANCE \
     --command "sudo docker build -t celestial ."
 ```
 
@@ -260,23 +266,27 @@ up the `/celestial` directory:
 # adapt this if you change the name or amount of hosts
 for i in {0..1}; do
     HOST_INSTANCE="celestial-host-$i"
-    gcloud compute scp ~/celestial/celestial.bin $HOST_INSTANCE:.
-    gcloud compute scp ~/celestial/quick-start/validator/validator.img $HOST_INSTANCE:.
-    gcloud compute scp ~/celestial/quick-start/validator/server.img $HOST_INSTANCE:.
-    gcloud compute scp ~/celestial/quick-start/validator/vmlinux.bin \
-        $HOST_INSTANCE:.
+    gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" \
+        ~/celestial/celestial.bin $HOST_INSTANCE:.
+    gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" \
+        ~/celestial/quick-start/validator/validator.img $HOST_INSTANCE:.
+    gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" \
+        ~/celestial/quick-start/validator/server.img $HOST_INSTANCE:.
+    gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" \
+    ~/celestial/quick-start/validator/vmlinux.bin $HOST_INSTANCE:.
 
-    gcloud compute ssh $HOST_INSTANCE \
+    gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" $HOST_INSTANCE \
         --command "sudo mv validator.img /celestial/validator.img"
-    gcloud compute ssh $HOST_INSTANCE \
+    gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" $HOST_INSTANCE \
         --command "sudo mv server.img /celestial/server.img"
-    gcloud compute ssh $HOST_INSTANCE \
+    gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" $HOST_INSTANCE \
         --command "sudo mv vmlinux.bin /celestial/vmlinux.bin"
 
     # before we start, we need to reboot our hosts once
     # the reason is that we need to adapt file descriptor limits, which we do
     # with terraform during setup but which requires a reboot after
-    gcloud compute ssh $HOST_INSTANCE --command "sudo reboot now"
+    gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" $HOST_INSTANCE \
+        --command "sudo reboot now"
 done
 ```
 
@@ -293,17 +303,17 @@ sessions:
 # start the hosts first:
 # this command disables the systemd-resolved service
 # this is necessary to clear port 53
-$ gcloud compute ssh "celestial-host-0"
+$ gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" "celestial-host-0"
 ubuntu@celestial-host-0:~$ sudo systemctl stop systemd-resolved
 ubuntu@celestial-host-0:~$ sudo ./celestial.bin
 
 # in a second terminal window, start the second host
-$ gcloud compute ssh "celestial-host-1"
+$ gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" "celestial-host-1"
 ubuntu@celestial-host-1:~$ sudo systemctl stop systemd-resolved
 ubuntu@celestial-host-1:~$ sudo ./celestial.bin
 
 # in a third terminal window, start the coordinator
-$ gcloud compute ssh "celestial-coordinator"
+$ gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" "celestial-coordinator"
 ubuntu@celestial-coordinator:~$ sudo docker run --rm -it \
     -p 8000:8000 \
     -v $(pwd)/validator.toml:/config.toml \
@@ -375,7 +385,8 @@ ubuntu@celestial-host-0:~$ sudo umount ./tmp
 ubuntu@celestial-host-0:~$ rmdir ./tmp
 # now get back out of the host
 ubuntu@celestial-host-0:~$ exit
-$ gcloud compute scp "celestial-host-0":./validator.csv ~/celestial/quick-start/validator_results.csv
+$ gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" \
+    "celestial-host-0":./validator.csv ~/celestial/quick-start/validator_results.csv
 ```
 
 You now have `validator_results.csv` on your machine and can continue to analysis.
