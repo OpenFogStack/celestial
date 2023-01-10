@@ -28,42 +28,26 @@ rootfs = "x"
 disk_size_mib =  20_000
 
 [[shell]]
-planes = 72
-sats = 22
-altitude = 550
-inclination = 53.0
-arcofascendingnodes = 360.0
-eccentricity = 0.0
-
-[[shell]]
-planes = 72
-sats = 22
-altitude = 540
-inclination = 53.2
+planes = 34
+sats = 34
+altitude = 630
+inclination = 51.9
 arcofascendingnodes = 360.0
 eccentricity = 0.0
 
 [[shell]]
 planes = 36
-sats = 20
-altitude = 570
-inclination = 70.0
+sats = 36
+altitude = 610
+inclination = 42.0
 arcofascendingnodes = 360.0
 eccentricity = 0.0
 
 [[shell]]
-planes = 6
-sats = 58
-altitude = 560
-inclination = 97.6
-arcofascendingnodes = 360.0
-eccentricity = 0.0
-
-[[shell]]
-planes = 4
-sats = 43
-altitude = 560
-inclination = 97.6
+planes = 28
+sats = 28
+altitude = 590
+inclination = 33.0
 arcofascendingnodes = 360.0
 eccentricity = 0.0
 
