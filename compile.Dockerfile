@@ -19,14 +19,14 @@ RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.15.8/p
     chmod +x /usr/local/protoc/bin/* && \
     ln -s /usr/local/protoc/bin/protoc /usr/local/bin/protoc
 
-RUN wget https://go.dev/dl/go1.18.1.linux-amd64.tar.gz && \
+RUN wget https://go.dev/dl/go1.21.1.linux-amd64.tar.gz && \
     rm -rf /usr/local/go && \
-    tar -C /usr/local -xzf go1.18.1.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.21.1.linux-amd64.tar.gz && \
     echo 'export PATH="$PATH:/usr/local/go/bin"' >> /etc/profile && \
     echo 'export PATH="$PATH:/root/go/bin"' >> /etc/profile && \
     echo 'export GOPATH=/root/go' >> /etc/profile && \
     echo 'export GOBIN="/root/go/bin"' >> /etc/profile && \
-    rm -rf go1.18.1.linux-amd64.tar.gz
+    rm -rf go1.21.1.linux-amd64.tar.gz
 
 ENV PATH $PATH:/usr/local/go/bin
 ENV PATH $PATH:/root/go/bin
