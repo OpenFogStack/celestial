@@ -21,16 +21,16 @@ import grpc
 
 from proto.celestial import celestial_pb2, celestial_pb2_grpc
 
-class MachineConnector():
+
+class MachineConnector:
     def __init__(
         self,
         stub: celestial_pb2_grpc.CelestialStub,
         host: str,
         shell: int,
         id: int,
-        name: str=""
+        name: str = "",
     ):
-
         self.stub = stub
         self.host = host
 
@@ -38,8 +38,18 @@ class MachineConnector():
         self.id = id
         self.name = name
 
-    def create_machine(self, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, disk_size_mib: int, kernel: str, rootfs: str, bootparams: str, active: bool, bandwidth: int) -> None:
-
+    def create_machine(
+        self,
+        vcpu_count: int,
+        mem_size_mib: int,
+        ht_enabled: bool,
+        disk_size_mib: int,
+        kernel: str,
+        rootfs: str,
+        bootparams: str,
+        active: bool,
+        bandwidth: int,
+    ) -> None:
         cmr = celestial_pb2.CreateMachineRequest()
         cmr.machine.shell = self.shell
         cmr.machine.id = self.id
@@ -55,22 +65,25 @@ class MachineConnector():
 
         cmr.networkconfig.bandwidth = bandwidth
 
-        cmr.status = active
+        cmr.status = bool(active)
 
         self.stub.CreateMachine(cmr)
 
     def modify_machine(self, active: bool) -> None:
-
         r = celestial_pb2.ModifyMachineRequest()
 
         r.machine.shell = self.shell
         r.machine.id = self.id
 
-        r.status = active
+        r.status = bool(active)
 
         td.Thread(target=self.stub.ModifyMachine, args=(r,)).start()
 
-    def modify_links(self, remove_set: typing.List[typing.Dict[str,int]], modify_set: typing.List[typing.Dict[str,typing.Union[int, float]]]) -> None:
+    def modify_links(
+        self,
+        remove_set: typing.List[typing.Dict[str, int]],
+        modify_set: typing.List[typing.Dict[str, typing.Union[int, float]]],
+    ) -> None:
         r = celestial_pb2.ModifyLinksRequest()
 
         r.a.shell = self.shell

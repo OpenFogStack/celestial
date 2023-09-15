@@ -27,19 +27,19 @@ from .types import ShellConfig
 
 from proto.celestial import celestial_pb2, celestial_pb2_grpc
 
-class ConnectionManager():
+
+class ConnectionManager:
     def __init__(
         self,
         hosts: typing.List[str],
         peeringhosts: typing.List[str],
-        allowed_concurrent: int = 512
+        allowed_concurrent: int = 512,
     ):
-
-        self.stubs: typing.List[celestial_pb2_grpc.CelestialStub] = []
+        stubs: typing.List[celestial_pb2_grpc.CelestialStub] = []
 
         for host in hosts:
             channel = grpc.insecure_channel(host)
-            self.stubs.append(celestial_pb2_grpc.CelestialStub(channel))
+            stubs.append(celestial_pb2_grpc.CelestialStub(channel))
 
         self.hosts = hosts
 
@@ -56,31 +56,75 @@ class ConnectionManager():
 
         for i in range(len(self.hosts)):
             irr.index = i
-            self.stubs[i].InitRemotes(irr)
+            stubs[i].InitRemotes(irr)
 
         for i in range(len(self.hosts)):
             e = celestial_pb2.Empty()
-            self.stubs[i].StartPeering(e)
+            stubs[i].StartPeering(e)
 
     def init_mutex(self) -> None:
+        self.stubs: typing.List[celestial_pb2_grpc.CelestialStub] = []
+
+        for host in self.hosts:
+            channel = grpc.insecure_channel(host)
+            self.stubs.append(celestial_pb2_grpc.CelestialStub(channel))
+
         self.mutexes: typing.Dict[str, td.Semaphore] = {}
 
         for host in self.hosts:
             self.mutexes[host] = td.Semaphore(self.allowed_concurrent)
 
-    def __register(self, conn: MachineConnector, bandwidth: int, active: bool, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, disk_size_mib: int, kernel: str, rootfs: str, bootparams: str) -> None:
-
+    def __register(
+        self,
+        conn: MachineConnector,
+        bandwidth: int,
+        active: bool,
+        vcpu_count: int,
+        mem_size_mib: int,
+        ht_enabled: bool,
+        disk_size_mib: int,
+        kernel: str,
+        rootfs: str,
+        bootparams: str,
+    ) -> None:
         self.mutexes[conn.host].acquire()
         try:
-            conn.create_machine(vcpu_count=vcpu_count, mem_size_mib=mem_size_mib, ht_enabled=ht_enabled, disk_size_mib=disk_size_mib, kernel=kernel, rootfs=rootfs, bootparams=bootparams, active=active, bandwidth=bandwidth)
+            conn.create_machine(
+                vcpu_count=vcpu_count,
+                mem_size_mib=mem_size_mib,
+                ht_enabled=ht_enabled,
+                disk_size_mib=disk_size_mib,
+                kernel=kernel,
+                rootfs=rootfs,
+                bootparams=bootparams,
+                active=active,
+                bandwidth=bandwidth,
+            )
         except Exception as e:
-            print("❌ caught exception while trying to create machine %d shell %d:" % (conn.id, conn.shell), e)
+            print(
+                "❌ caught exception while trying to create machine %d shell %d:"
+                % (conn.id, conn.shell),
+                e,
+            )
 
         self.mutexes[conn.host].release()
 
-
-    def register_machine(self, shell_no: int, id: int, bandwidth: int, active: bool, vcpu_count: int, mem_size_mib: int, ht_enabled: bool, disk_size_mib: int, kernel: str, rootfs: str, bootparams: str, host_affinity: typing.List[int], name: str="") -> MachineConnector:
-
+    def register_machine(
+        self,
+        shell_no: int,
+        id: int,
+        bandwidth: int,
+        active: bool,
+        vcpu_count: int,
+        mem_size_mib: int,
+        ht_enabled: bool,
+        disk_size_mib: int,
+        kernel: str,
+        rootfs: str,
+        bootparams: str,
+        host_affinity: typing.List[int],
+        name: str = "",
+    ) -> MachineConnector:
         # assign a random stub to this connection
         #
         # how do we get a host for a machine? serveral possibilities
@@ -97,23 +141,25 @@ class ConnectionManager():
 
         conn = MachineConnector(stub=stub, host=host, shell=shell_no, id=id, name=name)
 
-        td.Thread(target=self.__register, kwargs={
-            "conn": conn,
-            "vcpu_count": vcpu_count,
-            "mem_size_mib": mem_size_mib,
-            "ht_enabled": ht_enabled,
-            "disk_size_mib": disk_size_mib,
-            "kernel": kernel,
-            "rootfs": rootfs,
-            "bootparams": bootparams,
-            "active": active,
-            "bandwidth": bandwidth
-        }).start()
+        td.Thread(
+            target=self.__register,
+            kwargs={
+                "conn": conn,
+                "vcpu_count": vcpu_count,
+                "mem_size_mib": mem_size_mib,
+                "ht_enabled": ht_enabled,
+                "disk_size_mib": disk_size_mib,
+                "kernel": kernel,
+                "rootfs": rootfs,
+                "bootparams": bootparams,
+                "active": active,
+                "bandwidth": bandwidth,
+            },
+        ).start()
 
         return conn
 
     def collect_host_infos(self) -> typing.Tuple[int, int, int]:
-
         cpu_count = 0
         mem = 0
         machine_count = 0
@@ -129,7 +175,7 @@ class ConnectionManager():
 
             machine_count += 1
             cpu_count += info.cpu
-            mem += info.mem/1000000
+            mem += info.mem / 1000000
 
         return machine_count, cpu_count, mem
 
@@ -141,7 +187,6 @@ class ConnectionManager():
 
         while not all(ready):
             for i in range(len(self.hosts)):
-
                 if ready[i]:
                     continue
 
@@ -167,8 +212,13 @@ class ConnectionManager():
         if not sum(total) == total_machines:
             raise ValueError("reported created machines not equal total machines")
 
-    def init(self, db: bool, db_host: typing.Optional[str], shell_count: int, shells: typing.List[ShellConfig]) -> None:
-
+    def init(
+        self,
+        db: bool,
+        db_host: typing.Optional[str],
+        shell_count: int,
+        shells: typing.List[ShellConfig],
+    ) -> None:
         isr = celestial_pb2.InitRequest()
 
         isr.database = db
