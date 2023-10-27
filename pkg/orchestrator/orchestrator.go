@@ -47,6 +47,7 @@ const (
 
 	// setting the path directly means we don't have to consult lookpath for each command
 	// TODO: in theory we should probably add a LookPath to this
+
 	TC       = "/sbin/tc"
 	IPTABLES = "/sbin/iptables"
 	IPSET    = "/sbin/ipset"

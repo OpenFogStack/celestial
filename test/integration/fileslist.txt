@@ -1,0 +1,9 @@
+test/integration/dependencies.sh
+test/integration/rootfs/ssh.img
+proto
+pkg
+celestial.go
+go.mod
+go.sum
+test/integration/celestial_test.go
+test/integration/id_ed255119
