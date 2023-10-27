@@ -15,21 +15,24 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-.PHONY: build container celestial-make rootfs-builder
+ARCH=amd64
+OS=linux
 
-build: proto celestial.bin
+.PHONY: build container celestial-make rootfsbuilder
+
+build: proto/ celestial.bin
 
 container: proto Dockerfile celestial.py celestial ## build client docker container
 	docker build -t celestial .
 
-celestial.bin: celestial.go pkg proto ## build go binary
-	go build -o celestial.bin .
+celestial.bin: go.mod go.sum celestial.go pkg/ proto/ ## build go binary
+	GOOS=${OS} GOARCH=${ARCH} go build -o celestial.bin .
 
 proto/: ## build proto files
 	cd ./proto ; make ; cd ..
 
 celestial-make: ## build the compile container
-	docker build -f compile.Dockerfile -t celestial-make .
+	docker build --platform ${OS}/${ARCH} -f compile.Dockerfile -t celestial-make .
 
 rootfsbuilder: ## build the rootfs builder container
 	cd ./builder ; make rootfsbuilder ; cd ..

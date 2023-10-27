@@ -20,4 +20,4 @@
 all: rootfsbuilder
 
 rootfsbuilder: build-script.sh Dockerfile inittab interfaces start-script
-	@docker build -t rootfsbuilder .
+	@docker build --platform=linux/amd64 -t rootfsbuilder .

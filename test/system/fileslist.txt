@@ -1,0 +1,9 @@
+test/system/dependencies.sh
+test/system/app/validator.img
+test/system/config.toml
+requirements.txt
+celestial
+proto
+celestial.py
+__init__.py
+celestial.bin

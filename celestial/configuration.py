@@ -19,7 +19,19 @@ import cerberus
 import typing
 import datetime
 
-from .types import Configuration, Model, GroundstationConnectionTypeConfig, NetworkParamsConfig, ComputeParamsConfig, SGP4ModelConfig, SGP4ModeConfig, SGP4ParamsConfig, ShellConfig, GroundstationConfig, BoundingBoxConfig
+from .types import (
+    Configuration,
+    Model,
+    GroundstationConnectionTypeConfig,
+    NetworkParamsConfig,
+    ComputeParamsConfig,
+    SGP4ModelConfig,
+    SGP4ModeConfig,
+    SGP4ParamsConfig,
+    ShellConfig,
+    GroundstationConfig,
+    BoundingBoxConfig,
+)
 
 NETWORKPARAMS_SCHEMA = {
     "islpropagation": {
@@ -201,39 +213,18 @@ CONFIG_SCHEMA = {
             "type": "dict",
             "check_with": "max_satellites",
             "schema": {
-                "planes": {
-                    "type": "integer",
-                    "min": 1,
-                    "required": True
-                },
-                "sats": {
-                    "type": "integer",
-                    "min": 1,
-                    "required": True
-                },
-                "altitude": {
-                    "type": "integer",
-                    "min": 0,
-                    "required": True
-                },
+                "planes": {"type": "integer", "min": 1, "required": True},
+                "sats": {"type": "integer", "min": 1, "required": True},
+                "altitude": {"type": "integer", "min": 0, "required": True},
                 "inclination": {
                     "type": "float",
                     "min": 0.0,
                     "max": 360.0,
-                    "required": True
+                    "required": True,
                 },
-                "arcofascendingnodes": {
-                    "type": "float",
-                    "required": True
-                },
-                "eccentricity": {
-                    "type": "float",
-                    "required": True
-                },
-                "networkparams": {
-                    "type": "dict",
-                    "schema": NETWORKPARAMS_SCHEMA
-                },
+                "arcofascendingnodes": {"type": "float", "required": True},
+                "eccentricity": {"type": "float", "required": True},
+                "networkparams": {"type": "dict", "schema": NETWORKPARAMS_SCHEMA},
                 "computeparams": {
                     "type": "dict",
                     "schema": COMPUTEPARAMS_SCHEMA,
@@ -252,17 +243,10 @@ CONFIG_SCHEMA = {
         "schema": {
             "type": "dict",
             "schema": {
-                "name": {
-                    "type": "string",
-                    "empty": False,
-                    "required": True
-                },
+                "name": {"type": "string", "empty": False, "required": True},
                 "lat": LAT,
                 "long": LON,
-                "networkparams": {
-                    "type": "dict",
-                    "schema": NETWORKPARAMS_SCHEMA
-                },
+                "networkparams": {"type": "dict", "schema": NETWORKPARAMS_SCHEMA},
                 "computeparams": {
                     "type": "dict",
                     "schema": COMPUTEPARAMS_SCHEMA,
@@ -272,8 +256,11 @@ CONFIG_SCHEMA = {
     },
 }
 
-class CelestialValidator(cerberus.Validator): # type: ignore
-    def _check_with_max_satellites(self, field: str, value: typing.Dict[str, typing.Any]) -> bool:
+
+class CelestialValidator(cerberus.Validator):  # type: ignore
+    def _check_with_max_satellites(
+        self, field: str, value: typing.Dict[str, typing.Any]
+    ) -> bool:
         if "planes" not in value or "sats" not in value:
             return False
 
@@ -283,7 +270,9 @@ class CelestialValidator(cerberus.Validator): # type: ignore
 
         return True
 
-    def _check_with_gst_name_unique(self, field: str, value: typing.List[typing.Dict[str, str]]) -> None:
+    def _check_with_gst_name_unique(
+        self, field: str, value: typing.List[typing.Dict[str, str]]
+    ) -> None:
         names: typing.Set[str] = set()
         without_names: typing.Set[str] = set()
         duplicates: typing.Set[str] = set()
@@ -316,28 +305,35 @@ class CelestialValidator(cerberus.Validator): # type: ignore
         if err != "":
             self._error(field, err)
 
-    def _validate_match_length(self, other: str, field: str, value: typing.List[str]) -> None:
-
+    def _validate_match_length(
+        self, other: str, field: str, value: typing.List[str]
+    ) -> None:
         "{'type': 'string'}"
 
         if len(value) != len(self.document[other]):
-            self._error(field, "Length %d is not %d (length of field %s)" % (len(value), len(self.document[other]), other))
+            self._error(
+                field,
+                "Length %d is not %d (length of field %s)"
+                % (len(value), len(self.document[other]), other),
+            )
 
-    def _validate_allowed_max(self, other: str, field: str, value: typing.List[int]) -> None:
-
+    def _validate_allowed_max(
+        self, other: str, field: str, value: typing.List[int]
+    ) -> None:
         "{'type': 'string'}"
 
         for i in value:
             if i >= len(self.root_document[other]):
                 self._error(field, "Host %d is not in %s" % (i, other))
 
+
 def validate_configuration(config: typing.MutableMapping[str, typing.Any]) -> None:
     v = CelestialValidator(CONFIG_SCHEMA)
     if not v.validate(config):
         raise ValueError(v.errors)
 
-def fill_configuration(config: typing.MutableMapping[str, typing.Any]) -> Configuration:
 
+def fill_configuration(config: typing.MutableMapping[str, typing.Any]) -> Configuration:
     if "bootparams" not in config["computeparams"]:
         config["computeparams"]["bootparams"] = ""
 
@@ -425,72 +421,93 @@ def fill_configuration(config: typing.MutableMapping[str, typing.Any]) -> Config
 
     return config_object_from_configuration(config)
 
-def config_object_from_configuration(config: typing.MutableMapping[str, typing.Any]) -> Configuration:
 
+def config_object_from_configuration(
+    config: typing.MutableMapping[str, typing.Any]
+) -> Configuration:
     return Configuration(
         model=Model(config["model"]),
-        bbox=BoundingBoxConfig(lat1=config["bbox"][0], lon1=config["bbox"][1], lat2=config["bbox"][2], lon2=config["bbox"][3]),
+        bbox=BoundingBoxConfig(
+            lat1=config["bbox"][0],
+            lon1=config["bbox"][1],
+            lat2=config["bbox"][2],
+            lon2=config["bbox"][3],
+        ),
         interval=config["interval"],
         animation=config["animation"],
         hosts=config["hosts"],
         peeringhosts=config["peeringhosts"],
         database=config["database"],
         dbhost=(config["dbhost"] if config["database"] else None),
-        shells=[ShellConfig(
-            planes=s["planes"],
-            sats=s["sats"],
-            altitude=s["altitude"],
-            inclination=s["inclination"],
-            arcofascendingnodes=s["arcofascendingnodes"],
-            eccentricity=s["eccentricity"],
-            networkparams=NetworkParamsConfig(
-                islpropagation=s["networkparams"]["islpropagation"],
-                bandwidth=s["networkparams"]["bandwidth"],
-                mincommsaltitude=s["networkparams"]["mincommsaltitude"],
-                minelevation=s["networkparams"]["minelevation"],
-                gstpropagation=s["networkparams"]["gstpropagation"],
-                groundstationconnectiontype=GroundstationConnectionTypeConfig(s["networkparams"]["groundstationconnectiontype"]),
-            ),
-            computeparams=ComputeParamsConfig(
-                vcpu_count=s["computeparams"]["vcpu_count"],
-                mem_size_mib=s["computeparams"]["mem_size_mib"],
-                ht_enabled=s["computeparams"]["ht_enabled"],
-                disk_size_mib=s["computeparams"]["disk_size_mib"],
-                kernel=s["computeparams"]["kernel"],
-                rootfs=s["computeparams"]["rootfs"],
-                bootparams=s["computeparams"]["bootparams"],
-                hostaffinity=s["computeparams"]["hostaffinity"],
-            ),
-            sgp4params=(None if config["model"] != "SGP4" else SGP4ParamsConfig(
-                starttime=s["sgp4params"]["starttime"],
-                model=SGP4ModelConfig(s["sgp4params"]["model"]),
-                mode=SGP4ModeConfig(s["sgp4params"]["mode"]),
-                bstar=s["sgp4params"]["bstar"],
-                ndot=s["sgp4params"]["ndot"],
-                argpo=s["sgp4params"]["argpo"],
-            ))
-        ) for s in config["shell"]],
-        groundstations=[GroundstationConfig(
-            name=g["name"],
-            lat=g["lat"],
-            lng=g["long"],
-            networkparams=NetworkParamsConfig(
-                islpropagation=g["networkparams"]["islpropagation"],
-                bandwidth=g["networkparams"]["bandwidth"],
-                mincommsaltitude=g["networkparams"]["mincommsaltitude"],
-                minelevation=g["networkparams"]["minelevation"],
-                gstpropagation=g["networkparams"]["gstpropagation"],
-                groundstationconnectiontype=GroundstationConnectionTypeConfig(g["networkparams"]["groundstationconnectiontype"]),
-            ),
-            computeparams=ComputeParamsConfig(
-                vcpu_count=g["computeparams"]["vcpu_count"],
-                mem_size_mib=g["computeparams"]["mem_size_mib"],
-                ht_enabled=g["computeparams"]["ht_enabled"],
-                disk_size_mib=g["computeparams"]["disk_size_mib"],
-                kernel=g["computeparams"]["kernel"],
-                rootfs=g["computeparams"]["rootfs"],
-                bootparams=g["computeparams"]["bootparams"],
-                hostaffinity=g["computeparams"]["hostaffinity"],
-            ),
-        )for g in config["groundstation"]]
+        shells=[
+            ShellConfig(
+                planes=s["planes"],
+                sats=s["sats"],
+                altitude=s["altitude"],
+                inclination=s["inclination"],
+                arcofascendingnodes=s["arcofascendingnodes"],
+                eccentricity=s["eccentricity"],
+                networkparams=NetworkParamsConfig(
+                    islpropagation=s["networkparams"]["islpropagation"],
+                    bandwidth=s["networkparams"]["bandwidth"],
+                    mincommsaltitude=s["networkparams"]["mincommsaltitude"],
+                    minelevation=s["networkparams"]["minelevation"],
+                    gstpropagation=s["networkparams"]["gstpropagation"],
+                    groundstationconnectiontype=GroundstationConnectionTypeConfig(
+                        s["networkparams"]["groundstationconnectiontype"]
+                    ),
+                ),
+                computeparams=ComputeParamsConfig(
+                    vcpu_count=s["computeparams"]["vcpu_count"],
+                    mem_size_mib=s["computeparams"]["mem_size_mib"],
+                    ht_enabled=s["computeparams"]["ht_enabled"],
+                    disk_size_mib=s["computeparams"]["disk_size_mib"],
+                    kernel=s["computeparams"]["kernel"],
+                    rootfs=s["computeparams"]["rootfs"],
+                    bootparams=s["computeparams"]["bootparams"],
+                    hostaffinity=s["computeparams"]["hostaffinity"],
+                ),
+                sgp4params=(
+                    None
+                    if config["model"] != "SGP4"
+                    else SGP4ParamsConfig(
+                        starttime=s["sgp4params"]["starttime"],
+                        model=SGP4ModelConfig(s["sgp4params"]["model"]),
+                        mode=SGP4ModeConfig(s["sgp4params"]["mode"]),
+                        bstar=s["sgp4params"]["bstar"],
+                        ndot=s["sgp4params"]["ndot"],
+                        argpo=s["sgp4params"]["argpo"],
+                    )
+                ),
+            )
+            for s in config["shell"]
+        ],
+        groundstations=[
+            GroundstationConfig(
+                name=g["name"],
+                lat=g["lat"],
+                lng=g["long"],
+                networkparams=NetworkParamsConfig(
+                    islpropagation=g["networkparams"]["islpropagation"],
+                    bandwidth=g["networkparams"]["bandwidth"],
+                    mincommsaltitude=g["networkparams"]["mincommsaltitude"],
+                    minelevation=g["networkparams"]["minelevation"],
+                    gstpropagation=g["networkparams"]["gstpropagation"],
+                    groundstationconnectiontype=GroundstationConnectionTypeConfig(
+                        g["networkparams"]["groundstationconnectiontype"]
+                    ),
+                ),
+                computeparams=ComputeParamsConfig(
+                    vcpu_count=g["computeparams"]["vcpu_count"],
+                    mem_size_mib=g["computeparams"]["mem_size_mib"],
+                    ht_enabled=g["computeparams"]["ht_enabled"],
+                    disk_size_mib=g["computeparams"]["disk_size_mib"],
+                    kernel=g["computeparams"]["kernel"],
+                    rootfs=g["computeparams"]["rootfs"],
+                    bootparams=g["computeparams"]["bootparams"],
+                    hostaffinity=g["computeparams"]["hostaffinity"],
+                ),
+            )
+            for g in config["groundstation"]
+        ],
     )

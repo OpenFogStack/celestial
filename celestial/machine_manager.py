@@ -20,6 +20,7 @@ import typing
 import numpy as np
 import time
 from tqdm.auto import tqdm
+
 # import tqdm
 from multiprocessing.connection import Connection as MultiprocessingConnection
 
@@ -27,15 +28,15 @@ from .machine import Machine
 from .connection_manager import ConnectionManager
 from .types import GroundstationConfig, ShellConfig, Path
 
-class MachineManager():
+
+class MachineManager:
     def __init__(
         self,
         shells: typing.List[ShellConfig],
         groundstations: typing.List[GroundstationConfig],
         constellation_conn: MultiprocessingConnection,
-        connection_manager: ConnectionManager
-        ):
-
+        connection_manager: ConnectionManager,
+    ):
         # save shell information
         self.shells = shells
 
@@ -53,16 +54,23 @@ class MachineManager():
             raise ValueError("Machine Manager: did not receive init message first!")
 
         self.init_machines(sat_positions=init[1])
-        self.update_machines(sat_positions=init[1], paths=init[2], gst_sat_paths=init[3], gst_paths=init[4])
+        self.update_machines(
+            sat_positions=init[1],
+            paths=init[2],
+            gst_sat_paths=init[3],
+            gst_paths=init[4],
+        )
         self.constellation_conn.send(True)
 
         # start control handler that reacts to shell changes
         self.control_thread = td.Thread(target=self.control_thread_handler)
         self.control_thread.start()
 
-    def init_machines(self, sat_positions: np.ndarray) -> None: # type: ignore
+    def init_machines(self, sat_positions: np.ndarray) -> None:  # type: ignore
         if len(sat_positions) != len(self.shells):
-            raise ValueError("Machine Manager: did not receive correct amount of shells for initialization")
+            raise ValueError(
+                "Machine Manager: did not receive correct amount of shells for initialization"
+            )
 
         self.machines: typing.List[typing.List[Machine]] = []
 
@@ -72,31 +80,32 @@ class MachineManager():
             for i in range(self.shells[s].planes):
                 if self.shells[s].computeparams.vcpu_count > 0:
                     for j in range(self.shells[s].sats):
-
                         id = self.shells[s].sats * i + j
 
                         mc = self.connection_manager.register_machine(
-                                    shell_no=s,
-                                    id=id,
-                                    bandwidth=self.shells[s].networkparams.bandwidth,
-                                    active=sat_positions[s][id]["in_bbox"],
-                                    vcpu_count=self.shells[s].computeparams.vcpu_count,
-                                    mem_size_mib=self.shells[s].computeparams.mem_size_mib,
-                                    ht_enabled=self.shells[s].computeparams.ht_enabled,
-                                    disk_size_mib=self.shells[s].computeparams.disk_size_mib,
-                                    kernel=self.shells[s].computeparams.kernel,
-                                    rootfs=self.shells[s].computeparams.rootfs,
-                                    bootparams=self.shells[s].computeparams.bootparams,
-                                    host_affinity=self.shells[s].computeparams.hostaffinity,
-                                )
-
-                        machine_list.append(Machine(
                             shell_no=s,
-                            plane_no=i,
                             id=id,
+                            bandwidth=self.shells[s].networkparams.bandwidth,
                             active=sat_positions[s][id]["in_bbox"],
-                            machine_connector=mc
-                        ))
+                            vcpu_count=self.shells[s].computeparams.vcpu_count,
+                            mem_size_mib=self.shells[s].computeparams.mem_size_mib,
+                            ht_enabled=self.shells[s].computeparams.ht_enabled,
+                            disk_size_mib=self.shells[s].computeparams.disk_size_mib,
+                            kernel=self.shells[s].computeparams.kernel,
+                            rootfs=self.shells[s].computeparams.rootfs,
+                            bootparams=self.shells[s].computeparams.bootparams,
+                            host_affinity=self.shells[s].computeparams.hostaffinity,
+                        )
+
+                        machine_list.append(
+                            Machine(
+                                shell_no=s,
+                                plane_no=i,
+                                id=id,
+                                active=sat_positions[s][id]["in_bbox"],
+                                machine_connector=mc,
+                            )
+                        )
 
             self.machines.append(machine_list)
 
@@ -120,22 +129,27 @@ class MachineManager():
                 host_affinity=self.groundstations[i].computeparams.hostaffinity,
             )
 
-            self.gst_machines.append(Machine(
-                shell_no=-1,
-                plane_no=-1,
-                id=i,
-                active=True,
-                machine_connector=mc
-            ))
+            self.gst_machines.append(
+                Machine(
+                    shell_no=-1, plane_no=-1, id=i, active=True, machine_connector=mc
+                )
+            )
 
         total_machines = len(self.groundstations)
 
         for s in range(len(self.shells)):
             total_machines += len(self.machines[s])
 
-        self.connection_manager.block_host_ready(tqdm(total=total_machines, desc="Machine Setup", unit="machines"), total_machines)
+        self.connection_manager.block_host_ready(
+            tqdm(total=total_machines, desc="Machine Setup", unit="machines"),
+            total_machines,
+        )
 
-    def __update_machines_in_shell(self, shell_no: int, sat_positions: typing.List[typing.Dict[str, typing.Union[float, bool]]]) -> None:
+    def __update_machines_in_shell(
+        self,
+        shell_no: int,
+        sat_positions: typing.List[typing.Dict[str, typing.Union[float, bool]]],
+    ) -> None:
         for sat in self.machines[shell_no]:
             if sat_positions[sat.id]["in_bbox"]:
                 if not sat.active:
@@ -148,14 +162,26 @@ class MachineManager():
         for sat in self.machines[shell_no]:
             sat.reset_links()
 
-    def update_machines(self, sat_positions: typing.List[typing.List[typing.Dict[str, typing.Union[float, bool]]]], paths: typing.List[typing.List[Path]], gst_sat_paths: typing.List[typing.List[Path]], gst_paths: typing.List[typing.List[Path]]) -> None:
-
+    def update_machines(
+        self,
+        sat_positions: typing.List[
+            typing.List[typing.Dict[str, typing.Union[float, bool]]]
+        ],
+        paths: typing.List[typing.List[Path]],
+        gst_sat_paths: typing.List[typing.List[Path]],
+        gst_paths: typing.List[typing.List[Path]],
+    ) -> None:
         # start_time = time.time()
 
         threads = []
 
         for shell_no in range(len(self.machines)):
-            threads.append(td.Thread(target=self.__update_machines_in_shell, args=(shell_no, sat_positions[shell_no])))
+            threads.append(
+                td.Thread(
+                    target=self.__update_machines_in_shell,
+                    args=(shell_no, sat_positions[shell_no]),
+                )
+            )
             threads[shell_no].start()
 
         # threads_started_time = time.time()
@@ -200,7 +226,6 @@ class MachineManager():
                     e2 = self.machines[shell_no][path.node_2]
 
                     if e1.active and e2.active:
-
                         if e2 in unreachable[e1]:
                             unreachable[e1].remove(e2)
                         if e1 in unreachable[e2]:
@@ -213,12 +238,10 @@ class MachineManager():
                         e2.link(e1, latency=delay, bandwidth=bandwidth)
 
                 for path in gst_sat_paths[shell_no]:
-
                     e1 = self.gst_machines[path.node_1]
                     e2 = self.machines[shell_no][path.node_2]
 
                     if e2.active:
-
                         if e2 in unreachable[e1]:
                             unreachable[e1].remove(e2)
                         if e1 in unreachable[e2]:
@@ -231,7 +254,6 @@ class MachineManager():
                         e2.link(e1, latency=delay, bandwidth=bandwidth)
 
             for path in gst_paths[shell_no]:
-
                 e1 = self.gst_machines[path.node_1]
                 e2 = self.gst_machines[path.node_2]
 
@@ -290,6 +312,10 @@ class MachineManager():
         while True:
             received_data = self.constellation_conn.recv()
             if type(received_data) == list:
-
-                self.update_machines(sat_positions=received_data[0], paths=received_data[1], gst_sat_paths=received_data[2], gst_paths=received_data[3])
+                self.update_machines(
+                    sat_positions=received_data[0],
+                    paths=received_data[1],
+                    gst_sat_paths=received_data[2],
+                    gst_paths=received_data[3],
+                )
                 self.constellation_conn.send(True)

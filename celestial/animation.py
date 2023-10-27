@@ -60,26 +60,31 @@ GST_POINT_SIZE = 8  # how big ground points are in (probably) screen pixels
 
 SECONDS_PER_DAY = 86400  # number of seconds per earth rotation (day)
 
-class Animation():
 
+class Animation:
     def __init__(
         self,
         p: MultiprocessingConnection,
         draw_links: bool = True,
         frequency: int = 7,
     ):
-
         init = p.recv()
         if type(init) != list or init[0] != "init":
             raise ValueError("Animation: did not receive init message first!")
 
         num_shells: int = init[1]["num_shells"]
         total_sats: typing.List[int] = init[1]["total_sats"]
-        sat_positions: typing.List[typing.List[typing.Dict[str, typing.Union[float, bool]]]] = init[1]["sat_positions"]
-        links: typing.List[typing.List[typing.Dict[str, typing.Union[float, int, bool]]]] = init[1]["links"]
+        sat_positions: typing.List[
+            typing.List[typing.Dict[str, typing.Union[float, bool]]]
+        ] = init[1]["sat_positions"]
+        links: typing.List[
+            typing.List[typing.Dict[str, typing.Union[float, int, bool]]]
+        ] = init[1]["links"]
         bbox: BoundingBoxConfig = init[1]["bbox"]
         gst_positions: typing.List[typing.Dict[str, float]] = init[1]["gst_positions"]
-        gst_links: typing.List[typing.List[typing.Dict[str, typing.Union[float, int, bool]]]] = init[1]["gst_links"]
+        gst_links: typing.List[
+            typing.List[typing.Dict[str, typing.Union[float, int, bool]]]
+        ] = init[1]["gst_links"]
 
         self.num_shells = num_shells
         self.shell_sats = total_sats
@@ -128,9 +133,9 @@ class Animation():
 
         self.makeRenderWindow()
 
-###############################################################################
-#                           ANIMATION FUNCTIONS                               #
-###############################################################################
+    ###############################################################################
+    #                           ANIMATION FUNCTIONS                               #
+    ###############################################################################
 
     """
     Like me, you might wonder what the numerous vkt calls are for.
@@ -173,22 +178,23 @@ class Animation():
         steps_to_animate = self.current_simulation_time - self.last_animate
         self.last_animate = self.current_simulation_time
 
-        rotation_per_time_step = 360.0/(SECONDS_PER_DAY) * steps_to_animate
+        rotation_per_time_step = 360.0 / (SECONDS_PER_DAY) * steps_to_animate
         self.earthActor.RotateZ(rotation_per_time_step)
         self.sphereActor.RotateZ(rotation_per_time_step)
 
         # update sat points
         for s in range(self.num_shells):
             for i in range(self.shell_sats[s]):
-                x = float(self.sat_positions[s][i]['x'])
-                y = float(self.sat_positions[s][i]['y'])
-                z = float(self.sat_positions[s][i]['z'])
-                self.shell_actors[s].satVtkPts.SetPoint(self.shell_actors[s].satPointIDs[i], x, y, z)
+                x = float(self.sat_positions[s][i]["x"])
+                y = float(self.sat_positions[s][i]["y"])
+                z = float(self.sat_positions[s][i]["z"])
+                self.shell_actors[s].satVtkPts.SetPoint(
+                    self.shell_actors[s].satPointIDs[i], x, y, z
+                )
 
             self.shell_actors[s].satPolyData.GetPoints().Modified()
 
             if self.draw_links:
-
                 # grab the arrays of connections
                 links = [x for x in self.links[s] if x["active"]]
 
@@ -196,9 +202,9 @@ class Animation():
                 self.isl_actors[s].linkPoints = vtk.vtkPoints()
                 self.isl_actors[s].linkPoints.SetNumberOfPoints(self.shell_sats[s])
                 for i in range(self.shell_sats[s]):
-                    x = self.sat_positions[s][i]['x']
-                    y = self.sat_positions[s][i]['y']
-                    z = self.sat_positions[s][i]['z']
+                    x = self.sat_positions[s][i]["x"]
+                    y = self.sat_positions[s][i]["y"]
+                    z = self.sat_positions[s][i]["z"]
                     self.isl_actors[s].linkPoints.SetPoint(i, x, y, z)
 
                 # make clean line arrays
@@ -206,8 +212,8 @@ class Animation():
 
                 # fill isl and gsl arrays
                 for i in range(len(links)):
-                    e1 = links[i]['node_1']
-                    e2 = links[i]['node_2']
+                    e1 = links[i]["node_1"]
+                    e2 = links[i]["node_2"]
                     # must translate link endpoints to point names
                     self.isl_actors[s].islLinkLines.InsertNextCell(2)
                     self.isl_actors[s].islLinkLines.InsertCellPoint(e1)
@@ -218,32 +224,33 @@ class Animation():
 
         # update gst points and links
         for i in range(len(self.gst_positions)):
-            x = self.gst_positions[i]['x']
-            y = self.gst_positions[i]['y']
-            z = self.gst_positions[i]['z']
+            x = self.gst_positions[i]["x"]
+            y = self.gst_positions[i]["y"]
+            z = self.gst_positions[i]["z"]
             self.gst_actor.gstVtkPts.SetPoint(self.gst_actor.gstPointIDs[i], x, y, z)
 
         self.gst_actor.gstPolyData.GetPoints().Modified()
 
         if self.draw_links:
-
             # build a vtkPoints object from array
             self.gst_link_actor.gstLinkPoints = vtk.vtkPoints()
-            self.gst_link_actor.gstLinkPoints.SetNumberOfPoints(self.gst_num + sum(self.shell_sats))
+            self.gst_link_actor.gstLinkPoints.SetNumberOfPoints(
+                self.gst_num + sum(self.shell_sats)
+            )
 
             for i in range(self.gst_num):
-                x = self.gst_positions[i]['x']
-                y = self.gst_positions[i]['y']
-                z = self.gst_positions[i]['z']
+                x = self.gst_positions[i]["x"]
+                y = self.gst_positions[i]["y"]
+                z = self.gst_positions[i]["z"]
                 self.gst_link_actor.gstLinkPoints.SetPoint(i, x, y, z)
 
             num_points = self.gst_num
 
             for s in range(self.num_shells):
                 for i in range(self.shell_sats[s]):
-                    x = self.sat_positions[s][i]['x']
-                    y = self.sat_positions[s][i]['y']
-                    z = self.sat_positions[s][i]['z']
+                    x = self.sat_positions[s][i]["x"]
+                    y = self.sat_positions[s][i]["y"]
+                    z = self.sat_positions[s][i]["z"]
                     self.gst_link_actor.gstLinkPoints.SetPoint(num_points, x, y, z)
                     num_points += 1
 
@@ -254,12 +261,10 @@ class Animation():
             offset = self.gst_num
 
             for s in range(self.num_shells):
-
                 for i in range(len(self.gst_links[s])):
+                    e1 = self.gst_links[s][i]["gst"]
 
-                    e1 = self.gst_links[s][i]['gst']
-
-                    e2 = self.gst_links[s][i]['sat'] + offset
+                    e2 = self.gst_links[s][i]["sat"] + offset
 
                     # must translate link endpoints to point names
                     self.gst_link_actor.gstLinkLines.InsertNextCell(2)
@@ -268,9 +273,13 @@ class Animation():
 
                 offset += self.shell_sats[s]
 
-            self.gst_link_actor.gstLinkPolyData.SetPoints(self.gst_link_actor.gstLinkPoints)
+            self.gst_link_actor.gstLinkPolyData.SetPoints(
+                self.gst_link_actor.gstLinkPoints
+            )
 
-            self.gst_link_actor.gstLinkPolyData.SetLines(self.gst_link_actor.gstLinkLines)
+            self.gst_link_actor.gstLinkPolyData.SetLines(
+                self.gst_link_actor.gstLinkLines
+            )
 
         # #
         self.frameCount += 1
@@ -325,7 +334,7 @@ class Animation():
         self.interactor.Initialize()
         # set up a timer to call the update function at a max rate
         # of every 7 ms (~144 hz)
-        self.interactor.AddObserver('TimerEvent', self.updateAnimation)
+        self.interactor.AddObserver("TimerEvent", self.updateAnimation)
         self.interactor.CreateRepeatingTimer(self.frequency)
 
         # start the model
@@ -358,29 +367,47 @@ class Animation():
 
         # initialize all the positions
         for i in range(len(self.sat_positions[shell_no])):
-            self.shell_actors[shell_no].satPointIDs[i] = self.shell_actors[shell_no].satVtkPts.InsertNextPoint(self.sat_positions[shell_no][i]['x'], self.sat_positions[shell_no][i]['y'], self.sat_positions[shell_no][i]['z'])
+            self.shell_actors[shell_no].satPointIDs[i] = self.shell_actors[
+                shell_no
+            ].satVtkPts.InsertNextPoint(
+                self.sat_positions[shell_no][i]["x"],
+                self.sat_positions[shell_no][i]["y"],
+                self.sat_positions[shell_no][i]["z"],
+            )
 
             self.shell_actors[shell_no].satVtkVerts.InsertNextCell(1)
-            self.shell_actors[shell_no].satVtkVerts.InsertCellPoint(self.shell_actors[shell_no].satPointIDs[i])
+            self.shell_actors[shell_no].satVtkVerts.InsertCellPoint(
+                self.shell_actors[shell_no].satPointIDs[i]
+            )
 
         # convert points into poly data
         # (because that's what they do in the vtk examples)
         self.shell_actors[shell_no].satPolyData = vtk.vtkPolyData()
-        self.shell_actors[shell_no].satPolyData.SetPoints(self.shell_actors[shell_no].satVtkPts)
-        self.shell_actors[shell_no].satPolyData.SetVerts(self.shell_actors[shell_no].satVtkVerts)
+        self.shell_actors[shell_no].satPolyData.SetPoints(
+            self.shell_actors[shell_no].satVtkPts
+        )
+        self.shell_actors[shell_no].satPolyData.SetVerts(
+            self.shell_actors[shell_no].satVtkVerts
+        )
 
         # create mapper object and connect to the poly data
         self.shell_actors[shell_no].satsMapper = vtk.vtkPolyDataMapper()
-        self.shell_actors[shell_no].satsMapper.SetInputData(self.shell_actors[shell_no].satPolyData)
+        self.shell_actors[shell_no].satsMapper.SetInputData(
+            self.shell_actors[shell_no].satPolyData
+        )
 
         # create actor, and connect to the mapper
         # (again, its just what you do to make a vtk render pipeline)
         self.shell_actors[shell_no].satsActor = vtk.vtkActor()
-        self.shell_actors[shell_no].satsActor.SetMapper(self.shell_actors[shell_no].satsMapper)
+        self.shell_actors[shell_no].satsActor.SetMapper(
+            self.shell_actors[shell_no].satsMapper
+        )
 
         # edit appearance of satellites
         self.shell_actors[shell_no].satsActor.GetProperty().SetOpacity(SAT_OPACITY)
-        self.shell_actors[shell_no].satsActor.GetProperty().SetColor(self.sat_colors[shell_no])
+        self.shell_actors[shell_no].satsActor.GetProperty().SetColor(
+            self.sat_colors[shell_no]
+        )
         self.shell_actors[shell_no].satsActor.GetProperty().SetPointSize(SAT_POINT_SIZE)
 
     def makeLinkActors(self, shell_no: int, shell_total_satellites: int) -> None:
@@ -403,40 +430,57 @@ class Animation():
         self.isl_actors[shell_no].linkPoints.SetNumberOfPoints(shell_total_satellites)
 
         for i in range(len(self.sat_positions[shell_no])):
-            self.isl_actors[shell_no].linkPoints.SetPoint(i, self.sat_positions[shell_no][i]['x'], self.sat_positions[shell_no][i]['y'], self.sat_positions[shell_no][i]['z'])
+            self.isl_actors[shell_no].linkPoints.SetPoint(
+                i,
+                self.sat_positions[shell_no][i]["x"],
+                self.sat_positions[shell_no][i]["y"],
+                self.sat_positions[shell_no][i]["z"],
+            )
 
         # build a cell array to represent connectivity
         self.isl_actors[shell_no].islLinkLines = vtk.vtkCellArray()
         for i in range(len(self.links[shell_no])):
-            e1 = self.links[shell_no][i]['node_1']
-            e2 = self.links[shell_no][i]['node_2']
+            e1 = self.links[shell_no][i]["node_1"]
+            e2 = self.links[shell_no][i]["node_2"]
             # must translate link endpoints to point names
             self.isl_actors[shell_no].islLinkLines.InsertNextCell(2)
             self.isl_actors[shell_no].islLinkLines.InsertCellPoint(e1)
             self.isl_actors[shell_no].islLinkLines.InsertCellPoint(e2)
 
-        self.isl_actors[shell_no].pathLinkLines = vtk.vtkCellArray()  # init, but do not fill this one
+        self.isl_actors[
+            shell_no
+        ].pathLinkLines = vtk.vtkCellArray()  # init, but do not fill this one
 
         # #
 
         self.isl_actors[shell_no].islPolyData = vtk.vtkPolyData()
-        self.isl_actors[shell_no].islPolyData.SetPoints(self.isl_actors[shell_no].linkPoints)
-        self.isl_actors[shell_no].islPolyData.SetLines(self.isl_actors[shell_no].islLinkLines)
+        self.isl_actors[shell_no].islPolyData.SetPoints(
+            self.isl_actors[shell_no].linkPoints
+        )
+        self.isl_actors[shell_no].islPolyData.SetLines(
+            self.isl_actors[shell_no].islLinkLines
+        )
 
         # #
 
         self.isl_actors[shell_no].islMapper = vtk.vtkPolyDataMapper()
-        self.isl_actors[shell_no].islMapper.SetInputData(self.isl_actors[shell_no].islPolyData)
+        self.isl_actors[shell_no].islMapper.SetInputData(
+            self.isl_actors[shell_no].islPolyData
+        )
 
         # #
 
         self.isl_actors[shell_no].islActor = vtk.vtkActor()
-        self.isl_actors[shell_no].islActor.SetMapper(self.isl_actors[shell_no].islMapper)
+        self.isl_actors[shell_no].islActor.SetMapper(
+            self.isl_actors[shell_no].islMapper
+        )
 
         # #
 
         self.isl_actors[shell_no].islActor.GetProperty().SetOpacity(ISL_LINK_OPACITY)
-        self.isl_actors[shell_no].islActor.GetProperty().SetColor(self.isl_colors[shell_no])
+        self.isl_actors[shell_no].islActor.GetProperty().SetColor(
+            self.isl_colors[shell_no]
+        )
         self.isl_actors[shell_no].islActor.GetProperty().SetLineWidth(ISL_LINE_WIDTH)
 
         # #
@@ -460,7 +504,11 @@ class Animation():
 
         # initialize all the positions
         for i in range(len(self.gst_positions)):
-            self.gst_actor.gstPointIDs[i] = self.gst_actor.gstVtkPts.InsertNextPoint(self.gst_positions[i]['x'], self.gst_positions[i]['y'], self.gst_positions[i]['z'])
+            self.gst_actor.gstPointIDs[i] = self.gst_actor.gstVtkPts.InsertNextPoint(
+                self.gst_positions[i]["x"],
+                self.gst_positions[i]["y"],
+                self.gst_positions[i]["z"],
+            )
 
             self.gst_actor.gstVtkVerts.InsertNextCell(1)
             self.gst_actor.gstVtkVerts.InsertCellPoint(self.gst_actor.gstPointIDs[i])
@@ -487,7 +535,6 @@ class Animation():
 
         # #
 
-
     # make this for all shells as well?
     def makeGstLinkActors(self, gst_num: int) -> None:
         """
@@ -501,13 +548,15 @@ class Animation():
 
         # build a vtkPoints object from array
         self.gst_link_actor.gstLinkPoints = vtk.vtkPoints()
-        self.gst_link_actor.gstLinkPoints.SetNumberOfPoints(gst_num + sum(self.shell_sats))
+        self.gst_link_actor.gstLinkPoints.SetNumberOfPoints(
+            gst_num + sum(self.shell_sats)
+        )
 
         # add gsts
         for i in range(self.gst_num):
-            x = self.gst_positions[i]['x']
-            y = self.gst_positions[i]['y']
-            z = self.gst_positions[i]['z']
+            x = self.gst_positions[i]["x"]
+            y = self.gst_positions[i]["y"]
+            z = self.gst_positions[i]["z"]
             self.gst_link_actor.gstLinkPoints.SetPoint(i, x, y, z)
 
         # add all satellites?
@@ -515,12 +564,11 @@ class Animation():
 
         for s in range(self.num_shells):
             for i in range(self.shell_sats[s]):
-                x = self.sat_positions[s][i]['x']
-                y = self.sat_positions[s][i]['y']
-                z = self.sat_positions[s][i]['z']
+                x = self.sat_positions[s][i]["x"]
+                y = self.sat_positions[s][i]["y"]
+                z = self.sat_positions[s][i]["z"]
                 self.gst_link_actor.gstLinkPoints.SetPoint(num_points, x, y, z)
                 num_points += 1
-
 
         # build a cell array to represent connectivity
         self.gst_link_actor.gstLinkLines = vtk.vtkCellArray()
@@ -529,10 +577,9 @@ class Animation():
 
         for s in range(self.num_shells):
             for i in range(len(self.gst_links[s])):
+                e1 = self.gst_links[s][i]["gst"]
 
-                e1 = self.gst_links[s][i]['gst']
-
-                e2 = self.gst_links[s][i]['sat'] + offset
+                e2 = self.gst_links[s][i]["sat"] + offset
 
                 # must translate link endpoints to point names
                 self.gst_link_actor.gstLinkLines.InsertNextCell(2)
@@ -550,7 +597,9 @@ class Animation():
         # #
 
         self.gst_link_actor.gstLinkMapper = vtk.vtkPolyDataMapper()
-        self.gst_link_actor.gstLinkMapper.SetInputData(self.gst_link_actor.gstLinkPolyData)
+        self.gst_link_actor.gstLinkMapper.SetInputData(
+            self.gst_link_actor.gstLinkPolyData
+        )
 
         # #
 
@@ -582,7 +631,7 @@ class Animation():
         # a point cloud that outlines all the earths landmass
         self.earthSource = vtk.vtkEarthSource()
         # draws as an outline of landmass, rather than fill it in
-        #self.earthSource.OutlineOn()
+        # self.earthSource.OutlineOn()
 
         # want this to be slightly larger than the sphere it sits on
         # so that it is not occluded by the sphere
@@ -607,7 +656,7 @@ class Animation():
         num_pts = EARTH_SPHERE_POINTS
         indices = np.arange(0, num_pts, dtype=float) + 0.5
         phi = np.arccos(1 - 2 * indices / num_pts)
-        theta = np.pi * (1 + 5 ** 0.5) * indices
+        theta = np.pi * (1 + 5**0.5) * indices
         x = np.cos(theta) * np.sin(phi) * self.earthRadius
         y = np.sin(theta) * np.sin(phi) * self.earthRadius
         z = np.cos(phi) * self.earthRadius
@@ -645,7 +694,7 @@ class Animation():
         self.sphereActor.GetProperty().SetColor(EARTH_BASE_COLOR)
         self.sphereActor.GetProperty().SetOpacity(EARTH_OPACITY)
 
-    def renderToPng(self, path: str="animation/p") -> None:
+    def renderToPng(self, path: str = "animation/p") -> None:
         """
         Take a .png of the render window, and save it.
         Parameters
@@ -667,12 +716,12 @@ class Animation():
         pngfile.SetInputConnection(w2i.GetOutputPort())
 
         # name the file with 7 digit int, leading zeros
-        mask = ['0', '0', '0', '0', '0', '0', '0']
+        mask = ["0", "0", "0", "0", "0", "0", "0"]
         var = list(str(self.frameCount))
         t = len(mask) - len(var)
         for i in range(len(var)):
-            mask[i+t] = var[i]
-        f = ''.join(mask)
+            mask[i + t] = var[i]
+        f = "".join(mask)
 
         pngfile.SetFileName(path + "_" + f + ".png")
         pngfile.Write()
@@ -691,7 +740,9 @@ class Animation():
                 if command == "time":
                     self.current_simulation_time = received_data[1]
                 if command == "shell":
-                    self.sat_positions[received_data[1]] = received_data[2]["sat_positions"]
+                    self.sat_positions[received_data[1]] = received_data[2][
+                        "sat_positions"
+                    ]
                     self.links[received_data[1]] = received_data[2]["links"]
                     self.gst_positions = received_data[2]["gst_positions"]
                     self.gst_links[received_data[1]] = received_data[2]["gst_links"]

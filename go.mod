@@ -1,24 +1,63 @@
 module github.com/OpenFogStack/celestial
 
-go 1.16
+go 1.21
+
+toolchain go1.21.3
 
 require (
-	github.com/containernetworking/plugins v0.9.1 // indirect
-	github.com/firecracker-microvm/firecracker-go-sdk v0.22.1-0.20210310192028-095caa5caf61
-	github.com/go-ping/ping v0.0.0-20210312085107-d90f3778a8a3
-	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/uuid v1.2.0 // indirect
+	github.com/firecracker-microvm/firecracker-go-sdk v1.0.0
+	github.com/go-ping/ping v1.1.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/miekg/dns v1.1.41
-	github.com/onsi/ginkgo v1.16.1 // indirect
-	github.com/onsi/gomega v1.11.0 // indirect
-	github.com/pbnjay/memory v0.0.0-20201129165224-b12e5d931931
+	github.com/miekg/dns v1.1.56
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.8.1
-	golang.org/x/sys v0.0.0-20210616094352-59db8d763f22 // indirect
-	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20210506160403-92e472f520a5
-	google.golang.org/genproto v0.0.0-20200707001353-8e8330bf89df // indirect
-	google.golang.org/grpc v1.36.0
-	google.golang.org/protobuf v1.26.0
+	github.com/sirupsen/logrus v1.9.3
+	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
+	google.golang.org/grpc v1.59.0
+	google.golang.org/protobuf v1.31.0
+)
+
+require (
+	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
+	github.com/containerd/fifo v1.1.0 // indirect
+	github.com/containernetworking/cni v1.1.2 // indirect
+	github.com/containernetworking/plugins v1.3.0 // indirect
+	github.com/go-logr/logr v1.2.4 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-openapi/analysis v0.21.4 // indirect
+	github.com/go-openapi/errors v0.20.4 // indirect
+	github.com/go-openapi/jsonpointer v0.20.0 // indirect
+	github.com/go-openapi/jsonreference v0.20.2 // indirect
+	github.com/go-openapi/loads v0.21.2 // indirect
+	github.com/go-openapi/runtime v0.26.0 // indirect
+	github.com/go-openapi/spec v0.20.9 // indirect
+	github.com/go-openapi/strfmt v0.21.7 // indirect
+	github.com/go-openapi/swag v0.22.4 // indirect
+	github.com/go-openapi/validate v0.22.1 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/uuid v1.3.1 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/rogpeppe/go-internal v1.9.0 // indirect
+	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
+	github.com/vishvananda/netns v0.0.4 // indirect
+	go.mongodb.org/mongo-driver v1.12.1 // indirect
+	go.opentelemetry.io/otel v1.19.0 // indirect
+	go.opentelemetry.io/otel/metric v1.19.0 // indirect
+	go.opentelemetry.io/otel/trace v1.19.0 // indirect
+	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/mod v0.13.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/sync v0.4.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/tools v0.14.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

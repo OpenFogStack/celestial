@@ -20,9 +20,10 @@ import numpy as np
 
 # this is basically just an interface for our different solvers
 
+
 class Solver(typing.Protocol):
-    def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray:
+    def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray:  # type: ignore
         ...
 
-    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray: # type: ignore
+    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray:  # type: ignore
         ...
