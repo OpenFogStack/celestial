@@ -26,21 +26,22 @@ from .types import Model, ShellConfig, GroundstationConfig, BoundingBoxConfig, P
 from .shell import Shell
 from .solver import Solver
 
-class Constellation():
-    def __init__(
-            self,
-            model: Model,
-            shells: typing.List[ShellConfig],
-            bbox: BoundingBoxConfig,
-            groundstations: typing.List[GroundstationConfig],
-            mm_conn: MultiprocessingConnection,
-            interval: float,
-            database: bool = False,
-            db_conn: typing.Optional[MultiprocessingConnection] = None,
-            animate: bool = False,
-            animation_conn: typing.Optional[MultiprocessingConnection] = None,
-            animate_only: bool = False):
 
+class Constellation:
+    def __init__(
+        self,
+        model: Model,
+        shells: typing.List[ShellConfig],
+        bbox: BoundingBoxConfig,
+        groundstations: typing.List[GroundstationConfig],
+        mm_conn: MultiprocessingConnection,
+        interval: float,
+        database: bool = False,
+        db_conn: typing.Optional[MultiprocessingConnection] = None,
+        animate: bool = False,
+        animation_conn: typing.Optional[MultiprocessingConnection] = None,
+        animate_only: bool = False,
+    ):
         self.model = model
 
         self.shells: typing.List[Shell] = []
@@ -61,18 +62,42 @@ class Constellation():
             if model == Model.SGP4:
                 from .sgp4_solver import SGP4Solver
 
-                solver = SGP4Solver(planes=shell.planes, sats=shell.sats, altitude=shell.altitude, inclination=shell.inclination, arcOfAscendingNodes=shell.arcofascendingnodes, eccentricity=shell.eccentricity, sgp4params=shell.sgp4params)
+                solver = SGP4Solver(
+                    planes=shell.planes,
+                    sats=shell.sats,
+                    altitude=shell.altitude,
+                    inclination=shell.inclination,
+                    arcOfAscendingNodes=shell.arcofascendingnodes,
+                    eccentricity=shell.eccentricity,
+                    sgp4params=shell.sgp4params,
+                )
 
             elif model == Model.Kepler:
                 from .kepler_solver import KeplerSolver
 
-                solver = KeplerSolver(planes=shell.planes, sats=shell.sats, altitude=shell.altitude, inclination=shell.inclination, arcOfAscendingNodes=shell.arcofascendingnodes, eccentricity=shell.eccentricity)
+                solver = KeplerSolver(
+                    planes=shell.planes,
+                    sats=shell.sats,
+                    altitude=shell.altitude,
+                    inclination=shell.inclination,
+                    arcOfAscendingNodes=shell.arcofascendingnodes,
+                    eccentricity=shell.eccentricity,
+                )
 
-            s = Shell(planes=shell.planes, sats=shell.sats, altitude=shell.altitude, bbox=bbox, groundstations=groundstations, network=shell.networkparams, solver=solver, include_paths=not animate_only)
+            s = Shell(
+                planes=shell.planes,
+                sats=shell.sats,
+                altitude=shell.altitude,
+                bbox=bbox,
+                groundstations=groundstations,
+                network=shell.networkparams,
+                solver=solver,
+                include_paths=not animate_only,
+            )
 
             self.shells.append(s)
 
-        sat_positions: typing.List[np.ndarray] = [] # type: ignore
+        sat_positions: typing.List[np.ndarray] = []  # type: ignore
         paths: typing.List[typing.List[Path]] = []
         gst_sat_paths: typing.List[typing.List[Path]] = []
         gst_paths: typing.List[typing.List[Path]] = []
@@ -83,7 +108,7 @@ class Constellation():
             gst_sat_paths.append(s.get_gst_sat_paths())
             gst_paths.append(s.get_gst_paths())
 
-        gst_positions: np.ndarray = self.shells[0].get_gst_positions() # type: ignore
+        gst_positions: np.ndarray = self.shells[0].get_gst_positions()  # type: ignore
 
         self.animate = animate
         self.animate_only = animate_only
@@ -103,17 +128,21 @@ class Constellation():
             for s in self.shells:
                 total_sats.append(len(s.get_sat_positions()))
 
-
             print("🌍 Constellation: sending information to animation...")
-            self.animation_conn.send(["init", {
-                "num_shells": len(self.shells),
-                "total_sats": total_sats,
-                "sat_positions": sat_positions,
-                "links": links,
-                "bbox": bbox,
-                "gst_positions": gst_positions,
-                "gst_links": gst_links
-            }])
+            self.animation_conn.send(
+                [
+                    "init",
+                    {
+                        "num_shells": len(self.shells),
+                        "total_sats": total_sats,
+                        "sat_positions": sat_positions,
+                        "links": links,
+                        "bbox": bbox,
+                        "gst_positions": gst_positions,
+                        "gst_links": gst_links,
+                    },
+                ]
+            )
 
             print("🌍 Constellation: waiting for return from animation...")
             if not self.animation_conn.recv():
@@ -122,7 +151,6 @@ class Constellation():
             print("🌍 Constellation: animation ready!")
 
         if not self.animate_only:
-
             # send init information to machine manager
             self.mm_conn.send(["init", sat_positions, paths, gst_sat_paths, gst_paths])
 
@@ -138,7 +166,9 @@ class Constellation():
                 raise ValueError("database in use but db_conn unset")
 
             self.db_conn = db_conn
-            self.db_conn.send(["init", sat_positions, paths, gst_sat_paths, gst_paths, gst_positions])
+            self.db_conn.send(
+                ["init", sat_positions, paths, gst_sat_paths, gst_paths, gst_positions]
+            )
 
     def update(self) -> None:
         start_time = time.time()
@@ -146,7 +176,7 @@ class Constellation():
         if self.animate:
             self.animation_conn.send(["time", int(time.time() - self.start_time)])
 
-        sat_positions: typing.List[np.ndarray] = [] # type: ignore
+        sat_positions: typing.List[np.ndarray] = []  # type: ignore
         paths: typing.List[typing.List[Path]] = []
         gst_sat_paths: typing.List[typing.List[Path]] = []
         gst_paths: typing.List[typing.List[Path]] = []
@@ -156,7 +186,12 @@ class Constellation():
         # do it
         update_threads = []
         for i in range(len(self.shells)):
-            update_threads.append(td.Thread(target=self.shells[i].set_time, args=(int(time.time() - self.start_time), )))
+            update_threads.append(
+                td.Thread(
+                    target=self.shells[i].set_time,
+                    args=(int(time.time() - self.start_time),),
+                )
+            )
             update_threads[i].start()
 
         for i in range(len(self.shells)):
@@ -176,23 +211,36 @@ class Constellation():
                 print("\033[91m❌ Did not get ok from machine manager!\033[0m")
 
         for i in range(len(self.shells)):
-
             gst_positions = self.shells[i].get_gst_positions()
 
             if self.animate:
-                links =  self.shells[i].get_links()
+                links = self.shells[i].get_links()
                 gst_links = self.shells[i].get_gst_links()
 
-                self.animation_conn.send(["shell", i, {
-                    "sat_positions": sat_positions[i],
-                    "links": links,
-                    "gst_positions": gst_positions,
-                    "gst_links": gst_links
-                }])
+                self.animation_conn.send(
+                    [
+                        "shell",
+                        i,
+                        {
+                            "sat_positions": sat_positions[i],
+                            "links": links,
+                            "gst_positions": gst_positions,
+                            "gst_links": gst_links,
+                        },
+                    ]
+                )
 
             if self.database:
-                self.db_conn.send([i, sat_positions[i], paths[i], gst_sat_paths[i], gst_paths[i], gst_positions])
-
+                self.db_conn.send(
+                    [
+                        i,
+                        sat_positions[i],
+                        paths[i],
+                        gst_sat_paths[i],
+                        gst_paths[i],
+                        gst_positions,
+                    ]
+                )
 
         end_time = time.time()
 

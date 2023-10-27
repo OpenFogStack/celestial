@@ -96,7 +96,7 @@ func getFirecrackerProcessRunner(socketPath string, outFile io.Writer, errFile i
 		Build(context.Background())), nil
 }
 
-func (lm *localmachine) initialize() error {
+func (lm *localmachine) initialize(debug bool) error {
 
 	err := createNetworkDevice(lm.gateway, lm.tapName, lm.chainName, lm.ipBlockSet, lm.hostInterface)
 
@@ -157,6 +157,12 @@ func (lm *localmachine) initialize() error {
 		return errors.WithStack(err)
 	}
 
+	logLevel := "Warning"
+
+	if debug {
+		logLevel = "Debug"
+	}
+
 	m, err := firecracker.NewMachine(context.Background(), firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: path.Join(FCROOTPATH, lm.kernelImagePath),
@@ -176,12 +182,11 @@ func (lm *localmachine) initialize() error {
 			},
 		},
 		MachineCfg: models.MachineConfiguration{
-			HtEnabled:  firecracker.Bool(lm.htEnabled),
 			MemSizeMib: firecracker.Int64(int64(lm.memSizeMiB)),
 			VcpuCount:  firecracker.Int64(int64(lm.vCPUCount)),
 		},
 		NetworkInterfaces: networkInterfaces,
-		LogLevel:          "Debug",
+		LogLevel:          logLevel,
 	}, firecrackerProcessRunner)
 
 	if err != nil {

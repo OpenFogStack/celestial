@@ -41,17 +41,22 @@ func main() {
 	dnsServicePort := flag.Int("dns-service-port", 53, "Port to bind DNS service server to")
 	infoServerPort := flag.Int("info-server-port", 80, "Port to bind info server to")
 	networkInterface := flag.String("network-interface", "ens4", "Name of your main network interface")
-	initDelay := flag.Int("init-delay", 15, "Maximum delay when initialy booting a machine -- can help reduce load at beginning of emulation")
+	initDelay := flag.Int("init-delay", 15, "Maximum delay when initially booting a machine -- can help reduce load at beginning of emulation")
 	eager := flag.Bool("eager", false, "Eager initialization -- start each machine at the beginning instead of lazily (default off)")
+	debug := flag.Bool("debug", false, "Enable debug logging")
 
 	flag.Parse()
 
 	log.SetLevel(log.WarnLevel)
 
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	s := grpc.NewServer()
 	p := grpc.NewServer()
 
-	o, err := orchestrator.New(*eager, *initDelay, *networkInterface)
+	o, err := orchestrator.New(*eager, *initDelay, *networkInterface, *debug)
 
 	if err != nil {
 		panic(err)

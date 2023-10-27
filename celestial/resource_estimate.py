@@ -20,11 +20,13 @@ import typing
 
 from .types import BoundingBoxConfig, ShellConfig, GroundstationConfig
 
+
 def lat_dist(x1: float, x2: float) -> float:
     if x2 < x1:
         return (180 - abs(x2)) - x1
 
     return x2 - x1
+
 
 def lon_dist(x1: float, x2: float) -> float:
     if x2 < x1:
@@ -32,8 +34,14 @@ def lon_dist(x1: float, x2: float) -> float:
 
     return x2 - x1
 
-def resource_estimate(bbox: BoundingBoxConfig, shells: typing.List[ShellConfig], groundstations: typing.List[GroundstationConfig], cpus: int, mem: float) -> float:
 
+def resource_estimate(
+    bbox: BoundingBoxConfig,
+    shells: typing.List[ShellConfig],
+    groundstations: typing.List[GroundstationConfig],
+    cpus: int,
+    mem: float,
+) -> float:
     # 1. calculate area of bounding box
 
     width = lon_dist(bbox.lon1, bbox.lon2)
@@ -72,15 +80,50 @@ def resource_estimate(bbox: BoundingBoxConfig, shells: typing.List[ShellConfig],
     required_mem = total_mem * ratio
 
     if required_cpu + gst_required_cpu > cpus:
-        print("\033[93m⚠️  You have %d CPUs available but require approx. %d CPUs (%d for satellites and %d for ground stations)\033[0m" % (ceil(cpus), ceil(required_cpu + gst_required_cpu), ceil(required_cpu), ceil(gst_required_cpu)))
+        print(
+            "\033[93m⚠️  You have %d CPUs available but require approx. %d CPUs (%d for satellites and %d for ground stations)\033[0m"
+            % (
+                ceil(cpus),
+                ceil(required_cpu + gst_required_cpu),
+                ceil(required_cpu),
+                ceil(gst_required_cpu),
+            )
+        )
     else:
-        print("\033[92m✅ You have %d CPUs available and require approx. %d CPUs (%d for satellites and %d for ground stations)\033[0m" % (ceil(cpus), ceil(required_cpu + gst_required_cpu), ceil(required_cpu), ceil(gst_required_cpu)))
+        print(
+            "\033[92m✅ You have %d CPUs available and require approx. %d CPUs (%d for satellites and %d for ground stations)\033[0m"
+            % (
+                ceil(cpus),
+                ceil(required_cpu + gst_required_cpu),
+                ceil(required_cpu),
+                ceil(gst_required_cpu),
+            )
+        )
 
     if required_mem + gst_required_mem > mem:
-        print("\033[93m⚠️  You have %dGB memory available but require approx. %dGB memory (%dGB for satellites and %dGB for ground stations)\033[0m" % (ceil(mem/1024), ceil((required_mem + gst_required_mem)/1024), ceil(required_mem/1024), ceil(gst_required_mem/1024)))
+        print(
+            "\033[93m⚠️  You have %dGB memory available but require approx. %dGB memory (%dGB for satellites and %dGB for ground stations)\033[0m"
+            % (
+                ceil(mem / 1024),
+                ceil((required_mem + gst_required_mem) / 1024),
+                ceil(required_mem / 1024),
+                ceil(gst_required_mem / 1024),
+            )
+        )
     else:
-        print("\033[92m✅ You have %dGB memory and require approx. %dGB memory (%dGB for satellites and %dGB for ground stations)\033[0m" % (ceil(mem/1024), ceil((required_mem + gst_required_mem)/1024), ceil(required_mem/1024), ceil(gst_required_mem/1024)))
+        print(
+            "\033[92m✅ You have %dGB memory and require approx. %dGB memory (%dGB for satellites and %dGB for ground stations)\033[0m"
+            % (
+                ceil(mem / 1024),
+                ceil((required_mem + gst_required_mem) / 1024),
+                ceil(required_mem / 1024),
+                ceil(gst_required_mem / 1024),
+            )
+        )
 
-    utilization = max(required_cpu/(max(0.001, cpus - gst_required_cpu)), required_mem/(max(0.001, mem - gst_required_mem)))
+    utilization = max(
+        required_cpu / (max(0.001, cpus - gst_required_cpu)),
+        required_mem / (max(0.001, mem - gst_required_mem)),
+    )
 
     return utilization

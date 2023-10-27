@@ -19,7 +19,7 @@ You can use the pre-compiled gRPC/protobuf files or compile your own:
 
 ```sh
 # compile all protofiles for python and go
-docker run --rm -v $(pwd):/celestial celestial-make proto/
+docker run --platform linux/amd64 --rm -v $(pwd):/celestial celestial-make proto/
 ```
 
 ### Python Client
@@ -45,5 +45,5 @@ docker build -t celestial .
 Compile the host server with:
 
 ```sh
-docker run --rm -v $(pwd):/celestial celestial-make celestial.bin
+docker run --platfrom linux/amd64 --rm -v $(pwd):/celestial celestial-make celestial.bin
 ```

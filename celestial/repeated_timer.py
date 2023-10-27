@@ -21,6 +21,7 @@ import time
 import typing
 from threading import Event, Thread
 
+
 class RepeatedTimer:
 
     """Repeat `function` every `interval` seconds."""

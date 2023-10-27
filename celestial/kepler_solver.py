@@ -26,50 +26,67 @@ STD_GRAVITATIONAL_PARAMETER_EARTH = 3.986004418e14
 # number of seconds per earth rotation (day)
 SECONDS_PER_DAY = 86400
 
-class KeplerSolver():
-    def __init__(self,
+
+class KeplerSolver:
+    def __init__(
+        self,
         planes: int,
         sats: int,
         altitude: float,
         inclination: float,
         arcOfAscendingNodes: float = 360.0,
-        eccentricity: float = 0.0):
-
+        eccentricity: float = 0.0,
+    ):
         # constellation options
         self.number_of_planes = planes
         self.nodes_per_plane = sats
-        self.total_sats = planes*sats
+        self.total_sats = planes * sats
 
         # orbit options
         self.eccentricity = eccentricity
         self.inclination = inclination
         self.arcOfAscendingNodes = arcOfAscendingNodes
         self.altitude = altitude
-        self.semi_major_axis = float(self.altitude)*1000 + EARTH_RADIUS
+        self.semi_major_axis = float(self.altitude) * 1000 + EARTH_RADIUS
 
-    def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray: # type: ignore
+    def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray:  # type: ignore
+        raan_offsets = [
+            (self.arcOfAscendingNodes / self.number_of_planes) * i
+            for i in range(0, self.number_of_planes)
+        ]
 
-        raan_offsets = [(self.arcOfAscendingNodes / self.number_of_planes)* i for i in range(0, self.number_of_planes)]
-
-        self.period = int(2.0 * math.pi * math.sqrt(math.pow(self.semi_major_axis, 3) / STD_GRAVITATIONAL_PARAMETER_EARTH))
+        self.period = int(
+            2.0
+            * math.pi
+            * math.sqrt(
+                math.pow(self.semi_major_axis, 3) / STD_GRAVITATIONAL_PARAMETER_EARTH
+            )
+        )
 
         self.plane_solvers = []
         for raan in raan_offsets:
-            self.plane_solvers.append(pyasl.KeplerEllipse(
-                per=self.period,
-                a=self.semi_major_axis,
-                e=self.eccentricity,
-                Omega=raan,
-                w=0.0,
-                i=self.inclination))
+            self.plane_solvers.append(
+                pyasl.KeplerEllipse(
+                    per=self.period,
+                    a=self.semi_major_axis,
+                    e=self.eccentricity,
+                    Omega=raan,
+                    w=0.0,
+                    i=self.inclination,
+                )
+            )
 
-        self.time_offsets = [(self.period/self.nodes_per_plane)*i for i in range(0, self.nodes_per_plane)]
+        self.time_offsets = [
+            (self.period / self.nodes_per_plane) * i
+            for i in range(0, self.nodes_per_plane)
+        ]
 
         # we offset each plane by a small amount, so they do not 'collide'
         # this little algorithm comes up with a list of offset values
         phase_offset = 0.0
-        phase_offset_increment = ((self.period / self.nodes_per_plane) /
-                                  self.number_of_planes)
+        phase_offset_increment = (
+            self.period / self.nodes_per_plane
+        ) / self.number_of_planes
         temp = []
         toggle = False
         # this loop results puts thing in an array in this order:
@@ -89,28 +106,27 @@ class KeplerSolver():
 
         for plane in range(0, self.number_of_planes):
             for node in range(0, self.nodes_per_plane):
+                unique_id = (plane * self.nodes_per_plane) + node
 
-                unique_id = (plane*self.nodes_per_plane) + node
-
-                offset = (self.time_offsets[node] + phase_offsets[plane])
+                offset = self.time_offsets[node] + phase_offsets[plane]
 
                 init_pos = self.plane_solvers[plane].xyzPos(offset)
 
-                satellites_array[unique_id]['time_offset'] = np.float32(offset)
-                satellites_array[unique_id]['x'] = np.int32(init_pos[0])
-                satellites_array[unique_id]['y'] = np.int32(init_pos[1])
-                satellites_array[unique_id]['z'] = np.int32(init_pos[2])
+                satellites_array[unique_id]["time_offset"] = np.float32(offset)
+                satellites_array[unique_id]["x"] = np.int32(init_pos[0])
+                satellites_array[unique_id]["y"] = np.int32(init_pos[1])
+                satellites_array[unique_id]["z"] = np.int32(init_pos[2])
 
         return satellites_array
 
-    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray: # type: ignore
+    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray:  # type: ignore
         for sat_id in range(len(satellites_array)):
-            plane = satellites_array[sat_id]['plane_number']
-            offset = satellites_array[sat_id]['time_offset']
+            plane = satellites_array[sat_id]["plane_number"]
+            offset = satellites_array[sat_id]["time_offset"]
             pos = self.plane_solvers[plane].xyzPos(time + offset)
 
-            satellites_array[sat_id]['x'] = np.int32(pos[0])
-            satellites_array[sat_id]['y'] = np.int32(pos[1])
-            satellites_array[sat_id]['z'] = np.int32(pos[2])
+            satellites_array[sat_id]["x"] = np.int32(pos[0])
+            satellites_array[sat_id]["y"] = np.int32(pos[1])
+            satellites_array[sat_id]["z"] = np.int32(pos[2])
 
         return satellites_array

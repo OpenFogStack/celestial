@@ -72,6 +72,8 @@ type Orchestrator struct {
 	useDB    bool
 	dbClient database.DatabaseClient
 
+	debug bool
+
 	// some information on how many machines were created and how many are left
 	outstanding int64
 	created     uint64
@@ -128,7 +130,7 @@ func (o *Orchestrator) Ready() (bool, uint64) {
 }
 
 // New creates a new Orchestrator.
-func New(eager bool, initDelay int, networkInterface string) (*Orchestrator, error) {
+func New(eager bool, initDelay int, networkInterface string, debug bool) (*Orchestrator, error) {
 
 	return &Orchestrator{
 		eager:            eager,
@@ -137,6 +139,7 @@ func New(eager bool, initDelay int, networkInterface string) (*Orchestrator, err
 		remoteHosts:      make(map[uint64]*host),
 		groundstations:   make(map[string]*machine),
 		gstLock:          &sync.RWMutex{},
+		debug:            debug,
 		networkInterface: networkInterface,
 	}, nil
 }

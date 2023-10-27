@@ -150,7 +150,7 @@ func getInfo(w http.ResponseWriter, _ *http.Request) {
 	err := o.DBGetConstellation(w)
 
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		log.Errorf("error getting info about constelation: %s", err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		_, err := fmt.Fprint(w, err.Error())
 
@@ -204,7 +204,7 @@ func getShell(w http.ResponseWriter, r *http.Request) {
 	err = o.DBGetShell(uint32(shell), w)
 
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		log.Errorf("error getting info about shell %d %s", shell, err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		_, err := fmt.Fprint(w, err.Error())
 
@@ -282,7 +282,7 @@ func getSat(w http.ResponseWriter, r *http.Request) {
 	err = o.DBGetSatellite(uint32(shell), uint32(sat), w)
 
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		log.Errorf("error getting info about satellite %d in shell %d: %s", sat, shell, err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		_, err := fmt.Fprint(w, err.Error())
 
@@ -323,7 +323,7 @@ func getGST(w http.ResponseWriter, r *http.Request) {
 	err := o.DBGetGroundStation(name, w)
 
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		log.Errorf("error getting info about ground station %s: %s", name, err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		_, err := fmt.Fprint(w, err.Error())
 
@@ -489,7 +489,7 @@ func getPath(w http.ResponseWriter, r *http.Request) {
 	err = o.DBGetPath(int32(ss), uint32(s), int32(ts), uint32(t), w)
 
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		log.Errorf("error getting path from sat %d in shell %d to sat %d in shell %d: %s", s, ss, t, ts, err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		_, err := fmt.Fprint(w, err.Error())
 

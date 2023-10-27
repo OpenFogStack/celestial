@@ -49,7 +49,7 @@ type localmachine struct {
 	m               *firecracker.Machine
 	drivePath       string
 	kernelImagePath string
-	diskSizeMiB 	uint64
+	diskSizeMiB     uint64
 	htEnabled       bool
 	memSizeMiB      uint64
 	vCPUCount       uint64
@@ -151,7 +151,7 @@ func (o *Orchestrator) setActive(m *localmachine) error {
 	m.active = true
 
 	if !m.initialized {
-		err := m.initialize()
+		err := m.initialize(o.debug)
 
 		return errors.WithStack(err)
 	}
@@ -234,7 +234,7 @@ func (o *Orchestrator) CreateMachine(m commons.MachineID, vCPUCount uint64, memS
 
 		log.Debugf("initializing machine: %d %d %s %v", m.ID, m.Shell, m.Name, active)
 
-		err := machine.localmachine.initialize()
+		err := machine.localmachine.initialize(o.debug)
 
 		if err != nil {
 			log.Errorf("%+v\n", err)
