@@ -19,5 +19,5 @@
 
 all: rootfsbuilder
 
-rootfsbuilder: build-script.sh Dockerfile inittab interfaces start-script
-	@docker build --platform=linux/amd64 -t rootfsbuilder .
+rootfsbuilder: build-script.sh Dockerfile fcnet fcnet-setup init.c inittab interfaces overlay-init prepare.sh start-script
+	@docker build --platform=linux/amd64 -t $@:latest .

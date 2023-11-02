@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+main() {
+    devs=$(ls /sys/class/net | grep -v lo)
+    for dev in $devs; do
+        ip link set $dev up
+    done
+}
+main

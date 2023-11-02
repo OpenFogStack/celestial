@@ -35,7 +35,7 @@ sudo mv release-v1.5.0-x86_64/seccompiler-bin-v1.5.0-x86_64 /usr/local/bin/jaile
 # now let's also download the kernel
 curl -fsSL \
     -o vmlinux.bin \
-    "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/x86_64/kernels/vmlinux.bin"
+    "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/x86_64/kernels/vmlinux-5.10.bin"
 sudo mv vmlinux.bin /celestial/vmlinux.bin
 
 # sometimes it can also be helpful to increase process and file handler

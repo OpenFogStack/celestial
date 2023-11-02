@@ -19,14 +19,32 @@
 
 # the base script install all the necessary dependencies during root
 # filesystem compilation
+# configure ssh
 
-apk add openssh
-# rc-update add sshd
+apk -U --allow-untrusted --root / add openssh
 
-mkdir -p /home/root/.ssh
-chmod 700 /home/root/.ssh
-cat id_ed25519.pub > /home/root/.ssh/authorized_keys
-chmod 600 /home/root/.ssh/authorized_keys
-# # echo "root:root" | chpasswd
-ls -a /home/root/
-passwd root -d root
+ln -sf sshd                     /etc/init.d/sshd.eth0
+ln -sf /etc/init.d/sshd.eth0    /etc/runlevels/default/sshd.eth0
+
+mkdir -m 0600 -p /root/.ssh/
+ssh-keygen -f /root/.ssh/id_rsa -N ""
+ssh-keygen -A
+cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+
+cat >> /etc/conf.d/sshd << EOF
+sshd_disable_keygen="yes"
+rc_need="net.eth0 fcnet"
+EOF
+
+sed -E -i /etc/ssh/sshd_config \
+	-e "/^[# ]*PermitRootLogin .+$/d" \
+	-e "/^[# ]*PermitEmptyPasswords .+$/d" \
+	-e "/^[# ]*PubkeyAuthentication .+$/d"
+
+	echo "
+PermitRootLogin yes
+PermitEmptyPasswords yes
+PubkeyAuthentication yes
+" | tee -a /etc/ssh/sshd_config >/dev/null
+
+cat id_ed25519.pub >> /root/.ssh/authorized_keys

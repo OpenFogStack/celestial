@@ -17,17 +17,37 @@
 
 FROM debian:buster
 
-RUN apt update
-RUN apt install -y wget
-RUN apt install -y squashfs-tools
+ARG ALPINE_VERSION_MAJOR="3"
+ARG ALPINE_VERSION_MINOR="18"
+ARG ALPINE_VERSION_PATCH="0"
+ARG ALPINE_ARCH="x86_64"
+
+ARG ALPINE_VERSION="${ALPINE_VERSION_MAJOR}.${ALPINE_VERSION_MINOR}.${ALPINE_VERSION_PATCH}"
+
+RUN apt update && \
+    apt install -y \
+    wget \
+    squashfs-tools \
+    gcc && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN mkdir minirootfs
-RUN wget http://dl-cdn.alpinelinux.org/alpine/v3.14/releases/x86_64/alpine-minirootfs-3.14.2-x86_64.tar.gz
-RUN cd minirootfs && \
-    tar xzf ../alpine-minirootfs-3.14.2-x86_64.tar.gz
+RUN wget http://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION_MAJOR}.${ALPINE_VERSION_MINOR}/releases/${ALPINE_ARCH}/alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz && \
+    cd minirootfs && \
+    tar xzf ../alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz && \
+    cd .. && \
+    rm alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz
 
+COPY init.c init.c
+RUN gcc -DOPENRC_INIT="\"/sbin/openrc-init\"" -static -O3 -o ./init init.c && \
+    rm init.c
+
+COPY fcnet fcnet
+COPY fcnet-setup fcnet-setup
 COPY inittab inittab
 COPY interfaces interfaces
+COPY overlay-init overlay-init
+COPY prepare.sh prepare.sh
 COPY start-script start-script
 
 COPY build-script.sh /build-script.sh

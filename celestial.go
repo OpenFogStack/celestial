@@ -20,6 +20,8 @@ package main
 import (
 	"flag"
 	"net"
+	"os"
+	"os/signal"
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
@@ -98,5 +100,28 @@ func main() {
 		}
 	}()
 
-	panic(p.Serve(lisP))
+	go func() {
+		err := p.Serve(lisP)
+		if err != nil {
+			panic(err.Error())
+		}
+	}()
+
+	// listen for SIGINT
+	c := make(chan os.Signal, 1)
+
+	signal.Notify(c, os.Interrupt)
+
+	// block until SIGINT is received
+	<-c
+
+	// stop the grpc servers
+	s.Stop()
+	p.Stop()
+
+	err = o.Cleanup()
+
+	if err != nil {
+		panic(err)
+	}
 }

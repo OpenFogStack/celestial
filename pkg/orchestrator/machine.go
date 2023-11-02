@@ -252,6 +252,29 @@ func (o *Orchestrator) CreateMachine(m commons.MachineID, vCPUCount uint64, memS
 	return nil
 }
 
+func (o *Orchestrator) destroy(m *machine) error {
+	// if machine is not local, there is nothing to do
+	if !m.isLocal {
+		return nil
+	}
+
+	// shut off the machine
+	err := m.destroy()
+
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// remove all network handles
+	err = removeNetworkDevice(m.tapName, m.chainName, m.ipBlockSet, o.networkInterface, false)
+
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // ModifyMachine pauses or resumes a firecracker microVM.
 func (o *Orchestrator) ModifyMachine(m commons.MachineID, active bool) error {
 

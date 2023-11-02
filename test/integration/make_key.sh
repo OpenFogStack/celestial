@@ -1,6 +1,6 @@
 #!/bin/sh
 
-KEYFILE="id_ed255119"
+KEYFILE="id_ed25519"
 
 # check if file exists
 if [ -f "$KEYFILE" ]; then

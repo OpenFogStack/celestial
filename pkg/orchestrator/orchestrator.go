@@ -130,6 +130,25 @@ func (o *Orchestrator) Ready() (bool, uint64) {
 	return o.outstanding <= 0, o.created
 }
 
+func (o *Orchestrator) Cleanup() error {
+	if !o.Initialized {
+		return errors.New("cannot run cleanup: orchestrator not initialized")
+	}
+
+	// shutdown all machines
+	for _, shell := range o.shells {
+		for _, machine := range shell.machines {
+			err := o.destroy(machine)
+
+			if err != nil {
+				return errors.WithStack(err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // New creates a new Orchestrator.
 func New(eager bool, initDelay int, networkInterface string, debug bool) (*Orchestrator, error) {
 
