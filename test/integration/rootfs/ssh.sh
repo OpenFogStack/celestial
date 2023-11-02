@@ -17,10 +17,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-echo "starting sshd"
-rc-service sshd start
-echo "sshd started"
-
 while true; do
     echo "$(date): satellite server running"
     sleep 60

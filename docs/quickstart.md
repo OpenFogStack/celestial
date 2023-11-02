@@ -182,8 +182,13 @@ You can compile your own using the [manual we provide](./setup/application)
 cd ~/celestial/quick-start/validator
 curl -fsSL \
     -o vmlinux.bin \
-    "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/x86_64/kernels/vmlinux.bin"
+    "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/x86_64/kernels/vmlinux-5.10.bin"
 ```
+
+Note that their default kernel is `v4.14`, which is not recommended:
+Celestial passes the `random.trust_cpu=on` option as a kernel parameter to
+ensure available entropy in your microVM.
+This option is only available starting with kernel `v4.19`.
 
 ### Starting Celestial on Google Cloud Platform
 

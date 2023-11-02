@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# see https://github.com/firecracker-microvm/firecracker/discussions/3061
+# in addition to the base file system, here we mount our overlay
+# overlay_root is a kernel parameter
+if [ -n "$overlay_root" ] &&
+    [ ! -b "/dev/$overlay_root" ]; then
+    echo "FATAL: Overlay root given as $overlay_root but /dev/$overlay_root does not exist"
+    exit 1
+fi
+
+# echo "Mounting overlay root /dev/$overlay_root"
+/bin/mount -t ext4 "/dev/$overlay_root" /overlay
+mkdir -p /overlay/root /overlay/work
+
+/bin/mount \
+    -o noatime,lowerdir=/,upperdir=/overlay/root,workdir=/overlay/work \
+    -t overlay "overlayfs:/overlay/root" /mnt
+
+# echo "Pivoting root to /mnt"
+pivot_root /mnt /mnt/rom
+
+cd /
+# mount --move /rom/sys /sys
+# mount --move /rom/proc /proc
+# mount --move /rom/dev /dev
+# echo "removing root password again"
+# passwd root -d root
+
+echo "init args:"
+echo "$@"
+exec /sbin/init $@

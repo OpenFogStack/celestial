@@ -216,6 +216,37 @@ func initHost(hostInterface string) error {
 		return errors.WithStack(err)
 	}
 
+	// Configure packet forwarding
+	// sysctl -wq net.ipv4.conf.all.forwarding=1
+
+	cmd = exec.Command("sysctl", "-wq", "net.ipv4.conf.all.forwarding=1")
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	// Avoid "neighbour: arp_cache: neighbor table overflow!"
+	// sysctl -wq net.ipv4.neigh.default.gc_thresh1=1024
+	cmd = exec.Command("sysctl", "-wq", "net.ipv4.neigh.default.gc_thresh1=1024")
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	// sysctl -wq net.ipv4.neigh.default.gc_thresh2=2048
+	cmd = exec.Command("sysctl", "-wq", "net.ipv4.neigh.default.gc_thresh2=2048")
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	// sysctl -wq net.ipv4.neigh.default.gc_thresh3=4096
+	cmd = exec.Command("sysctl", "-wq", "net.ipv4.neigh.default.gc_thresh3=4096")
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
 	//sudo iptables -t nat -A POSTROUTING -o [HOSTINTERFACE] -j MASQUERADE
 
 	cmd = exec.Command(IPTABLES, "-t", "nat", "-A", "POSTROUTING", "-o", hostInterface, "-j", "MASQUERADE")
@@ -253,6 +284,22 @@ func createNetworkDevice(gateway string, tapName string, chainName string, ipBlo
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
+	// set up proxy ARP
+	// sysctl -w net.ipv4.conf.[TAP_NAME].proxy_arp=1
+	cmd = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv4.conf.%s.proxy_arp=1", tapName))
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	// disable ipv6
+	// sysctl -w net.ipv6.conf.[TAP_NAME].disable_ipv6=1
+	cmd = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv6.conf.%s..disable_ipv6=1", tapName))
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
 	// ip addr add [IP_ADDRESS] dev [TAP_NAME]
 
 	cmd = exec.Command("ip", "addr", "add", gateway, "dev", tapName)
@@ -264,14 +311,6 @@ func createNetworkDevice(gateway string, tapName string, chainName string, ipBlo
 	// ip link set [TAP_NAME] up
 
 	cmd = exec.Command("ip", "link", "set", tapName, "up")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// iptables -A FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
-
-	cmd = exec.Command(IPTABLES, "-A", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
@@ -301,9 +340,17 @@ func createNetworkDevice(gateway string, tapName string, chainName string, ipBlo
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// iptables -A [CHAIN_NAME] -m set --match-set [IP_BLOCK_SET] src -j REJECT --reject-with icmp-net-unreachable
+	// iptables -A [CHAIN_NAME] -m set --match-set [IP_BLOCK_SET] dst -j REJECT --reject-with icmp-net-unreachable
 
-	cmd = exec.Command(IPTABLES, "-A", chainName, "-m", "set", "--match-set", ipBlockSet, "src", "-j", "REJECT", "--reject-with", "icmp-net-unreachable")
+	cmd = exec.Command(IPTABLES, "-A", chainName, "-m", "set", "--match-set", ipBlockSet, "dst", "-j", "REJECT", "--reject-with", "icmp-net-unreachable")
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	// iptables -A FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
+
+	cmd = exec.Command(IPTABLES, "-A", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
