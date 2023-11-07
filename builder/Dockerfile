@@ -15,7 +15,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-FROM debian:buster
+FROM debian:sid
 
 ARG ALPINE_VERSION_MAJOR="3"
 ARG ALPINE_VERSION_MINOR="18"
@@ -38,17 +38,15 @@ RUN wget http://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION_MAJOR}.${ALPINE_
     cd .. && \
     rm alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz
 
-COPY init.c init.c
-RUN gcc -DOPENRC_INIT="\"/sbin/openrc-init\"" -static -O3 -o ./init init.c && \
-    rm init.c
+COPY fcinit.c fcinit.c
+RUN gcc -static -O3 -o ./fcinit fcinit.c && \
+    rm fcinit.c
 
-COPY fcnet fcnet
-COPY fcnet-setup fcnet-setup
 COPY inittab inittab
 COPY interfaces interfaces
-COPY overlay-init overlay-init
+COPY run-user-script run-user-script
 COPY prepare.sh prepare.sh
-COPY start-script start-script
+COPY ceinit ceinit
 
 COPY build-script.sh /build-script.sh
 

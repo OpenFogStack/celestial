@@ -34,11 +34,7 @@ tar -xvf firecracker-v1.5.0-x86_64.tgz
 sudo mv release-v1.5.0-x86_64/firecracker-v1.5.0-x86_64 /usr/local/bin/firecracker
 sudo mv release-v1.5.0-x86_64/seccompiler-bin-v1.5.0-x86_64 /usr/local/bin/jailer
 
-# now let's also download the kernel
-curl -fsSL \
-    -o vmlinux.bin \
-    https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/x86_64/kernels/vmlinux-5.10.bin
-sudo mv vmlinux.bin /celestial/vmlinux.bin
+sudo mv vmlinux-5.12.bin /celestial/vmlinux.bin
 
 # sometimes it can also be helpful to increase process and file handler
 # limits on your host machines:

@@ -166,7 +166,7 @@ func (lm *localmachine) initialize(debug bool) error {
 	m, err := firecracker.NewMachine(context.Background(), firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: path.Join(FCROOTPATH, lm.kernelImagePath),
-		KernelArgs:      "init=/sbin/overlay-init noapic reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb " + lm.bootparams,
+		KernelArgs:      "init=/sbin/ceinit ro console=ttyS0 noapic reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb " + lm.bootparams,
 		Drives: []models.Drive{
 			{
 				DriveID:      firecracker.String("root"),

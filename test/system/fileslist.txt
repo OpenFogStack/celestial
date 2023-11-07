@@ -1,6 +1,7 @@
 test/system/dependencies.sh
 test/system/app/validator.img
 test/system/config.toml
+kernel/vmlinux-5.12.bin
 requirements.txt
 celestial
 proto

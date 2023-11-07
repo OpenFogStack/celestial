@@ -246,205 +246,153 @@ func TestModify(t *testing.T) {
 }
 
 // check what happens when we adapt the network latency between the machines
+func testModifyLinks(t *testing.T, latency int) {
+	for i := 0; i < 2; i++ {
+		A := i
+		B := (i + 1) % 2
+		_, err := s.ModifyLinks(context.Background(), &celestial.ModifyLinksRequest{
+			A: &celestial.Machine{
+				Shell: 0,
+				Id:    uint64(A),
+			},
+			Modify: []*celestial.ModifyLinkRequest{
+				{
+					B: &celestial.Machine{
+						Shell: 0,
+						Id:    uint64(B),
+					},
+					Latency:   float64(latency),
+					Bandwidth: 10000,
+				},
+			},
+			Remove: []*celestial.RemoveLinkRequest{},
+		})
+
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	for i := 0; i < 2; i++ {
+		A := i
+		B := (i + 1) % 2
+		// check if latency is actually set
+		// run ping over SSH command:
+		// ssh root@[ip1] ping -c 1 [ip2]
+		c := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ips[A].String(), "ping", "-c", "1", ips[B].String())
+
+		out, err := c.CombinedOutput()
+		if err != nil {
+			log.Debug(string(out))
+			t.Error(err)
+		}
+
+		// check that latency is as expected (2*latency)
+		// parse output of this form:
+		//     PING 10.0.0.6 (10.0.0.6): 56 data bytes
+		//     64 bytes from 10.0.0.6: seq=0 ttl=63 time=201.149 ms
+
+		measured := -1.0
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.Contains(line, "time=") {
+				p := strings.Split(strings.Split(line, "=")[3], " ")[0]
+				log.Debugf("parsed latency %s", p)
+				measured, err = strconv.ParseFloat(p, 64)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+		}
+
+		if latency == -1 {
+			t.Errorf("latency from %d to %d could not be determined", A, B)
+		}
+
+		// latency should not be out of a 5% range
+		minlatency := float64(latency*2) * 0.95
+		maxlatency := float64(latency*2) * 1.05
+		if measured < minlatency || measured > maxlatency {
+			t.Errorf("latency from %d to %d is not as expected: %.2f instead of %d", A, B, measured, latency*2)
+		}
+	}
+}
+
 func TestModifyLinks(t *testing.T) {
-	_, err := s.ModifyLinks(context.Background(), &celestial.ModifyLinksRequest{
-		A: &celestial.Machine{
-			Shell: 0,
-			Id:    0,
-		},
-		Modify: []*celestial.ModifyLinkRequest{
-			{
-				B: &celestial.Machine{
-					Shell: 0,
-					Id:    1,
-				},
-				Latency:   100,
-				Bandwidth: 10000,
-			},
-		},
-		Remove: []*celestial.RemoveLinkRequest{},
-	})
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = s.ModifyLinks(context.Background(), &celestial.ModifyLinksRequest{
-		A: &celestial.Machine{
-			Shell: 0,
-			Id:    1,
-		},
-		Modify: []*celestial.ModifyLinkRequest{
-			{
-				B: &celestial.Machine{
-					Shell: 0,
-					Id:    0,
-				},
-				Latency:   100,
-				Bandwidth: 10000,
-			},
-		},
-		Remove: []*celestial.RemoveLinkRequest{},
-	})
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	// check if latency is actually set
-	// run ping over SSH command:
-	// ssh root@[ip1] ping -c 1 [ip2]
-	c := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ips[0].String(), "ping", "-c", "1", ips[1].String())
-
-	out, err := c.CombinedOutput()
-	if err != nil {
-		log.Debug(string(out))
-		t.Error(err)
-	}
-
-	// check that latency is as expected (2*100)
-	// parse output of this form:
-	//     PING 10.0.0.6 (10.0.0.6): 56 data bytes
-	//     64 bytes from 10.0.0.6: seq=0 ttl=63 time=201.149 ms
-
-	latency := -1.0
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.Contains(line, "time=") {
-			p := strings.Split(strings.Split(line, "=")[3], " ")[0]
-			log.Debugf("parsed latency %s", p)
-			latency, err = strconv.ParseFloat(p, 64)
-			if err != nil {
-				t.Error(err)
-			}
-		}
-	}
-
-	if latency == -1 {
-		t.Error("latency from A to B could not be determined")
-	}
-
-	// latency should not be out of a 5% range
-	if latency < 190 || latency > 210 {
-		t.Errorf("latency from A to B is not as expected: %.2f instead of %d", latency, 200)
-	}
-
-	// check on the other side
-	// ssh root@[ip2] ping -c 1 [ip1]
-	c = exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ips[1].String(), "ping", "-c", "1", ips[0].String())
-
-	out, err = c.CombinedOutput()
-	if err != nil {
-		log.Debug(string(out))
-		t.Error(err)
-	}
-
-	latency = -1.0
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.Contains(line, "time=") {
-			latency, err = strconv.ParseFloat(strings.Split(strings.Split(line, "=")[3], " ")[0], 64)
-			if err != nil {
-				t.Error(err)
-			}
-		}
-	}
-
-	if latency == -1 {
-		t.Error("latency from B to A could not be determined")
-	}
-
-	// latency should not be out of a 5% range
-	if latency < 190 || latency > 210 {
-		t.Errorf("latency from B to A is not as expected: %.2f instead of %d", latency, 200)
-	}
-
+	testModifyLinks(t, 100)
+	testModifyLinks(t, 200)
+	testModifyLinks(t, 300)
+	testModifyLinks(t, 400)
 }
 
 // check that blocking a link works
 func TestBlockLink(t *testing.T) {
-	_, err := s.ModifyLinks(context.Background(), &celestial.ModifyLinksRequest{
-		A: &celestial.Machine{
-			Shell: 0,
-			Id:    0,
-		},
-		Modify: []*celestial.ModifyLinkRequest{},
-		Remove: []*celestial.RemoveLinkRequest{
-			{
-				B: &celestial.Machine{
-					Shell: 0,
-					Id:    1,
+
+	for i := 0; i < 2; i++ {
+		A := i
+		B := (i + 1) % 2
+
+		_, err := s.ModifyLinks(context.Background(), &celestial.ModifyLinksRequest{
+			A: &celestial.Machine{
+				Shell: 0,
+				Id:    uint64(A),
+			},
+			Modify: []*celestial.ModifyLinkRequest{},
+			Remove: []*celestial.RemoveLinkRequest{
+				{
+					B: &celestial.Machine{
+						Shell: 0,
+						Id:    uint64(B),
+					},
 				},
 			},
-		},
-	})
+		})
 
-	if err != nil {
-		t.Error(err)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
-	_, err = s.ModifyLinks(context.Background(), &celestial.ModifyLinksRequest{
-		A: &celestial.Machine{
-			Shell: 0,
-			Id:    1,
-		},
-		Modify: []*celestial.ModifyLinkRequest{},
-		Remove: []*celestial.RemoveLinkRequest{
-			{
-				B: &celestial.Machine{
-					Shell: 0,
-					Id:    0,
-				},
-			},
-		},
-	})
+	for i := 0; i < 2; i++ {
+		A := i
+		B := (i + 1) % 2
+		// check if latency is actually set
+		// run ping over SSH command:
+		// ssh root@[ip1] ping -c 1 [ip2]
+		c := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ips[A].String(), "ping", "-c", "1", ips[B].String())
 
-	if err != nil {
-		t.Error(err)
+		out, err := c.CombinedOutput()
+		// ignore error, should fail!
+		if err == nil {
+			log.Debug(string(out))
+			t.Errorf("host %d is reachable from host %d", B, A)
+		}
+
+		// parse output to check that host is unreachable
+		unreachable := false
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.Contains(line, "Network unreachable") || strings.Contains(line, "100% packet loss") {
+				unreachable = true
+			}
+		}
+
+		if !unreachable {
+			t.Errorf("host %d is reachable from host %d", B, A)
+		}
 	}
+}
 
-	// check if latency is actually set
-	// run ping over SSH command:
-	// ssh root@[ip1] ping -c 1 [ip2]
-	c := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ips[0].String(), "ping", "-c", "1", ips[1].String())
+func TestDNS(t *testing.T) {
+	// try modifying the DNS settings on the machine
+	// need to get the gateway address of the machine
+	gateway := net.IP{10, 0, 0, 1}
+
+	// write the gateway ip into /etc/resolv.conf on the machine
+	c := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ips[0].String(), "echo", "nameserver", gateway.String(), ">", "/etc/resolv.conf")
 
 	out, err := c.CombinedOutput()
-	// ignore error, should fail!
-	if err == nil {
+
+	if err != nil {
 		log.Debug(string(out))
-		t.Error("host A is reachable from host B")
-	}
-
-	// parse output to check that host is unreachable
-	unreachableAtoB := false
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.Contains(line, "Network unreachable") || strings.Contains(line, "100% packet loss") {
-			unreachableAtoB = true
-		}
-	}
-
-	if !unreachableAtoB {
-		t.Error("host B is reachable from host A")
-	}
-
-	// check on the other side
-	// ssh root@[ip2] ping -c 1 [ip1]
-	c = exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+ips[1].String(), "ping", "-c", "1", ips[0].String())
-
-	out, err = c.CombinedOutput()
-	// ignore error, should fail!
-	if err == nil {
-		log.Debug(string(out))
-		t.Error("host A is reachable from host B")
-	}
-
-	// parse output to check that host is unreachable
-	unreachableBtoA := false
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.Contains(line, "Network unreachable") || strings.Contains(line, "100% packet loss") {
-			unreachableBtoA = true
-		}
-	}
-
-	if !unreachableBtoA {
-		t.Error("host A is reachable from host B")
+		t.Error(err)
 	}
 }

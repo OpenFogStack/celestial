@@ -1,6 +1,6 @@
 model = "SGP4"
 
-bbox = [-90.0, -180.0, 90.0, 180.0]
+bbox = [-90.0, -120.0, 90.0, 120.0]
 interval = 10
 animation = false
 hosts = ["127.0.0.1:1969"]
@@ -24,7 +24,6 @@ vcpu_count = 1
 mem_size_mib = 512
 disk_size_mib = 10
 ht_enabled = false
-bootparams = "random.trust_cpu=on"
 kernel = "vmlinux.bin"
 rootfs = "validator.img"
 

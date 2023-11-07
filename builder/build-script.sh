@@ -29,11 +29,9 @@ cp -r  minirootfs/* ./tmp/
 cp /etc/resolv.conf ./tmp/etc/resolv.conf
 cp interfaces ./tmp/etc/network/interfaces
 cp inittab ./tmp/etc/inittab
-cp fcnet-setup ./tmp/fcnet-setup
-cp fcnet ./tmp/etc/init.d/fcnet
-cp overlay-init ./tmp/overlay-init
-cp init ./tmp/init
-cp start-script ./tmp/start.sh
+cp run-user-script ./tmp/sbin/run-user-script
+cp fcinit ./tmp/sbin/fcinit
+cp ceinit ./tmp/sbin/ceinit
 cp /app.sh ./tmp/app.sh
 
 if [ -d "/files" ]; then
@@ -53,7 +51,7 @@ fi
 mkdir -p ./tmp/overlay/root \
     ./tmp/overlay/work \
     ./tmp/mnt \
-    ./tmp/rom \
+    ./tmp/rom
 
 # now switch back to a public name server
 echo nameserver 1.1.1.1 > ./tmp/etc/resolv.conf

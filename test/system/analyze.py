@@ -84,6 +84,12 @@ if __name__ == "__main__":
     # same with b
     results["b"] = results.apply(lambda x: f"{x['b_shell']}-{x['b_sat']}", axis=1)
 
+    # make an ecdf plot
+    g = sns.ecdfplot(data=results, x="diff_approx")
+    g.set(xlim=(0, 10))
+    plt.savefig(f"{OUTPUT_DIR}/ecdf.png", bbox_inches="tight")
+    plt.clf()
+
     # make a heat map
     # we want to plot an average of the difference between expected and actual
     results_2d = (
@@ -97,6 +103,13 @@ if __name__ == "__main__":
     plt.savefig(f"{OUTPUT_DIR}/heatmap.png", bbox_inches="tight")
     plt.clf()
 
+    # now do the average difference over time with a 5s rolling mean
+    results_rolling = results.groupby(["a", "b"]).rolling(10, on="t").mean(numeric_only=True)
+
+    sns.lineplot(data=results_rolling, x="t", y="diff_approx", hue="a")
+    plt.savefig(f"{OUTPUT_DIR}/lineplot.png", bbox_inches="tight")
+    plt.clf()
+
     results_2d = (
         results.groupby(["a", "b"])
         .mean(numeric_only=True)
@@ -106,12 +119,6 @@ if __name__ == "__main__":
 
     sns.heatmap(data=results_2d, fmt=".2f", label=True, cmap="viridis", vmin=-1, vmax=1)
     plt.savefig(f"{OUTPUT_DIR}/heatmap-inv.png", bbox_inches="tight")
-    plt.clf()
-
-    # make an ecdf plot
-    g = sns.ecdfplot(data=results, x="diff_approx")
-    g.set(xlim=(0, 10))
-    plt.savefig(f"{OUTPUT_DIR}/ecdf.png", bbox_inches="tight")
     plt.clf()
 
     g = sns.ecdfplot(data=results, x="invalid_conn")

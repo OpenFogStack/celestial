@@ -3,11 +3,15 @@
 set -xe
 
 DIVIDER="=============================="
-LOG_FILE="test.log"
+HOST_LOG="host.log"
+COORD_LOG="coordinator.log"
 
-echo -n "" > "$LOG_FILE"
-tail -f $LOG_FILE >&2 &
-TAIL_PID=$!
+echo -n "" > "$HOST_LOG"
+echo -n "" > "$COORD_LOG"
+# tail -f "$HOST_LOG" >& >(sed 's/^/host: /') &
+# HOST_TAIL_PID=$!
+# tail -f "$COORD_LOG" >& >(sed 's/^/coordinator: /') &
+# COORD_TAIL_PID=$!
 
 echo "Running tests..."
 
@@ -45,7 +49,7 @@ echo "Shutting off systemd-resolved..."
 ssh "$INSTANCE_NAME" "sudo systemctl stop systemd-resolved"
 
 echo "Running celestial..."
-ssh "$INSTANCE_NAME" sudo ./celestial.bin --debug >& >(sed 's/^/host: /' >> "$LOG_FILE") &
+ssh "$INSTANCE_NAME" sudo ./celestial.bin --debug >> $HOST_LOG 2>&1 &
 CELESTIAL_PID=$!
 
 echo -n "Waiting for celestial to start."
@@ -57,7 +61,7 @@ done
 echo "$DIVIDER"
 echo "Running celestial coordinator..."
 echo "$DIVIDER"
-ssh "$INSTANCE_NAME" python3 celestial.py config.toml >& >(sed 's/^/coordinator: /' >> "$LOG_FILE") &
+ssh "$INSTANCE_NAME" python3 celestial.py config.toml >> $COORD_LOG 2>&1 &
 COORDINATOR_PID=$!
 
 # run for 10 minutes
@@ -75,7 +79,8 @@ echo "$DIVIDER"
 kill "$CELESTIAL_PID"
 ssh "$INSTANCE_NAME" "sudo systemctl restart systemd-resolved"
 
-kill "$TAIL_PID"
+# kill $HOST_TAIL_PID
+# kill $COORD_TAIL_PID
 
 # get the results
 echo "$DIVIDER"
