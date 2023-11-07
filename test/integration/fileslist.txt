@@ -6,4 +6,5 @@ pkg
 celestial.go
 go.mod
 go.sum
+kernel/vmlinux-5.12.bin
 test/integration/celestial_test.go

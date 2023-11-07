@@ -74,6 +74,11 @@ resource "google_compute_firewall" "celestial-test-net-firewall-external" {
   }
 }
 
+# reserve a static external IP address
+resource "google_compute_address" "celestial-test-host-ip" {
+  name = "celestial-test-host-ip"
+}
+
 # we need to create an image for our hosts
 # this needs a custom license to use nested virtualization
 resource "google_compute_image" "celestial-test-host-image" {
@@ -98,8 +103,9 @@ resource "google_compute_instance" "celestial-test-host" {
   # adapter for internal network
   network_interface {
     network = google_compute_network.celestial-test-network.id
-    # put this empty block in to get a public IP
+    # use the static IP address
     access_config {
+      nat_ip = google_compute_address.celestial-test-host-ip.address
     }
   }
 

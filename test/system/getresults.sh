@@ -2,18 +2,21 @@
 
 set -xe
 
-RESULTS_RAW="out/"
+RESULTS_DIR="out"
 RESULTS_CLEAN="results.csv"
 
 TEST_HOST_NAME="$(terraform output -json | jq -r '.host_name.value')"
 
-mkdir -p "$RESULTS_RAW"
+mkdir -p "$RESULTS_DIR"
+
+# empty out the results directory
+rm -rf "${RESULTS_DIR:?}"/*
 
 gcloud compute config-ssh
 
 # make a new results file
 echo "Creating new results file..."
-touch "$RESULTS_RAW"
+touch "$RESULTS_CLEAN"
 
 # iterate through /celestial/out
 OUT_FILES=$(ssh "$TEST_HOST_NAME" "ls -1 /celestial/out")
@@ -27,8 +30,8 @@ for f in $OUT_FILES; do
     fi
 
     echo "Copying file $f..."
-    scp "$TEST_HOST_NAME:/celestial/out/$f" "$RESULTS_RAW/$f.txt"
+    scp "$TEST_HOST_NAME:/celestial/out/$f" "$RESULTS_DIR/$f.txt"
 done
 
 # clean up results
-./cleanresults.py "$RESULTS_RAW" "$RESULTS_CLEAN"
+./cleanresults.py "$RESULTS_DIR" "$RESULTS_CLEAN"

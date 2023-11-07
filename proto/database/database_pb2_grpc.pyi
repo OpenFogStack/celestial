@@ -18,22 +18,11 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import abc
-import collections.abc
 import database_pb2
 import grpc
-import grpc.aio
-import typing
-
-_T = typing.TypeVar('_T')
-
-class _MaybeAsyncIterator(collections.abc.AsyncIterator[_T], collections.abc.Iterator[_T], metaclass=abc.ABCMeta):
-    ...
-
-class _ServicerContext(grpc.ServicerContext, grpc.aio.ServicerContext):  # type: ignore
-    ...
 
 class DatabaseStub:
-    def __init__(self, channel: typing.Union[grpc.Channel, grpc.aio.Channel]) -> None: ...
+    def __init__(self, channel: grpc.Channel) -> None: ...
     Constellation: grpc.UnaryUnaryMultiCallable[
         database_pb2.Empty,
         database_pb2.ConstellationInfo,
@@ -55,58 +44,36 @@ class DatabaseStub:
         database_pb2.PathInfo,
     ]
 
-class DatabaseAsyncStub:
-    Constellation: grpc.aio.UnaryUnaryMultiCallable[
-        database_pb2.Empty,
-        database_pb2.ConstellationInfo,
-    ]
-    Shell: grpc.aio.UnaryUnaryMultiCallable[
-        database_pb2.ShellRequest,
-        database_pb2.ShellInfo,
-    ]
-    Satellite: grpc.aio.UnaryUnaryMultiCallable[
-        database_pb2.SatelliteId,
-        database_pb2.SatelliteInfo,
-    ]
-    GroundStation: grpc.aio.UnaryUnaryMultiCallable[
-        database_pb2.GroundStationId,
-        database_pb2.GroundStationInfo,
-    ]
-    Path: grpc.aio.UnaryUnaryMultiCallable[
-        database_pb2.PathRequest,
-        database_pb2.PathInfo,
-    ]
-
 class DatabaseServicer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def Constellation(
         self,
         request: database_pb2.Empty,
-        context: _ServicerContext,
-    ) -> typing.Union[database_pb2.ConstellationInfo, collections.abc.Awaitable[database_pb2.ConstellationInfo]]: ...
+        context: grpc.ServicerContext,
+    ) -> database_pb2.ConstellationInfo: ...
     @abc.abstractmethod
     def Shell(
         self,
         request: database_pb2.ShellRequest,
-        context: _ServicerContext,
-    ) -> typing.Union[database_pb2.ShellInfo, collections.abc.Awaitable[database_pb2.ShellInfo]]: ...
+        context: grpc.ServicerContext,
+    ) -> database_pb2.ShellInfo: ...
     @abc.abstractmethod
     def Satellite(
         self,
         request: database_pb2.SatelliteId,
-        context: _ServicerContext,
-    ) -> typing.Union[database_pb2.SatelliteInfo, collections.abc.Awaitable[database_pb2.SatelliteInfo]]: ...
+        context: grpc.ServicerContext,
+    ) -> database_pb2.SatelliteInfo: ...
     @abc.abstractmethod
     def GroundStation(
         self,
         request: database_pb2.GroundStationId,
-        context: _ServicerContext,
-    ) -> typing.Union[database_pb2.GroundStationInfo, collections.abc.Awaitable[database_pb2.GroundStationInfo]]: ...
+        context: grpc.ServicerContext,
+    ) -> database_pb2.GroundStationInfo: ...
     @abc.abstractmethod
     def Path(
         self,
         request: database_pb2.PathRequest,
-        context: _ServicerContext,
-    ) -> typing.Union[database_pb2.PathInfo, collections.abc.Awaitable[database_pb2.PathInfo]]: ...
+        context: grpc.ServicerContext,
+    ) -> database_pb2.PathInfo: ...
 
-def add_DatabaseServicer_to_server(servicer: DatabaseServicer, server: typing.Union[grpc.Server, grpc.aio.Server]) -> None: ...
+def add_DatabaseServicer_to_server(servicer: DatabaseServicer, server: grpc.Server) -> None: ...

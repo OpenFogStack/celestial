@@ -23,12 +23,7 @@ sleep 5
 gcloud compute instances start --zone="$GCP_ZONE" "$TEST_HOST_ID"
 sleep 5
 
-terraform apply -auto-approve
-# GCP_ZONE="$(terraform output -json | jq -r '.zone.value')"
-# GCP_PROJECT="$(terraform output -json | jq -r '.project.value')"
-# TEST_HOST_IP="$(terraform output -json | jq -r '.host_ip.value')"
 TEST_HOST_NAME="$(terraform output -json | jq -r '.host_name.value')"
-# TEST_HOST_ID="$(terraform output -json | jq -r '.host_id.value')"
 
 gcloud compute config-ssh
 

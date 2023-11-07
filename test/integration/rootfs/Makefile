@@ -20,7 +20,7 @@
 all: ssh.img
 
 ssh.img: ssh.sh ssh-base.sh id_ed25519.pub
-	@docker run --platform=linux/amd64 --rm -v $(PWD)/ssh.sh:/app.sh -v $(PWD)/id_ed25519.pub:/files/id_ed25519.pub -v $(PWD)/ssh-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
+	@docker run -it --platform=linux/amd64 --rm -v $(PWD)/ssh.sh:/app.sh -v $(PWD)/id_ed25519.pub:/files/id_ed25519.pub -v $(PWD)/ssh-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
 
 id_ed25519.pub:
 	cd .. ; ./make_key.sh

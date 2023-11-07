@@ -33,7 +33,7 @@ cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
 
 cat >> /etc/conf.d/sshd << EOF
 sshd_disable_keygen="yes"
-rc_need="net.eth0 fcnet"
+rc_need="net.eth0"
 EOF
 
 sed -E -i /etc/ssh/sshd_config \

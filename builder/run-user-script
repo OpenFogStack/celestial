@@ -1,0 +1,8 @@
+#!/bin/sh
+
+echo "Starting user script..."
+
+/bin/sh app.sh
+
+echo "User script finished, shutting down..."
+reboot
