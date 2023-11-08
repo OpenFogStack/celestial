@@ -16,7 +16,7 @@ variable "gcp_zone" {
 }
 
 variable "host_type" {
-  default = "n2-standard-8"
+  default = "n2-standard-32"
 }
 
 output "zone" {

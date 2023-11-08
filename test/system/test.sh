@@ -65,7 +65,7 @@ ssh "$INSTANCE_NAME" python3 celestial.py config.toml >> $COORD_LOG 2>&1 &
 COORDINATOR_PID=$!
 
 # run for 10 minutes
-echo "Running for 10 minutes..."
+echo "Running for 10 minutes... (Start time: $(date))"
 sleep 600
 
 echo "$DIVIDER"
