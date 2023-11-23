@@ -1,0 +1,10 @@
+test/integration2/dependencies.sh
+test/integration2/id_ed25519
+test/integration2/rootfs/ssh.img
+proto
+pkg
+celestial2.go
+go.mod
+go.sum
+kernel/vmlinux-5.12.bin
+test/integration2/celestial_test.go

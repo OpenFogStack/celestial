@@ -1,0 +1,103 @@
+/*
+ * This file is part of Celestial (https://github.com/OpenFogStack/celestial).
+ * Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ **/
+
+syntax = "proto3";
+
+package openfogstack.celestial.celestial2;
+option go_package = "./;celestial2";
+
+service Celestial {
+    rpc Register(RegisterRequest) returns (RegisterResponse);
+    rpc Init(InitRequest) returns (Empty);
+    rpc Update(UpdateRequest) returns (Empty);
+}
+
+enum VMState {
+    STOPPED = 0;
+    ACTIVE = 1;
+}
+
+message Empty {}
+
+message Host {
+    uint32 id = 1;
+    string addr = 2;
+    string publickey = 3;
+}
+
+message MachineConfig {
+    // should also be 8 bit but protobuf doesn't support uint8...
+    uint32 vcpucount = 1;
+    uint64 ram = 2;
+    uint64 disksize = 3;
+    string image = 4;
+    string kernel = 5;
+    optional string bootparams = 6;
+}
+
+message MachineID {
+    uint32 group = 1;
+    uint32 id = 2;
+    // ignored for non-groundstations
+    optional string name = 3;
+}
+
+message Machine {
+    MachineID id = 1;
+    // should actually be 8 bit but protobuf doesn't support uint8...
+    uint32 host = 2;
+    MachineConfig config = 3;
+}
+
+message MachineState {
+    MachineID id = 1;
+    VMState active = 2;
+}
+
+message Link {
+    MachineID target = 1;
+    uint32 latency = 2;
+    uint64 bandwidth = 3;
+    bool blocked = 4;
+    // used for path reconstruction
+    MachineID next = 5;
+}
+
+message NetworkState {
+    MachineID id = 1;
+    repeated Link links = 2;
+}
+
+message RegisterRequest {
+    uint32 host = 1;
+}
+
+message RegisterResponse {
+    uint32 availcpus = 1;
+    uint64 availram = 2;
+    string publickey = 3;
+}
+
+message InitRequest {
+    repeated Host hosts = 1;
+    repeated Machine machines = 2;
+}
+
+message UpdateRequest {
+    repeated MachineState machinestates = 1;
+    repeated NetworkState networkstates = 2;
+}

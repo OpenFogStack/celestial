@@ -15,10 +15,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-.PHONY: all celestial celestial2 peering database
+.PHONY: all
 
-all: celestial celestial2 peering database
+all: ssh.img
 
-celestial celestial2 peering database: ## Compile all proto files
-	@protoc -I $@/ $@.proto --go_out=$@ --go_opt=paths=source_relative --go-grpc_out=$@ --go-grpc_opt=require_unimplemented_servers=false,paths=source_relative
-	@python3 -m grpc_tools.protoc -I $@/ --python_out=$@ --grpc_python_out=$@ --mypy_out=$@ $@.proto --mypy_grpc_out=$@
+ssh.img: ssh.sh ssh-base.sh id_ed25519.pub
+	@docker run -it --platform=linux/amd64 --rm -v $(PWD)/ssh.sh:/app.sh -v $(PWD)/id_ed25519.pub:/files/id_ed25519.pub -v $(PWD)/ssh-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
+
+id_ed25519.pub:
+	cd .. ; ./make_key.sh

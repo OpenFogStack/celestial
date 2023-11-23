@@ -18,11 +18,22 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import abc
+import collections.abc
 import grpc
+import grpc.aio
 import peering_pb2
+import typing
+
+_T = typing.TypeVar('_T')
+
+class _MaybeAsyncIterator(collections.abc.AsyncIterator[_T], collections.abc.Iterator[_T], metaclass=abc.ABCMeta):
+    ...
+
+class _ServicerContext(grpc.ServicerContext, grpc.aio.ServicerContext):  # type: ignore
+    ...
 
 class PeeringStub:
-    def __init__(self, channel: grpc.Channel) -> None: ...
+    def __init__(self, channel: typing.Union[grpc.Channel, grpc.aio.Channel]) -> None: ...
     StartPeer: grpc.UnaryUnaryMultiCallable[
         peering_pb2.StartPeerRequest,
         peering_pb2.Empty,
@@ -32,18 +43,28 @@ class PeeringStub:
         peering_pb2.Empty,
     ]
 
+class PeeringAsyncStub:
+    StartPeer: grpc.aio.UnaryUnaryMultiCallable[
+        peering_pb2.StartPeerRequest,
+        peering_pb2.Empty,
+    ]
+    Route: grpc.aio.UnaryUnaryMultiCallable[
+        peering_pb2.RouteRequest,
+        peering_pb2.Empty,
+    ]
+
 class PeeringServicer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def StartPeer(
         self,
         request: peering_pb2.StartPeerRequest,
-        context: grpc.ServicerContext,
-    ) -> peering_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[peering_pb2.Empty, collections.abc.Awaitable[peering_pb2.Empty]]: ...
     @abc.abstractmethod
     def Route(
         self,
         request: peering_pb2.RouteRequest,
-        context: grpc.ServicerContext,
-    ) -> peering_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[peering_pb2.Empty, collections.abc.Awaitable[peering_pb2.Empty]]: ...
 
-def add_PeeringServicer_to_server(servicer: PeeringServicer, server: grpc.Server) -> None: ...
+def add_PeeringServicer_to_server(servicer: PeeringServicer, server: typing.Union[grpc.Server, grpc.aio.Server]) -> None: ...

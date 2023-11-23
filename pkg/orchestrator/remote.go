@@ -208,7 +208,6 @@ func (o *Orchestrator) StartPeering() error {
 
 		if err != nil {
 			return errors.WithStack(err)
-
 		}
 
 		_, err = peering.NewPeeringClient(conn).StartPeer(context.Background(), &peering.StartPeerRequest{
