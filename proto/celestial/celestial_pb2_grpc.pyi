@@ -19,10 +19,21 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import abc
 import celestial_pb2
+import collections.abc
 import grpc
+import grpc.aio
+import typing
+
+_T = typing.TypeVar('_T')
+
+class _MaybeAsyncIterator(collections.abc.AsyncIterator[_T], collections.abc.Iterator[_T], metaclass=abc.ABCMeta):
+    ...
+
+class _ServicerContext(grpc.ServicerContext, grpc.aio.ServicerContext):  # type: ignore
+    ...
 
 class CelestialStub:
-    def __init__(self, channel: grpc.Channel) -> None: ...
+    def __init__(self, channel: typing.Union[grpc.Channel, grpc.aio.Channel]) -> None: ...
     GetHostInfo: grpc.UnaryUnaryMultiCallable[
         celestial_pb2.Empty,
         celestial_pb2.HostInfo,
@@ -56,54 +67,88 @@ class CelestialStub:
         celestial_pb2.Empty,
     ]
 
+class CelestialAsyncStub:
+    GetHostInfo: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.Empty,
+        celestial_pb2.HostInfo,
+    ]
+    HostReady: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.Empty,
+        celestial_pb2.ReadyInfo,
+    ]
+    Init: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.InitRequest,
+        celestial_pb2.Empty,
+    ]
+    InitRemotes: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.InitRemotesRequest,
+        celestial_pb2.Empty,
+    ]
+    StartPeering: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.Empty,
+        celestial_pb2.Empty,
+    ]
+    CreateMachine: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.CreateMachineRequest,
+        celestial_pb2.Empty,
+    ]
+    ModifyMachine: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.ModifyMachineRequest,
+        celestial_pb2.Empty,
+    ]
+    ModifyLinks: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.ModifyLinksRequest,
+        celestial_pb2.Empty,
+    ]
+
 class CelestialServicer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def GetHostInfo(
         self,
         request: celestial_pb2.Empty,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.HostInfo: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.HostInfo, collections.abc.Awaitable[celestial_pb2.HostInfo]]: ...
     @abc.abstractmethod
     def HostReady(
         self,
         request: celestial_pb2.Empty,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.ReadyInfo: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.ReadyInfo, collections.abc.Awaitable[celestial_pb2.ReadyInfo]]: ...
     @abc.abstractmethod
     def Init(
         self,
         request: celestial_pb2.InitRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
     @abc.abstractmethod
     def InitRemotes(
         self,
         request: celestial_pb2.InitRemotesRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
     @abc.abstractmethod
     def StartPeering(
         self,
         request: celestial_pb2.Empty,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
     @abc.abstractmethod
     def CreateMachine(
         self,
         request: celestial_pb2.CreateMachineRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
     @abc.abstractmethod
     def ModifyMachine(
         self,
         request: celestial_pb2.ModifyMachineRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
     @abc.abstractmethod
     def ModifyLinks(
         self,
         request: celestial_pb2.ModifyLinksRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
 
-def add_CelestialServicer_to_server(servicer: CelestialServicer, server: grpc.Server) -> None: ...
+def add_CelestialServicer_to_server(servicer: CelestialServicer, server: typing.Union[grpc.Server, grpc.aio.Server]) -> None: ...

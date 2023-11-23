@@ -91,7 +91,7 @@ func (o *Orchestrator) GetMachineByIP(ip net.IP) (commons.MachineID, error) {
 }
 
 // getIPAddressMACAndTapName returns an IP Address (CIDR format), a custom MAC address, and a tap name for a given
-// machine identifier. Shell is limited to 8 bits (max. 256) and ID to 14 bits (max. 16,384) because of IPv4. I
+// machine identifier. Group is limited to 8 bits (max. 256) and ID to 14 bits (max. 16,384) because of IPv4. I
 // theory we could split this up differently, so that shell has 6 bits and ID 16 bits, etc. This limit is enforced
 // and is also used to ensure the tap device name is less than 14 digits long. Each tap has to have its own network,
 // that network is 10.[shell].[id>>6 & 0xFF].[id<<2 & 0xFF]/30, leaves 3 addresses on that network: network + 1 is

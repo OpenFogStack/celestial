@@ -1,3 +1,5 @@
+#!/bin/sh
+
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
 # Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
@@ -15,10 +17,15 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-.PHONY: all celestial celestial2 peering database
+# let's get the gateway IP by parsing "/sbin/ip route"
+# we need this to set our nameserver here
+IP=$(/sbin/ip route | awk '/default/ { print $3 }')
 
-all: celestial celestial2 peering database
+# set the nameserver to our gateway IP
+# this way, we can use the helpful X.Y.celestial DNS service (if active)
+echo nameserver "$IP" > /etc/resolv.conf
 
-celestial celestial2 peering database: ## Compile all proto files
-	@protoc -I $@/ $@.proto --go_out=$@ --go_opt=paths=source_relative --go-grpc_out=$@ --go-grpc_opt=require_unimplemented_servers=false,paths=source_relative
-	@python3 -m grpc_tools.protoc -I $@/ --python_out=$@ --grpc_python_out=$@ --mypy_out=$@ $@.proto --mypy_grpc_out=$@
+while true; do
+    echo "$(date): satellite server running"
+    sleep 60
+done

@@ -77,14 +77,13 @@ func createLink(tapName string, index int64, a string, b string) error {
 	// removing the "match ip dst [SOURCE_NET]" filter as it wouldn't do anything: there is only one network on this tap anyway
 	// tc filter add dev [TAP_NAME] protocol ip parent 1: prio [INDEX] u32 match ip src [DEST_NET] classid 1:[INDEX]
 
-	cmd = exec.Command(TC, "filter", "add", "dev", tapName, "protocol", "ip", "parent", "1:", "prio", strconv.FormatInt(index, 10), "u32", "match", "ip", "src", b, "classid", fmt.Sprintf("1:%d", index))
+	cmd = exec.Command(TC, "filter", "add", "dev", tapName, "protocol", "ip", "parent", "1:", "prio", strconv.Itoa(int(index)), "u32", "match", "ip", "src", b, "classid", fmt.Sprintf("1:%d", index))
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
 	return nil
-
 }
 
 func updateDelay(tapName string, index int64, delay float64, bandwidth int) error {
@@ -117,7 +116,7 @@ func removeLink(tapName string, index int64) error {
 	// unfortunately cannot remove filter because there is no way to specify a specific filter
 	// tc filter del dev [TAP_NAME] protocol ip parent 1: prio [INDEX]
 
-	cmd := exec.Command(TC, "filter", "del", "dev", tapName, "protocol", "ip", "parent", "1:", "prio", strconv.FormatInt(index, 10))
+	cmd := exec.Command(TC, "filter", "del", "dev", tapName, "protocol", "ip", "parent", "1:", "prio", strconv.Itoa(int(index)))
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
