@@ -19,21 +19,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import abc
 import celestial2_pb2
-import collections.abc
 import grpc
-import grpc.aio
-import typing
-
-_T = typing.TypeVar('_T')
-
-class _MaybeAsyncIterator(collections.abc.AsyncIterator[_T], collections.abc.Iterator[_T], metaclass=abc.ABCMeta):
-    ...
-
-class _ServicerContext(grpc.ServicerContext, grpc.aio.ServicerContext):  # type: ignore
-    ...
 
 class CelestialStub:
-    def __init__(self, channel: typing.Union[grpc.Channel, grpc.aio.Channel]) -> None: ...
+    def __init__(self, channel: grpc.Channel) -> None: ...
     Register: grpc.UnaryUnaryMultiCallable[
         celestial2_pb2.RegisterRequest,
         celestial2_pb2.RegisterResponse,
@@ -46,18 +35,8 @@ class CelestialStub:
         celestial2_pb2.UpdateRequest,
         celestial2_pb2.Empty,
     ]
-
-class CelestialAsyncStub:
-    Register: grpc.aio.UnaryUnaryMultiCallable[
-        celestial2_pb2.RegisterRequest,
-        celestial2_pb2.RegisterResponse,
-    ]
-    Init: grpc.aio.UnaryUnaryMultiCallable[
-        celestial2_pb2.InitRequest,
+    Stop: grpc.UnaryUnaryMultiCallable[
         celestial2_pb2.Empty,
-    ]
-    Update: grpc.aio.UnaryUnaryMultiCallable[
-        celestial2_pb2.UpdateRequest,
         celestial2_pb2.Empty,
     ]
 
@@ -66,19 +45,25 @@ class CelestialServicer(metaclass=abc.ABCMeta):
     def Register(
         self,
         request: celestial2_pb2.RegisterRequest,
-        context: _ServicerContext,
-    ) -> typing.Union[celestial2_pb2.RegisterResponse, collections.abc.Awaitable[celestial2_pb2.RegisterResponse]]: ...
+        context: grpc.ServicerContext,
+    ) -> celestial2_pb2.RegisterResponse: ...
     @abc.abstractmethod
     def Init(
         self,
         request: celestial2_pb2.InitRequest,
-        context: _ServicerContext,
-    ) -> typing.Union[celestial2_pb2.Empty, collections.abc.Awaitable[celestial2_pb2.Empty]]: ...
+        context: grpc.ServicerContext,
+    ) -> celestial2_pb2.Empty: ...
     @abc.abstractmethod
     def Update(
         self,
         request: celestial2_pb2.UpdateRequest,
-        context: _ServicerContext,
-    ) -> typing.Union[celestial2_pb2.Empty, collections.abc.Awaitable[celestial2_pb2.Empty]]: ...
+        context: grpc.ServicerContext,
+    ) -> celestial2_pb2.Empty: ...
+    @abc.abstractmethod
+    def Stop(
+        self,
+        request: celestial2_pb2.Empty,
+        context: grpc.ServicerContext,
+    ) -> celestial2_pb2.Empty: ...
 
-def add_CelestialServicer_to_server(servicer: CelestialServicer, server: typing.Union[grpc.Server, grpc.aio.Server]) -> None: ...
+def add_CelestialServicer_to_server(servicer: CelestialServicer, server: grpc.Server) -> None: ...

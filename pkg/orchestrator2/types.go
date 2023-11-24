@@ -69,5 +69,5 @@ type MachineConfig struct {
 	// Kernel is the path to the kernel
 	Kernel string
 	// BootParams are the additional boot parameters
-	BootParams string
+	BootParams []string
 }

@@ -144,10 +144,14 @@ class Shell:
         self.islpropagation: float = network.islpropagation
         self.bandwidth: int = network.bandwidth
 
-        self.satellites_array: np.ndarray = np.empty(self.total_sats, dtype=SATELLITE_DTYPE)  # type: ignore
+        self.satellites_array: np.ndarray = np.empty(
+            self.total_sats, dtype=SATELLITE_DTYPE
+        )  # type: ignore
 
         self.link_array_size = LINK_ARRAY_SIZE
-        self.link_array: np.ndarray = np.zeros(self.link_array_size, dtype=SAT_LINK_DTYPE)  # type: ignore
+        self.link_array: np.ndarray = np.zeros(
+            self.link_array_size, dtype=SAT_LINK_DTYPE
+        )  # type: ignore
         self.total_links = 0
 
         self.paths: typing.List[Path] = []
@@ -156,7 +160,9 @@ class Shell:
         self.gst_array: np.ndarray = np.zeros(self.total_gst, dtype=GROUNDPOINT_DTYPE)  # type: ignore
 
         self.gst_links_array_size = LINK_ARRAY_SIZE
-        self.gst_links_array: np.ndarray = np.zeros(self.gst_links_array_size, dtype=GST_SAT_LINK_DTYPE)  # type: ignore
+        self.gst_links_array: np.ndarray = np.zeros(
+            self.gst_links_array_size, dtype=GST_SAT_LINK_DTYPE
+        )  # type: ignore
         self.total_gst_links = 0
 
         self.gst_sat_paths: typing.List[Path] = []
@@ -328,7 +334,9 @@ class Shell:
             ]
         )
 
-    def is_in_bbox(self, pos: typing.Tuple[float, float, float], rotation_matrix: np.ndarray) -> bool:  # type: ignore
+    def is_in_bbox(
+        self, pos: typing.Tuple[float, float, float], rotation_matrix: np.ndarray
+    ) -> bool:  # type: ignore
         # take cartesian coordinates and convert to lat long
         l = np.dot(rotation_matrix, np.array(pos))
 
@@ -365,7 +373,9 @@ class Shell:
             a copied sub array of the satellite array, that only contains positions data
         """
 
-        sat_positions: np.ndarray = np.copy(self.satellites_array[["ID", "x", "y", "z", "in_bbox"]])  # type: ignore
+        sat_positions: np.ndarray = np.copy(
+            self.satellites_array[["ID", "x", "y", "z", "in_bbox"]]
+        )  # type: ignore
 
         return sat_positions
 

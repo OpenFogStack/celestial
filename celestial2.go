@@ -125,6 +125,7 @@ func main() {
 	// stop the grpc servers
 	s.Stop()
 
+	err = pb.Stop()
 	err = o.Stop()
 
 	if err != nil {

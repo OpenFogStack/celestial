@@ -49,7 +49,7 @@ type machine struct {
 	disksize   uint64
 	diskimage  string
 	kernel     string
-	bootparams string
+	bootparams []string
 
 	network network
 

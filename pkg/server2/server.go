@@ -19,6 +19,8 @@ package server
 
 import (
 	"context"
+	"os"
+	"time"
 
 	peer "github.com/OpenFogStack/celestial/pkg/peer2"
 	celestial "github.com/OpenFogStack/celestial/proto/celestial2"
@@ -46,6 +48,25 @@ func New(o *orchestrator.Orchestrator, pb PeeringBackend) *Server {
 	}
 }
 
+func (s *Server) Stop(_ context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
+	err := s.o.Stop()
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.pb.Stop()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		time.Sleep(5 * time.Second)
+		os.Exit(0)
+	}()
+
+	return &celestial.Empty{}, nil
+}
+
 func (s *Server) Register(_ context.Context, request *celestial.RegisterRequest) (*celestial.RegisterResponse, error) {
 	cpus, ram, err := s.o.GetResources()
 
@@ -60,9 +81,9 @@ func (s *Server) Register(_ context.Context, request *celestial.RegisterRequest)
 	}
 
 	return &celestial.RegisterResponse{
-		Availcpus: cpus,
-		Availram:  ram,
-		Publickey: publickey,
+		AvailableCpus: cpus,
+		AvailableRam:  ram,
+		PublicKey:     publickey,
 	}, nil
 }
 
@@ -76,19 +97,13 @@ func (s *Server) Init(_ context.Context, request *celestial.InitRequest) (*celes
 			Id:    machine.Id.Id,
 		}
 
-		// is an optional parameter
-		bootparams := ""
-		if machine.Config.Bootparams != nil {
-			bootparams = *machine.Config.Bootparams
-		}
-
 		machineList[id] = orchestrator.MachineConfig{
-			VCPUCount:  uint8(machine.Config.Vcpucount),
+			VCPUCount:  uint8(machine.Config.VcpuCount),
 			RAM:        machine.Config.Ram,
-			DiskSize:   machine.Config.Disksize,
-			DiskImage:  machine.Config.Image,
+			DiskSize:   machine.Config.DiskSize,
+			DiskImage:  machine.Config.RootImage,
 			Kernel:     machine.Config.Kernel,
-			BootParams: bootparams,
+			BootParams: machine.Config.BootParameters,
 		}
 
 		machineHosts[id] = orchestrator.Host(machine.Host)
@@ -133,7 +148,7 @@ func (s *Server) Update(_ context.Context, request *celestial.UpdateRequest) (*c
 
 	ns := make(orchestrator.NetworkState)
 
-	for _, n := range request.Networkstates {
+	for _, n := range request.NetworkDiffs {
 		id := orchestrator.MachineID{
 			Group: uint8(n.Id.Group),
 			Id:    n.Id.Id,
@@ -168,16 +183,16 @@ func (s *Server) Update(_ context.Context, request *celestial.UpdateRequest) (*c
 
 	ms := make(map[orchestrator.MachineID]orchestrator.MachineState)
 
-	for _, m := range request.Machinestates {
+	for _, m := range request.MachineDiffs {
 		id := orchestrator.MachineID{
 			Group: uint8(m.Id.Group),
 			Id:    m.Id.Id,
 		}
 
 		switch m.Active {
-		case celestial.VMState_ACTIVE:
+		case celestial.VMState_VM_STATE_ACTIVE:
 			ms[id] = orchestrator.ACTIVE
-		case celestial.VMState_STOPPED:
+		case celestial.VMState_VM_STATE_STOPPED:
 			ms[id] = orchestrator.STOPPED
 		}
 	}

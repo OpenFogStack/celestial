@@ -29,6 +29,11 @@ class CelestialStub(object):
                 request_serializer=celestial2__pb2.UpdateRequest.SerializeToString,
                 response_deserializer=celestial2__pb2.Empty.FromString,
                 )
+        self.Stop = channel.unary_unary(
+                '/openfogstack.celestial.celestial2.Celestial/Stop',
+                request_serializer=celestial2__pb2.Empty.SerializeToString,
+                response_deserializer=celestial2__pb2.Empty.FromString,
+                )
 
 
 class CelestialServicer(object):
@@ -52,6 +57,12 @@ class CelestialServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Stop(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CelestialServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -68,6 +79,11 @@ def add_CelestialServicer_to_server(servicer, server):
             'Update': grpc.unary_unary_rpc_method_handler(
                     servicer.Update,
                     request_deserializer=celestial2__pb2.UpdateRequest.FromString,
+                    response_serializer=celestial2__pb2.Empty.SerializeToString,
+            ),
+            'Stop': grpc.unary_unary_rpc_method_handler(
+                    servicer.Stop,
+                    request_deserializer=celestial2__pb2.Empty.FromString,
                     response_serializer=celestial2__pb2.Empty.SerializeToString,
             ),
     }
@@ -127,6 +143,23 @@ class Celestial(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial2.Celestial/Update',
             celestial2__pb2.UpdateRequest.SerializeToString,
+            celestial2__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Stop(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial2.Celestial/Stop',
+            celestial2__pb2.Empty.SerializeToString,
             celestial2__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
