@@ -25,6 +25,7 @@ type CelestialClient interface {
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
 	Init(ctx context.Context, in *InitRequest, opts ...grpc.CallOption) (*Empty, error)
 	Update(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*Empty, error)
+	Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type celestialClient struct {
@@ -62,6 +63,15 @@ func (c *celestialClient) Update(ctx context.Context, in *UpdateRequest, opts ..
 	return out, nil
 }
 
+func (c *celestialClient) Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/openfogstack.celestial.celestial2.Celestial/Stop", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CelestialServer is the server API for Celestial service.
 // All implementations should embed UnimplementedCelestialServer
 // for forward compatibility
@@ -69,6 +79,7 @@ type CelestialServer interface {
 	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
 	Init(context.Context, *InitRequest) (*Empty, error)
 	Update(context.Context, *UpdateRequest) (*Empty, error)
+	Stop(context.Context, *Empty) (*Empty, error)
 }
 
 // UnimplementedCelestialServer should be embedded to have forward compatible implementations.
@@ -83,6 +94,9 @@ func (UnimplementedCelestialServer) Init(context.Context, *InitRequest) (*Empty,
 }
 func (UnimplementedCelestialServer) Update(context.Context, *UpdateRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
+}
+func (UnimplementedCelestialServer) Stop(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
 }
 
 // UnsafeCelestialServer may be embedded to opt out of forward compatibility for this service.
@@ -150,6 +164,24 @@ func _Celestial_Update_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Celestial_Stop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CelestialServer).Stop(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/openfogstack.celestial.celestial2.Celestial/Stop",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CelestialServer).Stop(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Celestial_ServiceDesc is the grpc.ServiceDesc for Celestial service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -168,6 +200,10 @@ var Celestial_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Update",
 			Handler:    _Celestial_Update_Handler,
+		},
+		{
+			MethodName: "Stop",
+			Handler:    _Celestial_Stop_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

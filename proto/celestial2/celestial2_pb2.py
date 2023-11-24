@@ -13,40 +13,41 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x63\x65lestial2.proto\x12!openfogstack.celestial.celestial2\"\x07\n\x05\x45mpty\"3\n\x04Host\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0c\n\x04\x61\x64\x64r\x18\x02 \x01(\t\x12\x11\n\tpublickey\x18\x03 \x01(\t\"\x88\x01\n\rMachineConfig\x12\x11\n\tvcpucount\x18\x01 \x01(\r\x12\x0b\n\x03ram\x18\x02 \x01(\x04\x12\x10\n\x08\x64isksize\x18\x03 \x01(\x04\x12\r\n\x05image\x18\x04 \x01(\t\x12\x0e\n\x06kernel\x18\x05 \x01(\t\x12\x17\n\nbootparams\x18\x06 \x01(\tH\x00\x88\x01\x01\x42\r\n\x0b_bootparams\"B\n\tMachineID\x12\r\n\x05group\x18\x01 \x01(\r\x12\n\n\x02id\x18\x02 \x01(\r\x12\x11\n\x04name\x18\x03 \x01(\tH\x00\x88\x01\x01\x42\x07\n\x05_name\"\x93\x01\n\x07Machine\x12\x38\n\x02id\x18\x01 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\x12\x0c\n\x04host\x18\x02 \x01(\r\x12@\n\x06\x63onfig\x18\x03 \x01(\x0b\x32\x30.openfogstack.celestial.celestial2.MachineConfig\"\x84\x01\n\x0cMachineState\x12\x38\n\x02id\x18\x01 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\x12:\n\x06\x61\x63tive\x18\x02 \x01(\x0e\x32*.openfogstack.celestial.celestial2.VMState\"\xb5\x01\n\x04Link\x12<\n\x06target\x18\x01 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\x12\x0f\n\x07latency\x18\x02 \x01(\r\x12\x11\n\tbandwidth\x18\x03 \x01(\x04\x12\x0f\n\x07\x62locked\x18\x04 \x01(\x08\x12:\n\x04next\x18\x05 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\"\x80\x01\n\x0cNetworkState\x12\x38\n\x02id\x18\x01 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\x12\x36\n\x05links\x18\x02 \x03(\x0b\x32\'.openfogstack.celestial.celestial2.Link\"\x1f\n\x0fRegisterRequest\x12\x0c\n\x04host\x18\x01 \x01(\r\"J\n\x10RegisterResponse\x12\x11\n\tavailcpus\x18\x01 \x01(\r\x12\x10\n\x08\x61vailram\x18\x02 \x01(\x04\x12\x11\n\tpublickey\x18\x03 \x01(\t\"\x83\x01\n\x0bInitRequest\x12\x36\n\x05hosts\x18\x01 \x03(\x0b\x32\'.openfogstack.celestial.celestial2.Host\x12<\n\x08machines\x18\x02 \x03(\x0b\x32*.openfogstack.celestial.celestial2.Machine\"\x9f\x01\n\rUpdateRequest\x12\x46\n\rmachinestates\x18\x01 \x03(\x0b\x32/.openfogstack.celestial.celestial2.MachineState\x12\x46\n\rnetworkstates\x18\x02 \x03(\x0b\x32/.openfogstack.celestial.celestial2.NetworkState*\"\n\x07VMState\x12\x0b\n\x07STOPPED\x10\x00\x12\n\n\x06\x41\x43TIVE\x10\x01\x32\xc8\x02\n\tCelestial\x12s\n\x08Register\x12\x32.openfogstack.celestial.celestial2.RegisterRequest\x1a\x33.openfogstack.celestial.celestial2.RegisterResponse\x12`\n\x04Init\x12..openfogstack.celestial.celestial2.InitRequest\x1a(.openfogstack.celestial.celestial2.Empty\x12\x64\n\x06Update\x12\x30.openfogstack.celestial.celestial2.UpdateRequest\x1a(.openfogstack.celestial.celestial2.EmptyB\x0fZ\r./;celestial2b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x63\x65lestial2.proto\x12!openfogstack.celestial.celestial2\"B\n\tMachineID\x12\r\n\x05group\x18\x01 \x01(\r\x12\n\n\x02id\x18\x02 \x01(\r\x12\x11\n\x04name\x18\x03 \x01(\tH\x00\x88\x01\x01\x42\x07\n\x05_name\"\x07\n\x05\x45mpty\"\x1f\n\x0fRegisterRequest\x12\x0c\n\x04host\x18\x01 \x01(\r\"U\n\x10RegisterResponse\x12\x16\n\x0e\x61vailable_cpus\x18\x01 \x01(\r\x12\x15\n\ravailable_ram\x18\x02 \x01(\x04\x12\x12\n\npublic_key\x18\x03 \x01(\t\"\xfd\x03\n\x0bInitRequest\x12\x42\n\x05hosts\x18\x01 \x03(\x0b\x32\x33.openfogstack.celestial.celestial2.InitRequest.Host\x12H\n\x08machines\x18\x02 \x03(\x0b\x32\x36.openfogstack.celestial.celestial2.InitRequest.Machine\x1a\x33\n\x04Host\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0c\n\x04\x61\x64\x64r\x18\x02 \x01(\t\x12\x11\n\tpublickey\x18\x03 \x01(\t\x1a\xaa\x02\n\x07Machine\x12\x38\n\x02id\x18\x01 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\x12\x0c\n\x04host\x18\x02 \x01(\r\x12T\n\x06\x63onfig\x18\x03 \x01(\x0b\x32\x44.openfogstack.celestial.celestial2.InitRequest.Machine.MachineConfig\x1a\x80\x01\n\rMachineConfig\x12\x12\n\nvcpu_count\x18\x01 \x01(\r\x12\x0b\n\x03ram\x18\x02 \x01(\x04\x12\x11\n\tdisk_size\x18\x03 \x01(\x04\x12\x12\n\nroot_image\x18\x04 \x01(\t\x12\x0e\n\x06kernel\x18\x05 \x01(\t\x12\x17\n\x0f\x62oot_parameters\x18\x06 \x03(\t\"\x93\x05\n\rUpdateRequest\x12S\n\rmachine_diffs\x18\x01 \x03(\x0b\x32<.openfogstack.celestial.celestial2.UpdateRequest.MachineDiff\x12S\n\rnetwork_diffs\x18\x02 \x03(\x0b\x32<.openfogstack.celestial.celestial2.UpdateRequest.NetworkDiff\x1a\x83\x01\n\x0bMachineDiff\x12\x38\n\x02id\x18\x01 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\x12:\n\x06\x61\x63tive\x18\x02 \x01(\x0e\x32*.openfogstack.celestial.celestial2.VMState\x1a\xd1\x02\n\x0bNetworkDiff\x12\x38\n\x02id\x18\x01 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\x12P\n\x05links\x18\x02 \x03(\x0b\x32\x41.openfogstack.celestial.celestial2.UpdateRequest.NetworkDiff.Link\x1a\xb5\x01\n\x04Link\x12<\n\x06target\x18\x01 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID\x12\x0f\n\x07latency\x18\x02 \x01(\r\x12\x11\n\tbandwidth\x18\x03 \x01(\x04\x12\x0f\n\x07\x62locked\x18\x04 \x01(\x08\x12:\n\x04next\x18\x05 \x01(\x0b\x32,.openfogstack.celestial.celestial2.MachineID*4\n\x07VMState\x12\x14\n\x10VM_STATE_STOPPED\x10\x00\x12\x13\n\x0fVM_STATE_ACTIVE\x10\x01\x32\xa4\x03\n\tCelestial\x12s\n\x08Register\x12\x32.openfogstack.celestial.celestial2.RegisterRequest\x1a\x33.openfogstack.celestial.celestial2.RegisterResponse\x12`\n\x04Init\x12..openfogstack.celestial.celestial2.InitRequest\x1a(.openfogstack.celestial.celestial2.Empty\x12\x64\n\x06Update\x12\x30.openfogstack.celestial.celestial2.UpdateRequest\x1a(.openfogstack.celestial.celestial2.Empty\x12Z\n\x04Stop\x12(.openfogstack.celestial.celestial2.Empty\x1a(.openfogstack.celestial.celestial2.EmptyB\x0fZ\r./;celestial2b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'celestial2_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
+
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'Z\r./;celestial2'
-  _globals['_VMSTATE']._serialized_start=1329
-  _globals['_VMSTATE']._serialized_end=1363
-  _globals['_EMPTY']._serialized_start=55
-  _globals['_EMPTY']._serialized_end=62
-  _globals['_HOST']._serialized_start=64
-  _globals['_HOST']._serialized_end=115
-  _globals['_MACHINECONFIG']._serialized_start=118
-  _globals['_MACHINECONFIG']._serialized_end=254
-  _globals['_MACHINEID']._serialized_start=256
-  _globals['_MACHINEID']._serialized_end=322
-  _globals['_MACHINE']._serialized_start=325
-  _globals['_MACHINE']._serialized_end=472
-  _globals['_MACHINESTATE']._serialized_start=475
-  _globals['_MACHINESTATE']._serialized_end=607
-  _globals['_LINK']._serialized_start=610
-  _globals['_LINK']._serialized_end=791
-  _globals['_NETWORKSTATE']._serialized_start=794
-  _globals['_NETWORKSTATE']._serialized_end=922
-  _globals['_REGISTERREQUEST']._serialized_start=924
-  _globals['_REGISTERREQUEST']._serialized_end=955
-  _globals['_REGISTERRESPONSE']._serialized_start=957
-  _globals['_REGISTERRESPONSE']._serialized_end=1031
-  _globals['_INITREQUEST']._serialized_start=1034
-  _globals['_INITREQUEST']._serialized_end=1165
-  _globals['_UPDATEREQUEST']._serialized_start=1168
-  _globals['_UPDATEREQUEST']._serialized_end=1327
-  _globals['_CELESTIAL']._serialized_start=1366
-  _globals['_CELESTIAL']._serialized_end=1694
+  _globals['_VMSTATE']._serialized_start=1426
+  _globals['_VMSTATE']._serialized_end=1478
+  _globals['_MACHINEID']._serialized_start=55
+  _globals['_MACHINEID']._serialized_end=121
+  _globals['_EMPTY']._serialized_start=123
+  _globals['_EMPTY']._serialized_end=130
+  _globals['_REGISTERREQUEST']._serialized_start=132
+  _globals['_REGISTERREQUEST']._serialized_end=163
+  _globals['_REGISTERRESPONSE']._serialized_start=165
+  _globals['_REGISTERRESPONSE']._serialized_end=250
+  _globals['_INITREQUEST']._serialized_start=253
+  _globals['_INITREQUEST']._serialized_end=762
+  _globals['_INITREQUEST_HOST']._serialized_start=410
+  _globals['_INITREQUEST_HOST']._serialized_end=461
+  _globals['_INITREQUEST_MACHINE']._serialized_start=464
+  _globals['_INITREQUEST_MACHINE']._serialized_end=762
+  _globals['_INITREQUEST_MACHINE_MACHINECONFIG']._serialized_start=634
+  _globals['_INITREQUEST_MACHINE_MACHINECONFIG']._serialized_end=762
+  _globals['_UPDATEREQUEST']._serialized_start=765
+  _globals['_UPDATEREQUEST']._serialized_end=1424
+  _globals['_UPDATEREQUEST_MACHINEDIFF']._serialized_start=953
+  _globals['_UPDATEREQUEST_MACHINEDIFF']._serialized_end=1084
+  _globals['_UPDATEREQUEST_NETWORKDIFF']._serialized_start=1087
+  _globals['_UPDATEREQUEST_NETWORKDIFF']._serialized_end=1424
+  _globals['_UPDATEREQUEST_NETWORKDIFF_LINK']._serialized_start=1243
+  _globals['_UPDATEREQUEST_NETWORKDIFF_LINK']._serialized_end=1424
+  _globals['_CELESTIAL']._serialized_start=1481
+  _globals['_CELESTIAL']._serialized_end=1901
 # @@protoc_insertion_point(module_scope)

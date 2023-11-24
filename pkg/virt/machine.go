@@ -128,10 +128,17 @@ func (m *machine) initialize() error {
 	case log.ErrorLevel:
 		loglevel = "ERROR"
 	}
+
+	bootparams := "init=/sbin/ceinit ro console=ttyS0 noapic reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb"
+
+	for _, param := range m.bootparams {
+		bootparams += " " + param
+	}
+
 	vm, err := firecracker.NewMachine(context.Background(), firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: path.Join(ROOTPATH, m.kernel),
-		KernelArgs:      "init=/sbin/ceinit ro console=ttyS0 noapic reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb " + m.bootparams,
+		KernelArgs:      bootparams,
 		Drives: []models.Drive{
 			{
 				DriveID:      firecracker.String("root"),

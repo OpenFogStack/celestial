@@ -24,29 +24,12 @@ service Celestial {
     rpc Register(RegisterRequest) returns (RegisterResponse);
     rpc Init(InitRequest) returns (Empty);
     rpc Update(UpdateRequest) returns (Empty);
+    rpc Stop(Empty) returns (Empty);
 }
 
 enum VMState {
-    STOPPED = 0;
-    ACTIVE = 1;
-}
-
-message Empty {}
-
-message Host {
-    uint32 id = 1;
-    string addr = 2;
-    string publickey = 3;
-}
-
-message MachineConfig {
-    // should also be 8 bit but protobuf doesn't support uint8...
-    uint32 vcpucount = 1;
-    uint64 ram = 2;
-    uint64 disksize = 3;
-    string image = 4;
-    string kernel = 5;
-    optional string bootparams = 6;
+    VM_STATE_STOPPED = 0;
+    VM_STATE_ACTIVE = 1;
 }
 
 message MachineID {
@@ -56,48 +39,66 @@ message MachineID {
     optional string name = 3;
 }
 
-message Machine {
-    MachineID id = 1;
-    // should actually be 8 bit but protobuf doesn't support uint8...
-    uint32 host = 2;
-    MachineConfig config = 3;
-}
-
-message MachineState {
-    MachineID id = 1;
-    VMState active = 2;
-}
-
-message Link {
-    MachineID target = 1;
-    uint32 latency = 2;
-    uint64 bandwidth = 3;
-    bool blocked = 4;
-    // used for path reconstruction
-    MachineID next = 5;
-}
-
-message NetworkState {
-    MachineID id = 1;
-    repeated Link links = 2;
-}
+message Empty {}
 
 message RegisterRequest {
     uint32 host = 1;
 }
 
 message RegisterResponse {
-    uint32 availcpus = 1;
-    uint64 availram = 2;
-    string publickey = 3;
+    uint32 available_cpus = 1;
+    uint64 available_ram = 2;
+    string public_key = 3;
 }
 
+
 message InitRequest {
+    message Host {
+        uint32 id = 1;
+        string addr = 2;
+        string publickey = 3;
+    }
+
     repeated Host hosts = 1;
+    message Machine {
+        message MachineConfig {
+            // should also be 8 bit but protobuf doesn't support uint8...
+            uint32 vcpu_count = 1;
+            uint64 ram = 2;
+            uint64 disk_size = 3;
+            string root_image = 4;
+            string kernel = 5;
+            repeated string boot_parameters = 6;
+        }
+
+        MachineID id = 1;
+        // should actually be 8 bit but protobuf doesn't support uint8...
+        uint32 host = 2;
+        MachineConfig config = 3;
+    }
+
     repeated Machine machines = 2;
 }
 
 message UpdateRequest {
-    repeated MachineState machinestates = 1;
-    repeated NetworkState networkstates = 2;
+    message MachineDiff {
+        MachineID id = 1;
+        VMState active = 2;
+    }
+    message NetworkDiff {
+        message Link {
+            MachineID target = 1;
+            uint32 latency = 2;
+            uint64 bandwidth = 3;
+            bool blocked = 4;
+            // used for path reconstruction
+            MachineID next = 5;
+        }
+
+        MachineID id = 1;
+        repeated Link links = 2;
+    }
+
+    repeated MachineDiff machine_diffs = 1;
+    repeated NetworkDiff network_diffs = 2;
 }

@@ -14,3 +14,4 @@ seaborn==0.13.0
 sgp4==2.22
 toml @ git+https://github.com/uiri/toml@5706d31
 tqdm==4.66.1
+types-toml==0.10.8.7

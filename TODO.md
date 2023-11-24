@@ -1,9 +1,9 @@
 # Celestial++ TODO List
 
-- [] Update all dependencies
-- [] Create a test process
-- [] Re-structure host-side code with packages and interfaces
-- [] Move database communication to websockets (or similar)
+- [x] Update all dependencies
+- [x] Create a test process
+- [x] Re-structure host-side code with packages and interfaces
+- [x] Move database communication to websockets (or similar)
 - [] find a good solution for DNS
 - [] Battery emulation
 - [] Different topologies
