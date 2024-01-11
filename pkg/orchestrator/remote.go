@@ -159,13 +159,13 @@ func (o *Orchestrator) SetPeerID(id uint64) error {
 
 	o.ownHost.publickey, err = initPeering(o.ownHost.wgAddr.String())
 
-	log.Debugf("Peering initialized: ID %d, public key %s", o.ownID, o.ownHost.publickey)
-
 	if err != nil {
-		return nil
+		return errors.WithStack(err)
 	}
 
-	return errors.WithStack(err)
+	log.Debugf("Peering initialized: ID %d, public key %s", o.ownID, o.ownHost.publickey)
+
+	return nil
 }
 
 func (o *Orchestrator) InitRemotes(addr []string) error {
