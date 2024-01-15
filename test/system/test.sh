@@ -31,7 +31,7 @@ echo "$DIVIDER"
 ./prepare.sh
 
 gcloud compute config-ssh
-INSTANCE_NAME="$(terraform output -json | jq -r '.host_name.value')"
+INSTANCE_NAME="$(tofu output -json | jq -r '.host_name.value')"
 
 echo "$DIVIDER"
 echo "Running dependencies.sh..."
@@ -43,7 +43,7 @@ ssh "$INSTANCE_NAME" "./dependencies.sh"
 echo "Done running dependencies.sh on host"
 
 echo "$DIVIDER"
-echo "Running celestial2.bin..."
+echo "Running celestial.bin..."
 echo "$DIVIDER"
 # move files
 echo "Moving files..."
@@ -54,7 +54,7 @@ echo "Shutting off systemd-resolved..."
 ssh "$INSTANCE_NAME" "sudo systemctl stop systemd-resolved"
 
 echo "Running celestial..."
-ssh "$INSTANCE_NAME" sudo ./celestial2.bin --debug >> $HOST_LOG 2>&1 &
+ssh "$INSTANCE_NAME" sudo ./celestial.bin --debug >> $HOST_LOG 2>&1 &
 CELESTIAL_PID=$!
 
 echo -n "Waiting for celestial to start."
@@ -66,7 +66,7 @@ done
 echo "$DIVIDER"
 echo "Running celestial coordinator..."
 echo "$DIVIDER"
-ssh "$INSTANCE_NAME" PYTHONUNBUFFERED=1 python3 celestial2.py satgen.zip "127.0.0.1:1969" >> $COORD_LOG 2>&1 &
+ssh "$INSTANCE_NAME" PYTHONUNBUFFERED=1 python3 celestial.py satgen.zip "127.0.0.1:1969" >> $COORD_LOG 2>&1 &
 COORDINATOR_PID=$!
 
 # run for 10 minutes
@@ -109,5 +109,5 @@ kill "$CELESTIAL_PID"
 # destroy the infrastructure
 echo "Destroying infrastructure..."
 echo "Run the following command to destroy the infrastructure:"
-echo "terraform destroy -auto-approve"
-# terraform destroy -auto-approve
+echo "tofu destroy -auto-approve"
+# tofu destroy -auto-approve

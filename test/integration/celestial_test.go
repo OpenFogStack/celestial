@@ -32,11 +32,11 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/OpenFogStack/celestial/pkg/netem"
-	orchestrator "github.com/OpenFogStack/celestial/pkg/orchestrator2"
-	peer "github.com/OpenFogStack/celestial/pkg/peer2"
-	server "github.com/OpenFogStack/celestial/pkg/server2"
+	"github.com/OpenFogStack/celestial/pkg/orchestrator"
+	"github.com/OpenFogStack/celestial/pkg/peer"
+	"github.com/OpenFogStack/celestial/pkg/server"
 	"github.com/OpenFogStack/celestial/pkg/virt"
-	celestial "github.com/OpenFogStack/celestial/proto/celestial2"
+	"github.com/OpenFogStack/celestial/proto/celestial"
 )
 
 const (

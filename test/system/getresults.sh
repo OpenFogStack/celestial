@@ -5,7 +5,7 @@ set -xe
 RESULTS_DIR="out"
 RESULTS_CLEAN="results.csv"
 
-TEST_HOST_NAME="$(terraform output -json | jq -r '.host_name.value')"
+TEST_HOST_NAME="$(tofu output -json | jq -r '.host_name.value')"
 
 mkdir -p "$RESULTS_DIR"
 

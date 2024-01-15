@@ -1,21 +1,19 @@
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.terraform.io/hashicorp/google" {
-  version = "5.3.0"
+provider "registry.opentofu.org/hashicorp/google" {
+  version = "5.11.0"
   hashes = [
-    "h1:J2GFk0IbBNOxvwRc9FmEe3aqJNmjAvAheH4UAZfhCG8=",
-    "zh:17849daec20cd82de916c897c730285267c62b5291bc24cd3fbdac5d10be746a",
-    "zh:1bab50e2eb7382e7342095417a1119e65dee1b62a5c0d93f8df724be4421c3fd",
-    "zh:3a800e3ea8de0d2b3b69f3256461878a5e0a6cfd0801fd762a087578ad42a207",
-    "zh:3dc70168baa91f6815a7e1885c4e29cadd2c67f41d9267a9278b6626c8fac594",
-    "zh:4000c3e16ea1bc3b5636ec18dba080135a90c0d4365597331ead9f30860041af",
-    "zh:58d812b8869158b2bf9c4a1a9676b6283a1914104234e8e70c36d4e1985abded",
-    "zh:908ff6a2a144ee76f4b68ce88164533343b2f860b8ee510107ff8e026856f5c1",
-    "zh:b606b6516151a947b7d9485cf330366b9c1b439677f8732cae6677cc3dc0a71f",
-    "zh:b623cda8316699b40db50081f79e361935d6b66b07d9dd607ed3598e51a8ffdf",
-    "zh:e99693fc83a8017dab5136d41a688777bb1e76076e837f2039fd6d69fe5dcfc4",
-    "zh:f569b65999264a9416862bca5cd2a6177d94ccb0424f3a4ef424428912b9cb3c",
-    "zh:fd7a7e58aa0baa9f3dd05ec693a2849ed8f724c34b8c42b3cbc4919399e622cd",
+    "h1:SZvItcManUwdLWQIxHWVgiW0BXbide6kqQAL7XgRTV8=",
+    "zh:1a92a4e747b7ab14fdfa471a8b58155e3f509a18d4b5c155ca2cfb925a687f65",
+    "zh:274ce607e702a28d1b2c8307341d2e0b95c85329b8ff743d05ea504811ccdd86",
+    "zh:5f071bccac9325b771dce2bf83d44ab93159b2d175ebc4543323383da15e6dd3",
+    "zh:6f6693b4097edf6644301724de54889d2d0f1f79c0d7d429e2957e5a88a9b31d",
+    "zh:6f82dc7d012d587407bf2a0537bc0591c0de00ee4a31256ea3a8c562730ea88e",
+    "zh:7f4783582548678630ffa583d27c561f2966d7c6bc0dd6ce7b96bf815396a4c3",
+    "zh:844111efd3e6bd23fb9651cc889fe47cdc107d2c0606bc7293ca5e8694165d88",
+    "zh:9e91d192d1a588cf1ee7c346547cff29134d39a378147b79637c23f0aaa350e8",
+    "zh:b64b046a78e5ed3b26735bb32e53c8437fb416d278e44cf2a836ab415d30a81e",
+    "zh:b9271c241890c5daaf0852ca533c58a649206f676e7aa115be88dd17a3365c04",
   ]
 }

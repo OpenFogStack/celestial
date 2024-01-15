@@ -28,9 +28,6 @@ container: proto Dockerfile celestial.py celestial ## build client docker contai
 celestial.bin: go.mod go.sum celestial.go pkg/ proto/ ## build go binary
 	GOOS=${OS} GOARCH=${ARCH} go build -o celestial.bin .
 
-celestial2.bin: celestial2.go go.mod go.sum pkg/ proto/ ## build go binary
-	GOOS=${OS} GOARCH=${ARCH} go build -o $@ $<
-
 proto/: ## build proto files
 	cd ./proto ; make ; cd ..
 
