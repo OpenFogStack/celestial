@@ -38,9 +38,14 @@ type PathInfo struct {
 	Latency   uint32
 	Bandwidth uint64
 	Segments  []SegmentInfo
+	Blocked   bool
 }
 
 func (o *Orchestrator) InfoGetIPAddressByID(id MachineID) (net.IP, error) {
+	if !o.initialized {
+		return nil, errors.New("orchestrator not initialized")
+	}
+
 	ip, err := o.virt.GetIPAddress(id)
 
 	if err != nil {
@@ -67,6 +72,10 @@ func (o *Orchestrator) InfoGetIPAddressByName(name string) (net.IP, error) {
 }
 
 func (o *Orchestrator) InfoGetNodeByIP(ip net.IP) (NodeInfo, error) {
+	if !o.initialized {
+		return NodeInfo{}, errors.New("orchestrator not initialized")
+	}
+
 	id, err := o.virt.ResolveIPAddress(ip)
 
 	if err != nil {
@@ -92,6 +101,10 @@ func (o *Orchestrator) InfoGetNodeByIP(ip net.IP) (NodeInfo, error) {
 }
 
 func (o *Orchestrator) InfoGetConstellation() (ConstellationInfo, error) {
+	if !o.initialized {
+		return ConstellationInfo{}, errors.New("orchestrator not initialized")
+	}
+
 	g := make(map[uint8]map[uint32]NodeInfo)
 
 	for m := range o.machines {
@@ -114,17 +127,17 @@ func (o *Orchestrator) InfoGetConstellation() (ConstellationInfo, error) {
 	}
 
 	c := ConstellationInfo{
-		Groups: make([]GroupInfo, 0, len(g)),
+		Groups: make([]GroupInfo, len(g)),
 	}
 
-	for group := range g {
-		c.Groups = append(c.Groups, GroupInfo{
-			Group: group,
-			Nodes: make([]NodeInfo, 0, len(g[group])),
-		})
+	for i, group := range g {
+		c.Groups[i] = GroupInfo{
+			Group: i,
+			Nodes: make([]NodeInfo, len(group)),
+		}
 
-		for _, node := range g[group] {
-			c.Groups[group].Nodes = append(c.Groups[group].Nodes, node)
+		for j, node := range group {
+			c.Groups[i].Nodes[j] = node
 		}
 	}
 
@@ -132,6 +145,10 @@ func (o *Orchestrator) InfoGetConstellation() (ConstellationInfo, error) {
 }
 
 func (o *Orchestrator) InfoGetGroup(group uint8) (GroupInfo, error) {
+	if !o.initialized {
+		return GroupInfo{}, errors.New("orchestrator not initialized")
+	}
+
 	g := make(map[uint32]NodeInfo)
 
 	for m := range o.machines {
@@ -155,17 +172,21 @@ func (o *Orchestrator) InfoGetGroup(group uint8) (GroupInfo, error) {
 
 	c := GroupInfo{
 		Group: group,
-		Nodes: make([]NodeInfo, 0, len(g)),
+		Nodes: make([]NodeInfo, len(g)),
 	}
 
-	for _, node := range g {
-		c.Nodes = append(c.Nodes, node)
+	for i := range c.Nodes {
+		c.Nodes[i] = g[uint32(i)]
 	}
 
 	return c, nil
 }
 
 func (o *Orchestrator) InfoGetNodeByID(id MachineID) (NodeInfo, error) {
+	if !o.initialized {
+		return NodeInfo{}, errors.New("orchestrator not initialized")
+	}
+
 	n := NodeInfo{
 		ID: NodeIDInfo{
 			ID:   id,
@@ -185,6 +206,9 @@ func (o *Orchestrator) InfoGetNodeByID(id MachineID) (NodeInfo, error) {
 }
 
 func (o *Orchestrator) InfoGetNodeNameByID(id MachineID) (string, error) {
+	if !o.initialized {
+		return "", errors.New("orchestrator not initialized")
+	}
 
 	name := o.machines[id].name
 
@@ -196,6 +220,10 @@ func (o *Orchestrator) InfoGetNodeNameByID(id MachineID) (string, error) {
 }
 
 func (o *Orchestrator) InfoGetNodeByName(name string) (NodeInfo, error) {
+	if !o.initialized {
+		return NodeInfo{}, errors.New("orchestrator not initialized")
+	}
+
 	id, ok := o.machineNames[name]
 
 	if !ok {
@@ -217,5 +245,9 @@ func (o *Orchestrator) InfoGetNodeByName(name string) (NodeInfo, error) {
 }
 
 func (o *Orchestrator) InfoGetPath(source, destination MachineID) (PathInfo, error) {
+	if !o.initialized {
+		return PathInfo{}, errors.New("orchestrator not initialized")
+	}
+
 	return path(source, destination, o.State.NetworkState)
 }

@@ -1,4 +1,4 @@
-from re import T
+import cerberus
 import typing
 from enum import Enum
 
@@ -7,13 +7,16 @@ class GroundStationConnectionType(Enum):
     ALL = 0
     ONE = 1
 
+    def int(self) -> int:
+        return self.value
+
 
 class MachineConfig:
     def __init__(
         self,
         vcpu_count: int,
         mem_size_mib: int,
-        disk_size: bool,
+        disk_size: int,
         kernel: str,
         rootfs: str,
         boot_parameters: typing.List[str],
@@ -31,20 +34,20 @@ class Shell:
         self,
         planes: int,
         sats: int,
-        altitude: int,
+        altitude_km: int,
         inclination: float,
         arc_of_ascending_nodes: float,
         eccentricity: float,
-        isl_bandwidth: int,
+        isl_bandwidth_kbits: int,
         machine_config: MachineConfig,
     ):
         self.planes = planes
         self.sats = sats
-        self.altitude = altitude
+        self.altitude_km = altitude_km
         self.inclination = inclination
         self.arc_of_ascending_nodes = arc_of_ascending_nodes
         self.eccentricity = eccentricity
-        self.isl_bandwidth = isl_bandwidth
+        self.isl_bandwidth_kbits = isl_bandwidth_kbits
 
         self.machine_config = machine_config
 
@@ -57,7 +60,7 @@ class GroundStation:
         name: str,
         lat: float,
         lng: float,
-        gts_bandwidth: int,
+        gts_bandwidth_kbits: int,
         min_elevation: float,
         connection_type: GroundStationConnectionType,
         machine_config: MachineConfig,
@@ -65,7 +68,7 @@ class GroundStation:
         self.name = name
         self.lat = lat
         self.lng = lng
-        self.gts_bandwidth = gts_bandwidth
+        self.gts_bandwidth_kbits = gts_bandwidth_kbits
         self.min_elevation = min_elevation
         self.connection_type = connection_type
         self.machine_config = machine_config
@@ -86,7 +89,7 @@ class BoundingBox:
 
 
 NETWORK_PARAMS_SCHEMA = {
-    "bandwidth": {
+    "bandwidth_kbits": {
         "type": "integer",
         "min": 0,
     },
@@ -153,6 +156,12 @@ CONFIG_SCHEMA = {
         "min": 1e0,
         "max": 1e10,
     },
+    "duration": {
+        "type": "integer",
+        "required": True,
+        "min": 30e0,
+        "max": 1e10,
+    },
     "network_params": {
         "type": "dict",
         "schema": NETWORK_PARAMS_SCHEMA,
@@ -176,7 +185,7 @@ CONFIG_SCHEMA = {
             "schema": {
                 "planes": {"type": "integer", "min": 1, "required": True},
                 "sats": {"type": "integer", "min": 1, "required": True},
-                "altitude": {"type": "integer", "min": 0, "required": True},
+                "altitude_km": {"type": "integer", "min": 0, "required": True},
                 "inclination": {
                     "type": "float",
                     "min": 0.0,
@@ -234,7 +243,7 @@ class CelestialValidator(cerberus.Validator):  # type: ignore
         duplicates: typing.Set[str] = set()
 
         for gst in value:
-            if not "name" in gst:
+            if "name" not in gst:
                 without_names.add(gst["name"])
                 continue
             if gst["name"] in names:
@@ -290,7 +299,7 @@ def _validate_configuration(config: typing.MutableMapping[str, typing.Any]) -> N
 
 
 def _fill_configuration(
-    config: typing.MutableMapping[str, typing.Any]
+    config: typing.MutableMapping[str, typing.Any],
 ) -> typing.MutableMapping[str, typing.Any]:
     if "boot_parameters" not in config["compute_params"]:
         config["compute_params"]["boot_parameters"] = []
@@ -369,24 +378,25 @@ class Config:
             lon2=config["bbox"][3],
         )
 
-        self.resolution = (config["resolution"],)
+        self.duration = config["duration"]
+        self.resolution = config["resolution"]
 
         self.shells = [
             Shell(
                 planes=s["planes"],
                 sats=s["sats"],
-                altitude=s["altitude"],
+                altitude_km=s["altitude_km"],
                 inclination=s["inclination"],
                 arc_of_ascending_nodes=s["arc_of_ascending_nodes"],
                 eccentricity=s["eccentricity"],
-                isl_bandwidth=s["networkparams"]["isl_bandwidth"],
+                isl_bandwidth_kbits=s["network_params"]["bandwidth_kbits"],
                 machine_config=MachineConfig(
-                    vcpu_count=s["computeparams"]["vcpu_count"],
-                    mem_size_mib=s["computeparams"]["mem_size_mib"],
-                    disk_size=s["computeparams"]["disk_size_mib"],
-                    kernel=s["computeparams"]["kernel"],
-                    rootfs=s["computeparams"]["rootfs"],
-                    boot_parameters=s["computeparams"]["boot_parameters"],
+                    vcpu_count=s["compute_params"]["vcpu_count"],
+                    mem_size_mib=s["compute_params"]["mem_size_mib"],
+                    disk_size=s["compute_params"]["disk_size_mib"],
+                    kernel=s["compute_params"]["kernel"],
+                    rootfs=s["compute_params"]["rootfs"],
+                    boot_parameters=s["compute_params"]["boot_parameters"],
                 ),
             )
             for s in config["shell"]
@@ -397,19 +407,30 @@ class Config:
                 name=g["name"],
                 lat=g["lat"],
                 lng=g["long"],
-                gts_bandwidth=g["networkparams"]["bandwidth"],
-                min_elevation=g["networkparams"]["min_elevation"],
+                gts_bandwidth_kbits=g["network_params"]["bandwidth_kbits"],
+                min_elevation=g["network_params"]["min_elevation"],
                 connection_type=GroundStationConnectionType.ALL
-                if g["networkparams"]["ground_station_connection_type"] == "all"
+                if g["network_params"]["ground_station_connection_type"] == "all"
                 else GroundStationConnectionType.ONE,
                 machine_config=MachineConfig(
-                    vcpu_count=g["computeparams"]["vcpu_count"],
-                    mem_size_mib=g["computeparams"]["mem_size_mib"],
-                    disk_size=g["computeparams"]["disk_size_mib"],
-                    kernel=g["computeparams"]["kernel"],
-                    rootfs=g["computeparams"]["rootfs"],
-                    boot_parameters=g["computeparams"]["boot_parameters"],
+                    vcpu_count=g["compute_params"]["vcpu_count"],
+                    mem_size_mib=g["compute_params"]["mem_size_mib"],
+                    disk_size=g["compute_params"]["disk_size_mib"],
+                    kernel=g["compute_params"]["kernel"],
+                    rootfs=g["compute_params"]["rootfs"],
+                    boot_parameters=g["compute_params"]["boot_parameters"],
                 ),
             )
-            for g in config["groundstation"]
+            for g in config["ground_station"]
         ]
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                self.bbox,
+                self.duration,
+                self.resolution,
+                tuple(self.shells),
+                tuple(self.ground_stations),
+            )
+        )

@@ -29,6 +29,8 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 			// not started yet, so nothing to do
 			// but keep it as registered only, so that it can be started if it ever transitions to STARTED
 			return nil
+		default:
+			panic("unhandled default case")
 		}
 	case STARTED:
 		switch v.machines[id].state {
@@ -47,6 +49,8 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 			}
 			v.machines[id].state = STARTED
 			return nil
+		default:
+			panic("unhandled default case")
 		}
 	case REGISTERED:
 		return errors.Errorf("cannot transition to REGISTERED")
@@ -64,6 +68,8 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 				return err
 			}
 			return nil
+		default:
+			panic("unhandled default case")
 		}
 	}
 	return nil
@@ -116,7 +122,14 @@ func (v *Virt) register(id orchestrator.MachineID, name string, config orchestra
 
 func (v *Virt) killMachine(m *machine) error {
 	log.Debug("Killing machine ", m.name)
-	return m.vm.StopVMM()
+
+	err := m.vm.StopVMM()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (v *Virt) suspendMachine(m *machine) error {

@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     print("🗺  Validating bounding box...")
     if check_bbox(config.bbox, config.shells, config.groundstations):
-         print("\033[92m✅ All ground stations are covered by your bounding box!\033[0m")
+        print("\033[92m✅ All ground stations are covered by your bounding box!\033[0m")
 
     # initialize a constellation
     constellation_conn, mm_conn = mp.Pipe()
@@ -58,12 +58,19 @@ if __name__ == "__main__":
 
     animation_conn, animation_constellation_conn = mp.Pipe()
 
-    animation = mp.Process(target=Animation, kwargs={
-        "p": animation_constellation_conn
-    })
+    animation = mp.Process(target=Animation, kwargs={"p": animation_constellation_conn})
     animation.start()
 
-
-    c = Constellation(model=config.model, shells=config.shells, groundstations=config.groundstations, mm_conn=mm_conn, interval=config.interval, animate=True, animate_only=True, bbox=config.bbox, animation_conn=animation_conn)
+    c = Constellation(
+        model=config.model,
+        shells=config.shells,
+        groundstations=config.groundstations,
+        mm_conn=mm_conn,
+        interval=config.interval,
+        animate=True,
+        animate_only=True,
+        bbox=config.bbox,
+        animation_conn=animation_conn,
+    )
 
     timer = RepeatedTimer(config.interval, c.update)

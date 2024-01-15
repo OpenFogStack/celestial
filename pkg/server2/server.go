@@ -22,6 +22,8 @@ import (
 	"os"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	peer "github.com/OpenFogStack/celestial/pkg/peer2"
 	celestial "github.com/OpenFogStack/celestial/proto/celestial2"
 
@@ -48,19 +50,18 @@ func New(o *orchestrator.Orchestrator, pb PeeringBackend) *Server {
 	}
 }
 
-func (s *Server) Stop(_ context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
+func (s *Server) Stop(ctx context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
 	err := s.o.Stop()
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.pb.Stop()
-	if err != nil {
-		return nil, err
-	}
+	s.o = nil
+	s.pb = nil
 
-	defer func() {
+	go func() {
 		time.Sleep(5 * time.Second)
+		log.Debugf("stopping backend")
 		os.Exit(0)
 	}()
 
@@ -161,6 +162,8 @@ func (s *Server) Update(_ context.Context, request *celestial.UpdateRequest) (*c
 				Group: uint8(l.Target.Group),
 				Id:    l.Target.Id,
 			}
+
+			//log.Debugf("link from %s to %s: %v", id.String(), target.String(), l)
 
 			if l.Blocked {
 				ns[id][target] = &orchestrator.Link{

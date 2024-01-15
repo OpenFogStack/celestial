@@ -1,0 +1,11 @@
+test/system2/dependencies.sh
+test/system2/satgen.zip
+test/system2/app/validator.img
+test/system2/config.toml
+kernel/vmlinux-5.12.bin
+requirements.txt
+satgen
+proto
+celestial2.py
+__init__.py
+celestial2.bin

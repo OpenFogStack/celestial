@@ -1,6 +1,8 @@
 notes.md
 test.toml
 
+*.zip
+*.celestial
 *.pem
 *.pem.PyBuilder
 *.pem.pub

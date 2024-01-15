@@ -1,7 +1,11 @@
 package orchestrator2
 
 import (
+	"os"
 	"runtime"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/pbnjay/memory"
 	"github.com/pkg/errors"
@@ -37,6 +41,8 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 		return errors.Errorf("orchestrator already initialized")
 	}
 
+	log.Debugf("initializing orchestrator with %d machines", len(machineList))
+
 	o.machines = make(map[MachineID]*machine)
 	o.machineNames = make(map[string]MachineID)
 
@@ -66,6 +72,7 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 	}
 
 	// register all machines
+	progress := 0
 	for m := range o.machines {
 		o.State.MachinesState[m] = STOPPED
 
@@ -73,33 +80,73 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 		if err != nil {
 			return errors.WithStack(err)
 		}
+
+		progress++
+
+		if progress%10 == 0 {
+			log.Debugf("machine init progress: %d/%d", progress, len(o.machines))
+		}
 	}
+	log.Debugf("machine init progress: %d/%d", progress, len(o.machines))
+
+	log.Debugf("starting link init")
 
 	// init networking
 	// by default, all links are blocked
+	var wg sync.WaitGroup
+	var e error
+	progress2 := atomic.Uint32{}
+
+	start := time.Now()
+
 	for m := range o.machines {
 		o.State.NetworkState[m] = make(map[MachineID]*Link)
 
-		for otherMachine := range o.machines {
-			// exclude self
-			if m == otherMachine {
-				continue
-			}
+		wg.Add(1)
+		go func(source MachineID) {
+			defer wg.Done()
+			//log.Debugf("blocking all links from %s", source)
 
-			log.Debug("blocking link ", m, " -> ", otherMachine)
+			for otherMachine := range o.machines {
+				// exclude self
+				if source == otherMachine {
+					continue
+				}
 
-			err := o.virt.BlockLink(m, otherMachine)
-			if err != nil {
-				return errors.WithStack(err)
+				//log.Debugf("blocking link %s -> %s", source, otherMachine)
+				err := o.virt.BlockLink(source, otherMachine)
+				if err != nil {
+					e = errors.WithStack(err)
+				}
+
+				o.State.NetworkState[source][otherMachine] = &Link{
+					// likely better to have all links blocked at the beginning
+					Blocked: true,
+				}
+
+				// progress
+				progress2.Add(1)
 			}
-			o.State.NetworkState[m][otherMachine] = &Link{
-				// likely better to have all links blocked at the beginning
-				Blocked:   true,
-				Latency:   defaultLatency,
-				Bandwidth: defaultBandwidth,
-			}
+			//log.Debugf("done blocking all links from %s", source)
+
+		}(m)
+	}
+
+	shown := 0
+	total := len(o.machines) * (len(o.machines) - 1)
+	for state := 0; state < total; state = int(progress2.Load()) {
+		if state > shown && state%100 == 0 {
+			log.Debugf("link init progress: %d/%d", progress2.Load(), total)
+			shown = state
 		}
 	}
+
+	wg.Wait()
+	if e != nil {
+		return errors.WithStack(e)
+	}
+
+	log.Debugf("done blocking all links in %s", time.Since(start))
 
 	o.initialized = true
 
@@ -107,10 +154,14 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 }
 
 func (o *Orchestrator) Stop() error {
+	log.Debugf("stopping orchestrator")
 	err := o.virt.Stop()
 	if err != nil {
+		log.Error(err.Error())
 		return errors.WithStack(err)
 	}
+
+	os.Exit(0)
 
 	return nil
 }
@@ -119,68 +170,104 @@ func (o *Orchestrator) Update(s *State) error {
 	// run the update procedure and apply changes
 
 	// 1. update all the links
+
+	var wg sync.WaitGroup
+	var e error
+
 	for m, ls := range s.NetworkState {
-		for target, l := range ls {
-			if l.Blocked && !o.State.NetworkState[m][target].Blocked {
-				log.Debug("blocking link ", m, " -> ", target)
-				err := o.virt.BlockLink(m, target)
-				if err != nil {
-					return errors.WithStack(err)
+		wg.Add(1)
+		go func(source MachineID, links map[MachineID]*Link) {
+			defer wg.Done()
+			for target, l := range links {
+				if l.Blocked && !o.State.NetworkState[source][target].Blocked {
+					log.Debug("blocking link ", source, " -> ", target)
+					err := o.virt.BlockLink(source, target)
+					if err != nil {
+						e = errors.WithStack(err)
+					}
+					o.State.NetworkState[source][target].Blocked = true
 				}
-				o.State.NetworkState[m][target].Blocked = true
-				continue
-			}
 
-			if !l.Blocked && o.State.NetworkState[m][target].Blocked {
-				log.Debug("unblocking link ", m, " -> ", target)
-				err := o.virt.UnblockLink(m, target)
-				if err != nil {
-					return errors.WithStack(err)
+				if !l.Blocked && o.State.NetworkState[source][target].Blocked {
+					log.Debug("unblocking link ", source, " -> ", target)
+					err := o.virt.UnblockLink(source, target)
+					if err != nil {
+						e = errors.WithStack(err)
+					}
+					o.State.NetworkState[source][target].Blocked = false
 				}
-				o.State.NetworkState[m][target].Blocked = false
-			}
 
-			if l.Latency != o.State.NetworkState[m][target].Latency {
-				log.Debug("setting latency ", m, " -> ", target, " to ", l.Latency)
-				err := o.virt.SetLatency(m, target, l.Latency)
-				if err != nil {
-					return errors.WithStack(err)
+				if l.Blocked {
+					continue
 				}
-				o.State.NetworkState[m][target].Latency = l.Latency
-			}
 
-			if l.Bandwidth != o.State.NetworkState[m][target].Bandwidth {
-				log.Debug("setting bandwidth ", m, " -> ", target, " to ", l.Bandwidth)
-				err := o.virt.SetBandwidth(m, target, l.Bandwidth)
-				if err != nil {
-					return errors.WithStack(err)
+				log.Debugf("updating link %s -> %s", source, target)
+				if l.Next != o.State.NetworkState[source][target].Next {
+					log.Debug("setting next hop ", source, " -> ", target, " to ", l.Next)
+					o.State.NetworkState[source][target].Next = l.Next
 				}
-				o.State.NetworkState[m][target].Bandwidth = l.Bandwidth
+
+				if l.Latency != o.State.NetworkState[source][target].Latency {
+					log.Debug("setting latency ", source, " -> ", target, " to ", l.Latency)
+					err := o.virt.SetLatency(source, target, l.Latency)
+					if err != nil {
+						e = errors.WithStack(err)
+					}
+					o.State.NetworkState[source][target].Latency = l.Latency
+				}
+
+				if l.Bandwidth != o.State.NetworkState[source][target].Bandwidth {
+					log.Debug("setting bandwidth ", source, " -> ", target, " to ", l.Bandwidth)
+					err := o.virt.SetBandwidth(source, target, l.Bandwidth)
+					if err != nil {
+						e = errors.WithStack(err)
+					}
+					o.State.NetworkState[source][target].Bandwidth = l.Bandwidth
+				}
 			}
-		}
+		}(m, ls)
+	}
+
+	wg.Wait()
+	if e != nil {
+		return errors.WithStack(e)
 	}
 
 	// 2. update all the machines
+	wg = sync.WaitGroup{}
+	e = nil
+
 	for m, state := range s.MachinesState {
 		if state == STOPPED && o.State.MachinesState[m] == ACTIVE {
-			// stop machine
-			err := o.virt.StopMachine(m)
-			if err != nil {
-				return errors.WithStack(err)
-			}
+			wg.Add(1)
+			go func(machine MachineID) {
+				// stop machine
+				err := o.virt.StopMachine(machine)
+				if err != nil {
+					e = errors.WithStack(err)
+				}
+			}(m)
 			o.State.MachinesState[m] = STOPPED
 			continue
 		}
 
 		if state == ACTIVE && o.State.MachinesState[m] == STOPPED {
-			// start machine
-			err := o.virt.StartMachine(m)
-			if err != nil {
-				return errors.WithStack(err)
-			}
+			wg.Add(1)
+			go func(machine MachineID) {
+				// start machine
+				err := o.virt.StartMachine(machine)
+				if err != nil {
+					e = errors.WithStack(err)
+				}
+			}(m)
 			o.State.MachinesState[m] = ACTIVE
 			continue
 		}
+	}
+
+	wg.Wait()
+	if e != nil {
+		return errors.WithStack(e)
 	}
 
 	return nil

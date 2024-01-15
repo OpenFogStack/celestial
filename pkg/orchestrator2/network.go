@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 func (n NetworkState) String() string {
@@ -36,32 +37,49 @@ func path(a, b MachineID, n NetworkState) (PathInfo, error) {
 		return PathInfo{}, errors.Errorf("cannot give path from %s to itself", a)
 	}
 
-	if n[a][b].Blocked {
-		return PathInfo{}, errors.Errorf("path from %s to %s is blocked", a, b)
+	log.Debugf("path from %s to %s", a.String(), b.String())
+
+	if b.lt(a) {
+		return path(b, a, n)
 	}
 
 	p := PathInfo{
-		Source:    a,
-		Target:    b,
-		Latency:   n[a][b].Latency,
-		Bandwidth: n[a][b].Bandwidth,
-		Segments:  make([]SegmentInfo, 0),
+		Source: a,
+		Target: b,
 	}
 
-	for a != b {
+	if n[a][b].Blocked {
+		log.Debugf("path from %s to %s is blocked", a.String(), b.String())
+		p.Blocked = true
+		return p, nil
+	}
 
+	p.Latency = n[a][b].Latency
+	p.Bandwidth = n[a][b].Bandwidth
+	p.Segments = make([]SegmentInfo, 0)
+
+	for a != b {
+		x, y := a, b
+		if y.lt(x) {
+			x, y = y, x
+		}
+
+		hop := n[x][y]
+
+		log.Debugf("path from %s to %s: %s", a.String(), b.String(), hop.String())
 		s := SegmentInfo{
-			Source:    a,
-			Target:    n[a][b].Next,
-			Latency:   n[a][n[a][b].Next].Latency,
-			Bandwidth: n[a][n[a][b].Next].Bandwidth,
+			Source:    x,
+			Target:    hop.Next,
+			Latency:   n[x][hop.Next].Latency,
+			Bandwidth: n[x][hop.Next].Bandwidth,
 		}
 
 		// weird prepend action
 		//p.Segments = append([]SegmentInfo{s}, p.Segments...)
 		p.Segments = append(p.Segments, s)
 
-		a = n[a][b].Next
+		a = hop.Next
+		b = y
 	}
 
 	return p, nil

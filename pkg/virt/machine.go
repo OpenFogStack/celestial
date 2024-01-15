@@ -23,7 +23,8 @@ import (
 
 func (m *machine) createNetwork() error {
 	// remove old network tap if exists
-	removeNetworkDevice(m.network.tap, HOST_INTERFACE)
+	// don't care about errors here
+	_ = removeNetworkDevice(m.network.tap, HOST_INTERFACE)
 
 	// create new network tap
 	err := createNetworkDevice(m.network.gateway, m.network.tap, HOST_INTERFACE)
@@ -31,6 +32,14 @@ func (m *machine) createNetwork() error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (m *machine) removeNetwork() error {
+	// remove old network tap if exists
+	// don't care about errors here
+	_ = removeNetworkDevice(m.network.tap, HOST_INTERFACE)
 
 	return nil
 }

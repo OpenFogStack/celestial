@@ -3,6 +3,8 @@ package virt
 import (
 	"os/exec"
 
+	log "github.com/sirupsen/logrus"
+
 	orchestrator "github.com/OpenFogStack/celestial/pkg/orchestrator2"
 )
 
@@ -143,8 +145,33 @@ func (v *Virt) StartMachine(machine orchestrator.MachineID) error {
 }
 
 func (v *Virt) Stop() error {
+	log.Debugf("stopping %d machines", len(v.machines))
 	for m := range v.machines {
 		err := v.transition(m, KILLED)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Debug("stopping netem backend")
+	err := v.neb.Stop()
+
+	if err != nil {
+		return err
+	}
+
+	log.Debug("stopping peering backend")
+	err = v.pb.Stop()
+
+	if err != nil {
+		return err
+	}
+
+	log.Debug("removing network devices")
+
+	for _, m := range v.machines {
+		err := m.removeNetwork()
 
 		if err != nil {
 			return err

@@ -7,8 +7,8 @@ toolchain go1.21.3
 require (
 	github.com/firecracker-microvm/firecracker-go-sdk v1.0.0
 	github.com/go-ping/ping v1.1.0
-	github.com/gorilla/mux v1.8.0
-	github.com/miekg/dns v1.1.56
+	github.com/gorilla/mux v1.8.1
+	github.com/miekg/dns v1.1.57
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3

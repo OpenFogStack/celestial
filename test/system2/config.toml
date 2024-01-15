@@ -1,0 +1,42 @@
+bbox = [-90.0, -180.0, 90.0, 180.0]
+resolution = 10
+duration = 900
+
+[network_params]
+bandwidth_kbits = 10_000_000
+min_elevation = 25
+ground_station_connection_type = "all"
+
+[compute_params]
+vcpu_count = 1
+mem_size_mib = 512
+disk_size_mib = 10
+kernel = "vmlinux.bin"
+rootfs = "validator.img"
+
+[[shell]]
+planes = 6
+sats = 10
+altitude_km = 1000
+inclination = 90.0
+arc_of_ascending_nodes = 180.0
+eccentricity = 0.0
+
+[[shell]]
+planes = 6
+sats = 10
+altitude_km = 900
+inclination = 53.0
+arc_of_ascending_nodes = 360.0
+eccentricity = 0.0
+
+[[ground_station]]
+name = "validator"
+lat = 52.514182
+long = 13.328285
+
+[ground_station.compute_params]
+vcpu_count = 2
+mem_size_mib = 2048
+disk_size_mib = 100
+rootfs = "validator.img"

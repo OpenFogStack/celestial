@@ -3,8 +3,10 @@ package netem
 import (
 	"net"
 	"os/exec"
+	"sync"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 
 	orchestrator "github.com/OpenFogStack/celestial/pkg/orchestrator2"
 )
@@ -74,6 +76,40 @@ func New() *Netem {
 	return &Netem{
 		vms: make(map[orchestrator.MachineID]*vm),
 	}
+}
+
+func (n *Netem) Stop() error {
+	// remove all machine stuff
+	log.Debugf("Removing all netem stuff")
+
+	wg := sync.WaitGroup{}
+	var e error
+
+	for _, v := range n.vms {
+		wg.Add(1)
+		go func(v *vm) {
+			// remove ipset
+			err := v.removeIPSet()
+
+			if err != nil {
+				e = errors.WithStack(err)
+			}
+
+			// remove tc
+			err = v.removeTC()
+
+			if err != nil {
+				e = errors.WithStack(err)
+			}
+		}(v)
+	}
+
+	wg.Wait()
+	if e != nil {
+		return e
+	}
+
+	return nil
 }
 
 func (n *Netem) Register(id orchestrator.MachineID, netIf string) error {
