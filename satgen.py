@@ -18,36 +18,45 @@
 import sys
 
 import toml
+import tqdm
 
 import satgen.config
-import satgen.json_serializer
-import satgen.state_manager
+import satgen.zip_serializer
+import satgen.constellation
 
 if __name__ == "__main__":
-    if not len(sys.argv) == 2:
-        exit("Usage: python3 celestial.py [config.toml]")
+    if len(sys.argv) > 3 or len(sys.argv) < 2:
+        exit("Usage: python3 satgen.py [config.toml] [output-file (optional)]")
 
     # read toml
     try:
         text_config = toml.load(sys.argv[1])
     except Exception as e:
-        exit(e)
+        exit(str(e))
+
+    output_file = None
+    if len(sys.argv) == 3:
+        output_file = sys.argv[2]
 
     # read the configuration
     config: satgen.config.Config = satgen.config.Config(text_config)
 
-    # init the constellation
-    constellation = satgen.constellation.Constellation(config)
-
     # prepare serializer
-    serializer = satgen.json_serializer.Serializer()
+    # serializer = satgen.json_serializer.JSONSerializer(config)
+    serializer = satgen.zip_serializer.ZipSerializer(config, output_file)
 
-    # prepare the state manager
-    state_manager = satgen.state_manager.StateDiff(constellation, serializer)
+    # init the constellation
+    constellation = satgen.constellation.Constellation(config, serializer)
 
     # run the simulation
-    for i in range(0, config.simulation_steps):
-        state_manager.step(config.resolution)
+    i = 0
+    pbar = tqdm.tqdm(total=config.duration)
+    while i < config.duration:
+        constellation.step(i)
+        i += config.resolution
+        pbar.update(config.resolution)
 
     # serialize the state
     serializer.persist()
+
+    print(f"Output written to {serializer.filename}")

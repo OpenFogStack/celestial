@@ -34,6 +34,10 @@ func (m MachineID) String() string {
 	return fmt.Sprintf("%d.%d", m.Group, m.Id)
 }
 
+func (m MachineID) lt(b MachineID) bool {
+	return m.Group < b.Group || (m.Group == b.Group && m.Id < b.Id)
+}
+
 type Host uint8
 
 type NetworkState map[MachineID]map[MachineID]*Link

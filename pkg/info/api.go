@@ -34,4 +34,5 @@ type Path struct {
 	Delay     uint32
 	Bandwidth uint64
 	Segments  []Segment
+	Blocked   bool
 }

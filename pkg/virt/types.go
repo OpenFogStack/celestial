@@ -68,6 +68,7 @@ type Virt struct {
 type PeeringBackend interface {
 	GetHostID() (uint8, error)
 	Route(network net.IPNet, host orchestrator.Host) error
+	Stop() error
 }
 
 type NetworkEmulationBackend interface {
@@ -76,4 +77,5 @@ type NetworkEmulationBackend interface {
 	SetLatency(source orchestrator.MachineID, target net.IPNet, latency uint32) error
 	UnblockLink(source orchestrator.MachineID, target net.IPNet) error
 	BlockLink(source orchestrator.MachineID, target net.IPNet) error
+	Stop() error
 }

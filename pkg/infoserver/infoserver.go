@@ -126,6 +126,12 @@ func getSelf(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err = w.Write(resp)
+
+	if err != nil {
+		log.Errorf("%s", err.Error())
+	}
+
 }
 
 func getInfo(w http.ResponseWriter, _ *http.Request) {

@@ -48,6 +48,18 @@ func (v *vm) configureTC() error {
 	return nil
 }
 
+func (v *vm) removeTC() error {
+	// remove old stuff first
+	// tc qdisc del dev [TAP_NAME] root
+	cmd := exec.Command(TC_BIN, "qdisc", "del", "dev", v.netIf, "root")
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	return nil
+}
+
 func (v *vm) createQDisc(target net.IPNet) (uint16, error) {
 	// this would be better to do atomically, but it's 16 bit...
 	v.handle = v.handle + 1

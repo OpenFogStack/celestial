@@ -15,35 +15,40 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import threading as td
-import time
 import typing
-import numpy as np
 
+import satgen.serializer
 import satgen.config
 import satgen.types
 import satgen.shell
+
+DELAY_UPDATE_THRESHOLD_US = 500
 
 
 class Constellation:
     def __init__(
         self,
         config: satgen.config.Config,
+        writer: satgen.serializer.Serializer,
     ):
+        self.current_time = 0
         self.shells: typing.List[satgen.shell.Shell] = []
+        self.ground_stations: typing.List[satgen.types.MachineID_dtype] = []
 
-        self.start_time: satgen.types.timestep = 0
+        self.writer = writer
+
+        self.start_time: satgen.types.timestamp_s = 0
 
         for i, sc in enumerate(config.shells):
             s = satgen.shell.Shell(
                 shell_identifier=i + 1,
                 planes=sc.planes,
                 sats=sc.sats,
-                altitude=sc.altitude,
+                altitude_km=sc.altitude_km,
                 inclination=sc.inclination,
                 arc_of_ascending_nodes=sc.arc_of_ascending_nodes,
                 eccentricity=sc.eccentricity,
-                isl_bandwidth=sc.isl_bandwidth,
+                isl_bandwidth_kbits=sc.isl_bandwidth_kbits,
                 bbox=config.bbox,
                 ground_stations=config.ground_stations,
             )
@@ -51,17 +56,19 @@ class Constellation:
             self.shells.append(s)
 
         self.nodes: typing.Dict[
-            satgen.types.MachineID, satgen.config.MachineConfig
+            satgen.types.MachineID_dtype, satgen.config.MachineConfig
         ] = {}
+        self.ground_stations_initialized = False
 
         for i, g in enumerate(config.ground_stations):
-            self.nodes[
-                satgen.types.MachineID(
-                    group=0,
-                    id=i,
-                    name=g.name,
-                )
-            ] = g.machine_config
+            gst = satgen.types.MachineID(
+                group=0,
+                id=i,
+                name=g.name,
+            )
+
+            self.nodes[gst] = g.machine_config
+            self.ground_stations.append(gst)
 
         for i, sc in enumerate(config.shells):
             for j in range(s.total_sats):
@@ -72,39 +79,47 @@ class Constellation:
                     )
                 ] = sc.machine_config
 
-    def get_machines(
-        self
-    ) -> typing.Dict[satgen.types.MachineID, satgen.config.MachineConfig]:
-        return self.nodes
+        self.machines_state = {
+            m: satgen.types.VMState.STOPPED for m in self.nodes.keys()
+        }
 
-    def step(self, to: satgen.types.timestep) -> satgen.types.State:
+        self.links_state = {
+            m1: {
+                m2: satgen.types.Link(
+                    latency_us=0, bandwidth_kbits=0, blocked=False, next_hop=m1
+                )
+                for m2 in self.nodes.keys()
+                if m1 != m2
+            }
+            for m1 in self.nodes.keys()
+        }
+
+        for machine, machine_config in self.nodes.items():
+            self.writer.init_machine(machine, machine_config)
+
+    def step(self, t: satgen.types.timestamp_s) -> None:
+        self.current_time = t
+
         for s in self.shells:
-            s.step(to)
+            s.step(self.current_time)
 
-        machines: satgen.types.MachineState = {}
+        # initially, turn on all ground stations
+        if not self.ground_stations_initialized:
+            for gst in self.ground_stations:
+                self.machines_state[gst] = satgen.types.VMState.ACTIVE
 
-        for i, s in enumerate(self.shells):
-            for sat, state in s.get_sat_nodes().items():
-                machines[sat] = state
+                self.writer.diff_machine(
+                    self.current_time,
+                    gst,
+                    satgen.types.VMState.ACTIVE,
+                )
 
-        links: satgen.types.LinkState = {}
+            self.ground_stations_initialized = True
 
-        for i, s in enumerate(self.shells):
-            for s1, s1_links in s.get_sat_links().items():
-                if s1 not in links:
-                    links[s1] = {}
+        for s in self.shells:
+            for machine, state in s.get_sat_node_diffs().items():
+                self.writer.diff_machine(self.current_time, machine, state)
 
-                for s2, link in s1_links.items():
-                    links[s1][s2] = link
-
-            for g1, g1_links in s.get_gst_links().items():
-                if g1 not in links:
-                    links[g1] = {}
-
-                for s2, link in g1_links.items():
-                    links[s1][s2] = link
-
-        return satgen.types.State(
-            machines_state=machines,
-            links_state=links,
-        )
+            for source, links in s.get_link_diff(DELAY_UPDATE_THRESHOLD_US).items():
+                for target, link in links.items():
+                    self.writer.diff_link(self.current_time, source, target, link)

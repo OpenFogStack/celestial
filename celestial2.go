@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -117,18 +118,18 @@ func main() {
 	// listen for SIGINT
 	c := make(chan os.Signal, 1)
 
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
-	// block until SIGINT is received
 	<-c
+
+	err = o.Stop()
+
+	if err != nil {
+		panic(err.Error())
+	}
 
 	// stop the grpc servers
 	s.Stop()
 
-	err = pb.Stop()
-	err = o.Stop()
-
-	if err != nil {
-		panic(err)
-	}
+	os.Exit(0)
 }

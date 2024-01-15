@@ -250,5 +250,15 @@ func (p *PeeringService) InitPeering(remotes map[orchestrator.Host]HostInfo) err
 }
 
 func (p *PeeringService) Stop() error {
+
+	// ip link del [WGINTERFACE]
+	cmd := exec.Command("ip", "link", "del", p.wgInterface)
+
+	// errors are ok
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
 	return nil
 }

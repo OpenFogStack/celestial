@@ -86,14 +86,14 @@ func (i *infoserver) getInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s := Constellation{
-		Shells: make([]Shell, 0, len(c.Groups)-1),
+		Shells: make([]Shell, len(c.Groups)-1),
 	}
 
 	for _, g := range c.Groups {
 		if g.Group == 0 {
-			s.Groundstations = make([]Node, 0, len(g.Nodes))
-			for _, n := range g.Nodes {
-				s.Groundstations = append(s.Groundstations, Node{
+			s.Groundstations = make([]Node, len(g.Nodes))
+			for j, n := range g.Nodes {
+				s.Groundstations[j] = Node{
 					Type: "gst",
 					Identifier: Identifier{
 						Shell: n.ID.ID.Group,
@@ -101,30 +101,24 @@ func (i *infoserver) getInfo(w http.ResponseWriter, r *http.Request) {
 						Name:  n.ID.Name,
 					},
 					Active: n.Active,
-				})
+				}
 			}
 			continue
 		}
 
-		if len(s.Shells) <= int(g.Group)-1 {
-			for j := len(s.Shells); j <= int(g.Group)-1; j++ {
-				s.Shells = append(s.Shells, Shell{})
-			}
-		}
-
 		s.Shells[g.Group-1] = Shell{
-			Sats: make([]Node, 0, len(g.Nodes)),
+			Sats: make([]Node, len(g.Nodes)),
 		}
 
 		for _, n := range g.Nodes {
-			s.Shells[g.Group-1].Sats = append(s.Shells[g.Group-1].Sats, Node{
+			s.Shells[g.Group-1].Sats[n.ID.ID.Id] = Node{
 				Type: "sat",
 				Identifier: Identifier{
 					Shell: n.ID.ID.Group,
 					ID:    n.ID.ID.Id,
 				},
 				Active: n.Active,
-			})
+			}
 		}
 
 	}
@@ -361,29 +355,34 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 			ID:    p.Target.Id,
 			Name:  targetName,
 		},
-		Delay:     p.Latency,
-		Bandwidth: p.Bandwidth,
-		Segments:  make([]Segment, len(p.Segments)),
 	}
 
-	for j, seg := range p.Segments {
-		sourceName, _ = i.Orchestrator.InfoGetNodeNameByID(p.Source)
-		targetName, _ = i.Orchestrator.InfoGetNodeNameByID(p.Target)
+	if !p.Blocked {
+		s.Delay = p.Latency
+		s.Bandwidth = p.Bandwidth
+		s.Segments = make([]Segment, len(p.Segments))
 
-		s.Segments[j] = Segment{
-			Source: Identifier{
-				Shell: seg.Source.Group,
-				ID:    seg.Source.Id,
-				Name:  sourceName,
-			},
-			Target: Identifier{
-				Shell: seg.Target.Group,
-				ID:    seg.Target.Id,
-				Name:  targetName,
-			},
-			Delay:     seg.Latency,
-			Bandwidth: seg.Bandwidth,
+		for j, seg := range p.Segments {
+			sourceName, _ = i.Orchestrator.InfoGetNodeNameByID(p.Source)
+			targetName, _ = i.Orchestrator.InfoGetNodeNameByID(p.Target)
+
+			s.Segments[j] = Segment{
+				Source: Identifier{
+					Shell: seg.Source.Group,
+					ID:    seg.Source.Id,
+					Name:  sourceName,
+				},
+				Target: Identifier{
+					Shell: seg.Target.Group,
+					ID:    seg.Target.Id,
+					Name:  targetName,
+				},
+				Delay:     seg.Latency,
+				Bandwidth: seg.Bandwidth,
+			}
 		}
+	} else {
+		s.Blocked = true
 	}
 
 	resp, err := json.Marshal(s)

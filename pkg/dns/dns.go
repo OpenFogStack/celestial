@@ -125,7 +125,7 @@ func Start(port uint64, orch *orchestrator.Orchestrator) error {
 
 	server := &dns.Server{Addr: net.JoinHostPort("", strconv.Itoa(int(port))), Net: "udp"}
 
-	log.Printf("DNS server starting on :%s", port)
+	log.Printf("DNS server starting on :%d", port)
 
 	err := server.ListenAndServe()
 

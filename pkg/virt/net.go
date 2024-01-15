@@ -17,7 +17,6 @@ import (
 // that network is 10.[shell].[id>>6 & 0xFF].[id<<2 & 0xFF]/30, leaves 3 addresses on that network: network + 1 is
 // gateway IP, network + 2 is tap IP.
 // Ground stations are in shell 0, satellite shells start at 1.
-// TODO: test this
 func getNet(id orchestrator.MachineID) (network, error) {
 
 	if id.Id > 16384 {
@@ -33,20 +32,21 @@ func getNet(id orchestrator.MachineID) (network, error) {
 	}, nil
 }
 
-// TODO: test this
 func getID(ip net.IP) (orchestrator.MachineID, error) {
 	// do what getNet does, but in reverse
-	if ip.To4() == nil {
-		return orchestrator.MachineID{}, errors.Errorf("could not resolve IP address %s", ip.String())
+	ip = ip.To4()
+
+	if ip == nil {
+		return orchestrator.MachineID{}, errors.Errorf("could not resolve IP address %s (not an IPv4 address)", ip.String())
 	}
 
 	if ip[0] != 10&0xFF {
-		return orchestrator.MachineID{}, errors.Errorf("could not resolve IP address %s", ip.String())
+		return orchestrator.MachineID{}, errors.Errorf("could not resolve IP address %s (not in 10.0.0.0/8)", ip.String())
 	}
 
 	return orchestrator.MachineID{
 		Group: ip[1] & 0xFF,
-		Id:    uint32((ip[2]<<6)&0xFF) + uint32(((ip[3]-2)>>2)&0xFF),
+		Id:    uint32((ip[2]<<6)&0xFF) + uint32(((ip[3])>>2)&0xFF),
 	}, nil
 }
 
@@ -66,18 +66,24 @@ func (v *Virt) ResolveIPAddress(ip net.IP) (orchestrator.MachineID, error) {
 }
 
 // removeNetworkDevice removes a network device. Errors are ignored.
-func removeNetworkDevice(tapName string, hostInterface string) {
+func removeNetworkDevice(tapName string, hostInterface string) error {
 	// ip link del [TAP_NAME]
 
 	cmd := exec.Command(IP_BIN, "link", "del", tapName)
 
-	_ = cmd.Run()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
 
 	// iptables -D FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
 
 	cmd = exec.Command(IPTABLES_BIN, "-D", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
 
-	_ = cmd.Run()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	return nil
 }
 
 // createNetworkDevice creates a new network device for a microVM.

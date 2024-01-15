@@ -1,8 +1,7 @@
 import math
 import numpy as np
 import numpy.typing as npt
-import scipy.sparse
-
+import numba
 import typing
 
 import satgen.config
@@ -10,10 +9,10 @@ import satgen.sgp4_solver
 import satgen.types
 
 ### CONSTANTS ###
-EARTH_RADIUS = 6_371_000  # meters
+EARTH_RADIUS_M = 6_371_000  # meters
 SECONDS_PER_DAY = 86_400
-MIN_COMMS_ALTITUDE = 80_000  # meters, height of thermosphere
-ISL_PROPAGATION = 3.336e-6  # ms/m, about 1/c
+MIN_COMMS_ALTITUDE_M = 80_000  # meters, height of thermosphere
+LINK_PROPAGATION_S_M = 3.336e-9  # s/m, about 1/c
 CROSSLINK_INTERPOLATION = 1
 
 ### DTYPES ###
@@ -21,7 +20,7 @@ SATELLITE_DTYPE = np.dtype(
     [
         ("ID", np.int16),  # ID number, unique, = array index
         ("plane_number", np.int16),  # which orbital plane is the satellite in?
-        ("offset_number", np.int16),  # What satellite withen the plane?
+        ("offset_number", np.int16),  # What satellite within the plane?
         ("in_bbox", np.bool_),  # is sat in bbox?
         ("x", np.int32),  # x position in meters
         ("y", np.int32),  # y position in meters
@@ -36,18 +35,20 @@ SATELLITE_DTYPE = np.dtype(
 GROUNDPOINT_DTYPE = np.dtype(
     [
         ("ID", np.int16),  # ID number, unique, = array index
-        ("conn_type", np.int32),  # connection type of the ground station
+        ("conn_type", np.uint32),  # connection type of the ground station
         # 0 = all, 1 = one
-        ("max_stg_range", np.int32),  # max stg range of ground stations
+        ("max_stg_range", np.uint32),  # max stg range of ground stations
         # depends on minelevation
-        ("bandwidth", np.int32),  # bandwidth this ground station supports in Kbps
+        (
+            "bandwidth_kbits",
+            np.uint32,
+        ),  # bandwidth this ground station supports in Kbps
         ("init_x", np.int32),  # initial x position in meters
         ("init_y", np.int32),  # initial y position in meters
         ("init_z", np.int32),  # initial z position in meters
         ("x", np.int32),  # x position in meters
         ("y", np.int32),  # y position in meters
         ("z", np.int32),  # z position in meters
-        ("name", str),  # name of the ground station
     ]
 )
 
@@ -58,7 +59,7 @@ SAT_LINK_DTYPE = np.dtype(
         ("node_1", np.int16),  # an endpoint of the link
         ("node_2", np.int16),  # the other endpoint of the link
         ("active", np.bool_),  # can this link be active?
-        ("distance", np.int32),  # distance of the link in meters
+        ("distance_m", np.uint32),  # distance of the link in meters
     ]
 )
 
@@ -66,18 +67,24 @@ GST_SAT_LINK_DTYPE = np.dtype(
     [
         ("gst", np.int16),  # ground station this link refers to
         ("sat", np.int16),  # satellite endpoint of the link
-        ("distance", np.float64),  # distance of the link in meterss
+        ("distance_m", np.uint32),  # distance of the link in meterss
     ]
 )
 
 PATH_DTYPE = np.dtype(
     [
+        ("active", np.bool_),  # can this link be active?
+        ("next_hop", np.int16),  # the next node in the path
+        ("bandwidth_kbits", np.uint32),  # distance of the link in meters
+        ("delay_us", np.uint32),  # delay of this link in microseconds
+    ]
+)
+
+PATH_LINK_DTYPE = np.dtype(
+    [
         ("node_1", np.int16),  # an endpoint of the link
         ("node_2", np.int16),  # the other endpoint of the link
-        ("next", np.int16),  # the next node in the path
-        ("active", np.bool_),  # can this link be active?
-        ("bandwidth", np.int32),  # distance of the link in meters
-        ("delay", np.float64),  # delay of this link in ms
+        ("path", PATH_DTYPE),  # the path between the two endpoints
     ]
 )
 
@@ -88,50 +95,59 @@ class Shell:
         shell_identifier: int,
         planes: int,
         sats: int,
-        altitude: float,
+        altitude_km: float,
         inclination: float,
         arc_of_ascending_nodes: float,
         eccentricity: float,
-        isl_bandwidth: int,
+        isl_bandwidth_kbits: int,
         bbox: satgen.config.BoundingBox,
         ground_stations: typing.List[satgen.config.GroundStation],
     ):
         self.shell_identifier = shell_identifier
 
-        self.current_timestep: satgen.types.timestep = 0
+        self.current_timestep: satgen.types.timestamp_s = 0
 
         self.number_of_planes = planes
         self.nodes_per_plane = sats
         self.total_sats = planes * sats
 
-        LINK_ARRAY_SIZE = (self.total_sats * 4) + (len(ground_stations) * 16)
-        PATH_ARRAY_SIZE = (self.total_sats + len(ground_stations)) ** 2
+        LINK_ARRAY_SIZE = self.total_sats * 2  # + (len(ground_stations) * 16)
+        GST_LINK_ARRAY_SIZE = len(ground_stations) * self.total_sats
+        PATH_MATRIX_SIZE = self.total_sats + len(ground_stations)
 
         # orbit options
-        self.altitude = altitude
+        self.altitude_km = altitude_km
 
-        self.semi_major_axis = float(self.altitude) * 1000 + EARTH_RADIUS
+        self.semi_major_axis = float(self.altitude_km) * 1000 + EARTH_RADIUS_M
 
         # bounding box
         self.bbox = bbox
 
-        self.isl_bandwidth = isl_bandwidth
+        self.isl_bandwidth_kbits = isl_bandwidth_kbits
 
         self.satellites_array = np.empty(self.total_sats, dtype=SATELLITE_DTYPE)
 
         self.link_array = np.zeros(LINK_ARRAY_SIZE, dtype=SAT_LINK_DTYPE)
 
-        self.total_links = 0
+        self.total_isl_links = 0
 
         self.total_gst = len(ground_stations)
 
         self.gst_array = np.zeros(self.total_gst, dtype=GROUNDPOINT_DTYPE)
 
-        self.gst_links_array = np.zeros(LINK_ARRAY_SIZE, dtype=GST_SAT_LINK_DTYPE)
+        self.gst_names: typing.List[str] = [""] * self.total_gst
+
+        self.gst_links_array = np.zeros(GST_LINK_ARRAY_SIZE, dtype=GST_SAT_LINK_DTYPE)
 
         self.total_gst_links = 0
 
-        self.path_array = np.zeros(PATH_ARRAY_SIZE, dtype=SAT_LINK_DTYPE)
+        self.path_matrix = np.zeros(
+            (PATH_MATRIX_SIZE, PATH_MATRIX_SIZE), dtype=PATH_DTYPE
+        )
+
+        self.path_diff = np.zeros(
+            (self.total_sats + self.total_gst) ** 2, dtype=PATH_LINK_DTYPE
+        )
 
         # init nodes
         for plane in range(0, self.number_of_planes):
@@ -144,7 +160,7 @@ class Shell:
         self.solver = satgen.sgp4_solver.SGP4Solver(
             planes=self.number_of_planes,
             sats=self.nodes_per_plane,
-            altitude=self.altitude,
+            altitude_km=self.altitude_km,
             inclination=inclination,
             arc_of_ascending_nodes=arc_of_ascending_nodes,
             eccentricity=eccentricity,
@@ -152,12 +168,8 @@ class Shell:
 
         self.satellites_array = self.solver.init_sat_array(self.satellites_array)
 
-        neg_rotation_matrix = self.get_rotation_matrix(-0.0)
-
         for sat in self.satellites_array:
-            sat["in_bbox"] = self.is_in_bbox(
-                (sat["x"], sat["y"], sat["z"]), neg_rotation_matrix
-            )
+            sat["in_bbox"] = False
 
         self.init_ground_stations(ground_stations)
 
@@ -165,8 +177,10 @@ class Shell:
 
         self.max_isl_range = self.calculate_max_ISL_distance()
 
-    def step(self, time: satgen.types.timestep) -> None:
+    def step(self, time: satgen.types.timestamp_s) -> None:
         self.current_time = int(time)
+
+        self.old_machines = self.satellites_array.copy()
 
         self.satellites_array = self.solver.set_time(time, self.satellites_array)
 
@@ -197,94 +211,163 @@ class Shell:
 
         self.update_plus_grid_links()
 
+        self.old_paths = self.path_matrix.copy()
+
         self.update_paths()
 
-    def get_sat_nodes(self) -> satgen.types.MachineState:
-        sat_nodes: satgen.types.MachineState = {}
+    def get_sat_node_diffs(self) -> satgen.types.MachineDiff:
+        nodes_diff: satgen.types.MachineDiff = {}
 
         for sat in self.satellites_array:
-            sat_nodes[satgen.types.MachineID(group=1, id=sat["ID"])] = (
-                satgen.types.VMState.ACTIVE
-                if sat["in_bbox"]
-                else satgen.types.VMState.STOPPED
-            )
+            if sat["in_bbox"] != self.old_machines[sat["ID"]]["in_bbox"]:
+                m_id = satgen.types.MachineID(group=self.shell_identifier, id=sat["ID"])
 
-        return sat_nodes
+                nodes_diff[m_id] = (
+                    satgen.types.VMState.ACTIVE
+                    if sat["in_bbox"]
+                    else satgen.types.VMState.STOPPED
+                )
 
-    def get_sat_links(
-        self
-    ) -> typing.Dict[
-        satgen.types.MachineID,
-        typing.Dict[satgen.types.MachineID, satgen.types.Link],
-    ]:
-        links: typing.Dict[
-            satgen.types.MachineID,
-            typing.Dict[satgen.types.MachineID, satgen.types.Link],
-        ] = {}
+        return nodes_diff
 
-        for p in self.path_array[: self.total_paths]:
-            if p["node_1"] < 0:
-                continue
+    def get_link_diff(
+        self, delay_update_threshold_us: int = 0
+    ) -> satgen.types.LinkDiff:
+        # t1 = time.perf_counter()
 
-            n1 = satgen.types.MachineID(group=self.shell_identifier, id=p["node_1"])
+        link_diff: satgen.types.LinkDiff = {}
 
-            if n1 not in links:
-                links[n1] = {}
+        total_link_diff = self.numba_get_link_diff(
+            delay_update_threshold_us=delay_update_threshold_us,
+            total_sats=self.total_sats,
+            total_gst=self.total_gst,
+            old_paths=self.old_paths,
+            path_matrix=self.path_matrix,
+            path_diff=self.path_diff,
+        )[0]
 
-            n2 = satgen.types.MachineID(group=self.shell_identifier, id=p["node_2"])
-
-            links[n1][n2] = satgen.types.Link(
-                latency=p["delay"],
-                bandwidth=p["bandwidth"],
-                blocked=not p["active"],
-                next_hop=satgen.types.MachineID(
-                    group=self.shell_identifier, id=p["next"]
-                ),
-            )
-
-        return links
-
-    def get_gst_links(
-        self
-    ) -> typing.Dict[
-        satgen.types.MachineID,
-        typing.Dict[satgen.types.MachineID, satgen.types.Link],
-    ]:
-        links: typing.Dict[
-            satgen.types.MachineID,
-            typing.Dict[satgen.types.MachineID, satgen.types.Link],
-        ] = {}
-
-        for p in self.path_array[: self.total_paths]:
-            # skip sat nodes
-            if p["node_1"] >= 0:
-                continue
-
-            n1 = satgen.types.MachineID(
-                group=0, id=-p["node_1"], name=self.gst_array[-p["node_1"]]["name"]
-            )
-
-            if n1 not in links:
-                links[n1] = {}
-
-            n2 = (
-                satgen.types.MachineID(group=self.shell_identifier, id=p["node_2"])
-                if p["node_2"] >= 0
+        # print(f"total_link_diff {total_link_diff}")
+        for link in self.path_diff[:total_link_diff]:
+            n1 = (
+                satgen.types.MachineID(self.shell_identifier, link["node_1"])
+                if link["node_1"] < self.total_sats
                 else satgen.types.MachineID(
-                    group=0, id=-p["node_2"], name=self.gst_array[-p["node_2"]]["name"]
+                    group=0,
+                    id=link["node_1"] - self.total_sats,
+                    name=self.gst_names[link["node_1"] - self.total_sats],
                 )
             )
 
-            links[n1][n2] = satgen.types.Link(
-                latency=p["delay"],
-                bandwidth=p["bandwidth"],
-                blocked=not p["active"],
-                next_hop=satgen.types.MachineID(
-                    group=self.shell_identifier, id=p["next"]
-                ),
+            n2 = (
+                satgen.types.MachineID(self.shell_identifier, link["node_2"])
+                if link["node_2"] < self.total_sats
+                else satgen.types.MachineID(
+                    group=0,  # leaky abstraction but it works
+                    id=link["node_2"] - self.total_sats,
+                    name=self.gst_names[link["node_2"] - self.total_sats],
+                )
             )
 
+            # if not satgen.types.MachineID_name(n1) == "":
+            # print(f"link diff for gst {n1} to {n2}")
+
+            # if satgen.types.MachineID_id(n1) == satgen.types.MachineID_id(n2):
+            # print("ERROR! link diff between same node")
+            # print(f"n1 {n1} n2 {n2}")
+
+            # if link["path"]["active"]:
+            # print(f"link_diff {n1} {n2} to {np.uint32(link['path']['delay_us'])}")
+
+            link_diff.setdefault(n1, {})[n2] = satgen.types.Link(
+                latency_us=link["path"]["delay_us"],
+                bandwidth_kbits=link["path"]["bandwidth_kbits"],
+                blocked=not link["path"]["active"],
+                next_hop=satgen.types.MachineID(
+                    group=self.shell_identifier, id=link["path"]["next_hop"]
+                ),
+            )
+            # print(f'link_diff {n1} {n2} to {link["path"]["active"]}')
+
+        # t2 = time.perf_counter()
+        # print(f"get_link_diff took {t2 - t1} seconds")
+
+        return link_diff
+
+    def get_sat_positions(self) -> np.ndarray:  # type: ignore
+        sat_positions: np.ndarray = np.copy(  # type: ignore
+            self.satellites_array[["ID", "x", "y", "z", "in_bbox"]]
+        )  # type: ignore
+
+        return sat_positions
+
+    def get_gst_positions(self) -> np.ndarray:  # type: ignore
+        ground_positions: np.ndarray = np.copy(self.gst_array[["x", "y", "z"]])  # type: ignore
+
+        return ground_positions
+
+    def get_links(self) -> np.ndarray:  # type: ignore
+        links: np.ndarray = np.copy(self.link_array[: self.total_isl_links])  # type: ignore
+
         return links
+
+    def get_gst_links(self) -> np.ndarray:  # type: ignore
+        gst_links: np.ndarray = np.copy(self.gst_links_array[: self.total_gst_links])  # type: ignore
+
+        return gst_links
+
+    @staticmethod
+    @numba.njit  # type: ignore
+    def numba_get_link_diff(
+        delay_update_threshold_us: int,
+        total_sats: int,
+        total_gst: int,
+        old_paths: np.ndarray,  # type: ignore
+        path_matrix: np.ndarray,  # type: ignore
+        path_diff: np.ndarray,  # type: ignore
+    ) -> typing.Tuple[int]:
+        total_link_diff = 0
+
+        # path diff for satellites
+        for n1 in range(total_sats):
+            for n2 in range(n1 + 1, total_sats):
+                p1 = old_paths[n1][n2]
+                p2 = path_matrix[n1][n2]
+
+                if (
+                    np.abs(p1["delay_us"] - p2["delay_us"]) > delay_update_threshold_us
+                    or p1["active"] != p2["active"]
+                    or p1["bandwidth_kbits"] != p2["bandwidth_kbits"]
+                    or p1["next_hop"] != p2["next_hop"]
+                ):
+                    path_diff[total_link_diff]["node_1"] = np.int16(n1)
+                    path_diff[total_link_diff]["node_2"] = np.int16(n2)
+                    path_diff[total_link_diff]["path"] = p2
+                    total_link_diff += 1
+
+        # path diff for ground stations to all
+        for n1 in range(total_sats, total_sats + total_gst):
+            for n2 in range(total_sats + total_gst):
+                if n1 == n2:
+                    continue
+
+                # print(f"n1 {n1} n2 {n2}")
+
+                p1 = old_paths[n1][n2]
+                p2 = path_matrix[n1][n2]
+
+                if (
+                    np.abs(p1["delay_us"] - p2["delay_us"]) > delay_update_threshold_us
+                    or p1["active"] != p2["active"]
+                    or p1["bandwidth_kbits"] != p2["bandwidth_kbits"]
+                    or p1["next_hop"] != p2["next_hop"]
+                ):
+                    # print(f"n1 {n1} n2 {n2} changed")
+                    path_diff[total_link_diff]["node_1"] = np.int16(n1)
+                    path_diff[total_link_diff]["node_2"] = np.int16(n2)
+                    path_diff[total_link_diff]["path"] = p2
+                    total_link_diff += 1
+
+        return (total_link_diff,)
 
     def get_rotation_matrix(self, degrees: float) -> npt.NDArray[np.float64]:
         theta = math.radians(degrees)
@@ -310,11 +393,11 @@ class Shell:
         rotation_matrix: npt.NDArray[np.float64],
     ) -> np.bool_:
         # take cartesian coordinates and convert to lat long
-        l = np.dot(rotation_matrix, np.array(pos))
+        xyz_pos = np.dot(rotation_matrix, np.array(pos))
 
-        x = l[0]
-        y = l[1]
-        z = l[2]
+        x = xyz_pos[0]
+        y = xyz_pos[1]
+        z = xyz_pos[2]
 
         # convert that position into lat lon
 
@@ -347,24 +430,24 @@ class Shell:
             longitude = math.radians(g.lng)
 
             init_pos[0] = (
-                (EARTH_RADIUS + 100.0) * math.cos(latitude) * math.cos(longitude)
+                (EARTH_RADIUS_M + 100.0) * math.cos(latitude) * math.cos(longitude)
             )
             init_pos[1] = (
-                (EARTH_RADIUS + 100.0) * math.cos(latitude) * math.sin(longitude)
+                (EARTH_RADIUS_M + 100.0) * math.cos(latitude) * math.sin(longitude)
             )
-            init_pos[2] = (EARTH_RADIUS + 100.0) * math.sin(latitude)
+            init_pos[2] = (EARTH_RADIUS_M + 100.0) * math.sin(latitude)
 
             temp: npt.NDArray[GROUNDPOINT_DTYPE] = np.zeros(1, dtype=GROUNDPOINT_DTYPE)
 
-            temp[0]["ID"] = np.int16(i)
+            temp[0]["ID"] = np.int16(-i - 1)
 
-            temp[0]["conn_type"] = satgen.config.GroundStationConnectionType.ALL
+            temp[0]["conn_type"] = g.connection_type.value
 
             temp[0]["max_stg_range"] = self.calculate_max_space_to_gst_distance(
                 g.min_elevation
             )
 
-            temp[0]["bandwidth"] = g.gts_bandwidth
+            temp[0]["bandwidth_kbits"] = g.gts_bandwidth_kbits
             temp[0]["init_x"] = np.int32(init_pos[0])
             temp[0]["init_y"] = np.int32(init_pos[1])
             temp[0]["init_z"] = np.int32(init_pos[2])
@@ -372,12 +455,12 @@ class Shell:
             temp[0]["y"] = np.int32(init_pos[1])
             temp[0]["z"] = np.int32(init_pos[2])
 
-            temp[0]["name"] = g.name
+            self.gst_names[i] = g.name
 
             self.gst_array[i] = temp[0]
 
     def calculate_max_ISL_distance(self) -> int:
-        c = EARTH_RADIUS + MIN_COMMS_ALTITUDE
+        c = EARTH_RADIUS_M + MIN_COMMS_ALTITUDE_M
         b = self.semi_major_axis
         B = math.radians(90)
         C = math.asin((c * math.sin(B)) / b)
@@ -394,7 +477,7 @@ class Shell:
 
         # calculate triangle using law of sines
         a = self.semi_major_axis
-        b = EARTH_RADIUS
+        b = EARTH_RADIUS_M
 
         alpha = math.radians(min_elevation + 90)
 
@@ -404,16 +487,13 @@ class Shell:
         return int(c)
 
     def init_plus_grid_links(self) -> None:
-        self.number_of_isl_links = 0
-
         temp = self.numba_init_plus_grid_links(
-            self.link_array,
-            self.number_of_planes,
-            self.nodes_per_plane,
+            link_array=self.link_array,
+            number_of_planes=self.number_of_planes,
+            nodes_per_plane=self.nodes_per_plane,
         )
         if temp is not None:
-            self.number_of_isl_links = temp[0]
-            self.total_links = self.number_of_isl_links
+            self.total_isl_links = temp[0]
 
     @staticmethod
     @numba.njit  # type: ignore
@@ -433,9 +513,9 @@ class Shell:
                 else:
                     node_2 = node + (plane * nodes_per_plane) + 1
 
-            link_array[link_idx]["node_1"] = np.int16(node_1)
-            link_array[link_idx]["node_2"] = np.int16(node_2)
-            link_idx = link_idx + 1
+                link_array[link_idx]["node_1"] = np.int16(node_1)
+                link_array[link_idx]["node_2"] = np.int16(node_2)
+                link_idx = link_idx + 1
 
         # add the cross-plane links
         for plane in range(number_of_planes):
@@ -461,7 +541,7 @@ class Shell:
             total_sats=self.total_sats,
             satellites_array=self.satellites_array,
             link_array=self.link_array,
-            number_of_isl_links=self.number_of_isl_links,
+            total_isl_links=self.total_isl_links,
             gst_array=self.gst_array,
             gst_links_array=self.gst_links_array,
             max_isl_range=self.max_isl_range,
@@ -475,12 +555,12 @@ class Shell:
         total_sats: int,
         satellites_array: np.ndarray,  # type: ignore
         link_array: np.ndarray,  # type: ignore
-        number_of_isl_links: int,
+        total_isl_links: int,
         gst_array: np.ndarray,  # type: ignore
         gst_links_array: np.ndarray,  # type: ignore
         max_isl_range: int = (2**31) - 1,
     ) -> typing.Tuple[int]:
-        for isl_idx in range(number_of_isl_links):
+        for isl_idx in range(total_isl_links):
             sat_1 = link_array[isl_idx]["node_1"]
             sat_2 = link_array[isl_idx]["node_2"]
             d = int(
@@ -497,7 +577,7 @@ class Shell:
                 )
             )
             link_array[isl_idx]["active"] = d <= max_isl_range
-            link_array[isl_idx]["distance"] = np.int32(d)
+            link_array[isl_idx]["distance_m"] = np.uint32(d)
 
         gst_link_id = 0
         for gst in gst_array:
@@ -518,7 +598,10 @@ class Shell:
                     continue
 
                 # if we allow only one link and the one we found is shorter than the old one overwrite the old one
-                if gst["conn_type"] == satgen.config.GroundStationConnectionType.ONE:
+                if (
+                    gst["conn_type"]
+                    == satgen.config.GroundStationConnectionType.ONE.value
+                ):
                     if d > shortest_d:
                         continue
 
@@ -533,7 +616,7 @@ class Shell:
 
                 gst_links_array[gst_link_id]["gst"] = gst_id
                 gst_links_array[gst_link_id]["sat"] = sat_id
-                gst_links_array[gst_link_id]["distance"] = np.int32(d)
+                gst_links_array[gst_link_id]["distance_m"] = np.uint32(d)
 
                 gst_link_id = gst_link_id + 1
 
@@ -542,79 +625,74 @@ class Shell:
         return (total_gst_links,)
 
     def update_paths(self) -> None:
-        # TODO: make this a numba function
+        # t1 = time.perf_counter()
 
-        g = np.zeros(
-            (self.total_sats, self.total_sats),
-        )
-
-        for x in range(self.total_links):
-            g[
-                self.link_array[x]["node_1"], self.link_array[x]["node_2"]
-            ] = self.link_array[x]["delay"]
-
-        dist_matrix, predecessors = scipy.sparse.csgraph.floyd_warshall(
-            scipy.sparse.csr_matrix(g),
-            return_predecessors=True,
-            directed=True,
-        )
-
-        temp = self.numba_update_paths(
-            dist_matrix=dist_matrix,
-            predecessors=predecessors,
+        self.numba_update_paths(
+            sat_link_array=self.link_array,
+            total_isl_links=self.total_isl_links,
             total_sats=self.total_sats,
-            path_array=self.path_array,
+            path_matrix=self.path_matrix,
             gst_array=self.gst_array,
             total_gst=self.total_gst,
             gst_links_array=self.gst_links_array,
             total_gst_links=self.total_gst_links,
-            isl_bandwidth=self.isl_bandwidth,
+            isl_bandwidth_kbits=self.isl_bandwidth_kbits,
         )
 
-        self.total_paths = temp[0]
+        # t2 = time.perf_counter()
+
+        # print(f"update_paths took {t2 - t1} seconds")
 
     @staticmethod
     @numba.njit  # type: ignore
     def numba_update_paths(
-        dist_matrix: np.ndarray,  # type: ignore
-        predecessors: np.ndarray,  # type: ignore
+        sat_link_array: np.ndarray,  # type: ignore
+        total_isl_links: int,
         total_sats: int,
-        path_array: np.ndarray,  # type: ignore
+        path_matrix: np.ndarray,  # type: ignore
         gst_array: np.ndarray,  # type: ignore
         total_gst: int,
         gst_links_array: np.ndarray,  # type: ignore
         total_gst_links: int,
-        isl_bandwidth: int,
-    ) -> typing.Tuple[int]:
-        total_paths = 0
+        isl_bandwidth_kbits: int,
+    ) -> None:
+        dist_matrix = np.zeros((total_sats, total_sats), dtype=np.float64)
+        next_hops = np.zeros((total_sats, total_sats), dtype=np.int16)
 
         for i in range(total_sats):
             for j in range(total_sats):
-                if i == j:
-                    continue
+                dist_matrix[i, j] = np.inf
+                next_hops[i, j] = -1
 
-                total_paths += 1
+        for link in sat_link_array[:total_isl_links]:
+            if not link["active"]:
+                continue
 
-                path_array[total_paths]["node_1"] = np.int16(i)
-                path_array[total_paths]["node_2"] = np.int16(j)
-                path_array[total_paths]["next"] = predecessors[i, j]
-                path_array[total_paths]["active"] = dist_matrix[i, j] > 0
-                path_array[total_paths]["delay"] = np.int32(
-                    dist_matrix[i, j] * ISL_PROPAGATION
+            dist_matrix[link["node_1"], link["node_2"]] = link["distance_m"]
+            next_hops[link["node_1"], link["node_2"]] = link["node_2"]
+
+        for i in range(total_sats):
+            dist_matrix[i, i] = 0
+            next_hops[i, i] = i
+
+        # Floyd-Warshall algorithm
+        for k in range(total_sats):
+            for i in range(total_sats):
+                # it should be possible to optimize this for symmetric graphs
+                for j in range(i + 1, total_sats):
+                    if dist_matrix[i, j] > dist_matrix[i, k] + dist_matrix[k, j]:
+                        dist_matrix[i, j] = dist_matrix[i, k] + dist_matrix[k, j]
+                        next_hops[i, j] = next_hops[i, k]
+
+        for i in range(total_sats):
+            for j in range(i + 1, total_sats):
+                path_matrix[i, j]["active"] = dist_matrix[i, j] != np.inf
+                path_matrix[i, j]["next_hop"] = np.int16(next_hops[i, j])
+                path_matrix[i, j]["delay_us"] = np.uint32(
+                    dist_matrix[i, j] * (LINK_PROPAGATION_S_M * 1e6)
                 )
-                path_array[total_paths]["bandwidth"] = np.int32(isl_bandwidth)
-
-        for x in range(total_gst_links):
-            total_paths += 1
-
-            path_array[total_paths]["node_1"] = np.int16(gst_links_array[x]["gst"])
-            path_array[total_paths]["node_2"] = np.int16(gst_links_array[x]["sat"])
-            path_array[total_paths]["next"] = np.int16(gst_links_array[x]["sat"])
-            path_array[total_paths]["active"] = True
-            path_array[total_paths]["delay"] = np.int32(gst_links_array[x]["delay"])
-            path_array[total_paths]["bandwidth"] = np.int32(
-                gst_links_array[x]["bandwidth"]
-            )
+                # print(path_matrix[i, j]["delay_us"])
+                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(isl_bandwidth_kbits)
 
         for g in range(total_gst):
             for s1 in range(total_sats):
@@ -622,44 +700,57 @@ class Shell:
                 _min_x = -1
 
                 for x in range(total_gst_links):
-                    if gst_links_array[x]["gst"] != g:
+                    if gst_links_array[x]["gst"] != gst_array[g]["ID"]:
+                        # print(
+                        # f"path from gst {gst_links_array[x]['gst']} not relevant for {g}"
+                        # )
                         continue
 
-                    _path_dist = (
-                        dist_matrix[gst_links_array[x]["sat"], s1]
-                        + gst_links_array[x]["delay"]
-                    )
+                    _s2 = gst_links_array[x]["sat"]
 
-                    if _path_dist > _min_dist:
+                    d = dist_matrix[s1, _s2] if s1 < _s2 else dist_matrix[_s2, s1]
+
+                    _path_dist = d + gst_links_array[x]["distance_m"]
+
+                    if _path_dist >= _min_dist:
+                        # new path is not better than old path
+                        # checking for equal is important as we may have both paths being inf
                         continue
 
                     _min_dist = _path_dist
+                    # print("new min dist", _min_dist)
                     _min_x = x
 
-                total_paths += 1
+                    if _s2 == s1:
+                        break
 
-                path_array[total_paths]["node_1"] = np.int16(-g)
-                path_array[total_paths]["node_2"] = np.int16(s1)
-                path_array[total_paths]["next"] = np.int16(
-                    gst_links_array[_min_x]["sat"] if _min_x != -1 else -1
-                )
-                path_array[total_paths]["active"] = _min_x != -1
-                path_array[total_paths]["delay"] = np.int32(
-                    _min_dist * ISL_PROPAGATION if _min_x != -1 else -1
-                )
+                i = g + total_sats
+                j = s1
 
-                path_array[total_paths]["bandwidth"] = np.int32(
-                    min(gst_array[g]["bandwidth"], isl_bandwidth)  # type: ignore
+                path_matrix[i, j]["active"] = _min_x != -1
+                path_matrix[j, i]["active"] = _min_x != -1
+
+                if _min_x == -1:
+                    continue
+
+                # print(f"path from gst {g} to sat {s1}")
+
+                path_matrix[i, j]["next_hop"] = np.int16(gst_links_array[_min_x]["sat"])
+
+                path_matrix[i, j]["delay_us"] = np.uint32(
+                    _min_dist * (LINK_PROPAGATION_S_M * 1e6)
+                )
+                # print(path_matrix[i, j]["delay_us"])
+                # print(_min_dist)
+
+                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(
+                    min(gst_array[g]["bandwidth_kbits"], isl_bandwidth_kbits)  # type: ignore
                 )
 
         for g1 in range(total_gst):
-            for g2 in range(total_gst):
-                if g1 > g2:
-                    continue
-
+            for g2 in range(g1 + 1, total_gst):
                 _min_dist = np.inf
                 _min_x1 = -1
-                _min_x2 = -1
 
                 for x1 in range(total_gst_links):
                     if gst_links_array[x1]["gst"] != g1:
@@ -668,60 +759,44 @@ class Shell:
                         if gst_links_array[x2]["gst"] != g2:
                             continue
 
+                    _s1 = gst_links_array[x1]["sat"]
+                    _s2 = gst_links_array[x2]["sat"]
+
+                    d = dist_matrix[_s1, _s2] if _s1 < _s2 else dist_matrix[_s2, _s1]
+
                     path_dist = (
-                        dist_matrix[
-                            gst_links_array[x1]["sat"],
-                            gst_links_array[x2]["sat"],
-                        ]
-                        + gst_links_array[x1]["distance"]
-                        + gst_links_array[x2]["distance"]
+                        d
+                        + gst_links_array[x1]["distance_m"]
+                        + gst_links_array[x2]["distance_m"]
                     )
 
-                    if path_dist > _min_dist:
+                    if path_dist >= _min_dist:
                         continue
 
                     _min_dist = path_dist
                     _min_x1 = x1
-                    _min_x1 = x2
 
-                total_paths += 1
+                i = g1 + total_sats
+                j = g2 + total_sats
 
-                path_array[total_paths]["node_1"] = np.int16(-g1)
-                path_array[total_paths]["node_2"] = np.int16(-g2)
-                path_array[total_paths]["next"] = np.int16(
-                    gst_links_array[_min_x1]["sat"] if _min_x1 != -1 else -1
+                path_matrix[i, j]["active"] = _min_x1 != -1
+
+                if _min_x1 == -1:
+                    continue
+
+                path_matrix[i, j]["next_hop"] = np.int16(
+                    gst_links_array[_min_x1]["sat"]
                 )
-                path_array[total_paths]["active"] = _min_x1 != -1
-                path_array[total_paths]["delay"] = np.int32(
-                    _min_dist * ISL_PROPAGATION if _min_x1 != -1 else -1
-                )
 
-                path_array[total_paths]["bandwidth"] = np.int32(
+                path_matrix[i, j]["delay_us"] = np.uint32(
+                    _min_dist * (LINK_PROPAGATION_S_M * 1e6)
+                )
+                print(path_matrix[i, j]["delay_us"])
+
+                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(
                     min(
-                        gst_array[g1]["bandwidth"],
-                        isl_bandwidth,
-                        gst_array[g2]["bandwidth"],
+                        gst_array[g1]["bandwidth_kbits"],
+                        isl_bandwidth_kbits,
+                        gst_array[g2]["bandwidth_kbits"],
                     )  # type: ignore
                 )
-
-                total_paths += 1
-
-                path_array[total_paths]["node_1"] = np.int16(-g2)
-                path_array[total_paths]["node_2"] = np.int16(-g1)
-                path_array[total_paths]["next"] = np.int16(
-                    gst_links_array[_min_x2]["sat"] if _min_x2 != -1 else -1
-                )
-                path_array[total_paths]["active"] = _min_x2 != -1
-                path_array[total_paths]["delay"] = np.int32(
-                    _min_dist * ISL_PROPAGATION if _min_x2 != -1 else -1
-                )
-
-                path_array[total_paths]["bandwidth"] = np.int32(
-                    min(
-                        gst_array[g2]["bandwidth"],
-                        isl_bandwidth,
-                        gst_array[g1]["bandwidth"],
-                    )  # type: ignore
-                )
-
-        return (total_paths,)
