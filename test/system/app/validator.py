@@ -23,20 +23,25 @@ import typing
 import time
 import requests
 
+DEBUG = False
+
 
 def get_id(gateway: str) -> typing.Tuple[str, str]:
     try:
         response = requests.get(f"http://{gateway}/self")
         data = response.json()
 
+        if DEBUG:
+            print(f"get_id {data}")
+
         return (
-            ("gst", str(data["name"]))
-            if "name" in data
-            else (data["shell"], data["id"])
+            ("gst", str(data["Identifier"]["Name"]))
+            if "name" in data["Identifier"]
+            else (data["Identifier"]["Shell"], data["Identifier"]["ID"])
         )
     except Exception as e:
         print(f"got error when trying to get self info {e}", file=sys.stderr)
-        return ("", "")
+        return "", ""
 
 
 def get_shell_num(gateway: str) -> int:
@@ -49,7 +54,11 @@ def get_shell_num(gateway: str) -> int:
                 continue
 
             data = response.json()
-            return int(data["shells"])
+
+            if DEBUG:
+                print(f"get_shell_num {data}")
+
+            return len(data["Shells"])
 
     except Exception as e:
         print(f"got error when trying to get shell info {e}", file=sys.stderr)
@@ -59,12 +68,22 @@ def get_shell_num(gateway: str) -> int:
 def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, int]]:
     active = []
 
-    for s in range(shells):
+    for s in range(1, shells + 1):
         try:
             response = requests.get(f"http://{gateway}/shell/{s}")
             data = response.json()
 
-            active.extend(data["activeSats"])
+            if DEBUG:
+                print(f"get_active_sats {data}")
+
+            for sat in data["Sats"]:
+                if sat["Active"]:
+                    active.append(
+                        {
+                            "sat": sat["Identifier"]["ID"],
+                            "shell": sat["Identifier"]["Shell"],
+                        }
+                    )
 
         except Exception as e:
             print(
@@ -78,6 +97,9 @@ def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, i
 def get_expected_latency(
     self_shell: str, self_id: str, sat: int, shell: int, gateway: str
 ) -> typing.Union[float, bool]:
+    if int(self_shell) == shell and int(self_id) == sat:
+        return 0.0
+
     try:
         response = requests.get(
             f"http://{gateway}/path/{self_shell}/{self_id}/{shell}/{sat}"
@@ -85,12 +107,14 @@ def get_expected_latency(
 
         data = response.json()
 
-        min_delay = 1e7
+        if DEBUG:
+            print(f"get_expected_latency {data}")
 
-        for p in data["paths"]:
-            min_delay = min(p["delay"], min_delay)
+        if data["Blocked"]:
+            return False
 
-        return min_delay
+        return float(data["Delay"]) / 1e3
+
     except Exception as e:
         print(
             f"got error when trying to get expected latency for sat {sat} shell {shell} {e}",
@@ -102,7 +126,7 @@ def get_expected_latency(
 def get_real_latency(sat: int, shell: int) -> typing.Union[float, bool]:
     act = ping3.ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
 
-    if act is None or act == False:
+    if act is None or act is False:
         return False
 
     return float(act)
@@ -137,16 +161,18 @@ if __name__ == "__main__":
 
     shells = get_shell_num(gateway)
 
-    print(f"found {shells} shells")
-
-    active = get_active_sats(shells, gateway)
-
-    print(f"found {len(active)} active sats")
-
-    targets = [x for x in active if x["sat"] % 8 == 0]
+    if DEBUG:
+        print(f"found {shells} shells")
 
     while True:
         time.sleep(1.0)
+
+        active = get_active_sats(shells, gateway)
+
+        if DEBUG:
+            print(f"found {len(active)} active sats")
+
+        targets = [x for x in active if x["sat"] % 8 == 0]
 
         for sat in targets:
             expBef = get_expected_latency(shell, id, sat["sat"], sat["shell"], gateway)

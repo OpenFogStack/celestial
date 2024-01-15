@@ -5,7 +5,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	orchestrator "github.com/OpenFogStack/celestial/pkg/orchestrator2"
+	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 )
 
 func checkCommands() (err error) {

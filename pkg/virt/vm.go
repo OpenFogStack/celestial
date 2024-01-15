@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	orchestrator "github.com/OpenFogStack/celestial/pkg/orchestrator2"
+	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 )
 
 func (v *Virt) transition(id orchestrator.MachineID, state state) error {

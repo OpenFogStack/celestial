@@ -1,60 +1,32 @@
-#
-# This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-# Copyright (c) 2021 Ben S. Kempton, Tobias Pfandzelter, The OpenFogStack Team.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, version 3.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-
-import numpy as np
 import math
-import time as tm
-
-import igraph as ig
-
-import scipy.sparse
-import scipy.sparse.csgraph
-
+import numpy as np
+import numpy.typing as npt
+import numba
 import typing
 
-from .solver import Solver
-from .types import (
-    BoundingBoxConfig,
-    GroundstationConfig,
-    GroundstationConnectionTypeConfig,
-    NetworkParamsConfig,
-    Path,
-    Segment,
-)
+import celestial.config
+import celestial.sgp4_solver
+import celestial.types
 
-import numba
-import tqdm
+### CONSTANTS ###
+EARTH_RADIUS_M = 6_371_000  # meters
+SECONDS_PER_DAY = 86_400
+MIN_COMMS_ALTITUDE_M = 80_000  # meters, height of thermosphere
+LINK_PROPAGATION_S_M = 3.336e-9  # s/m, about 1/c
+CROSSLINK_INTERPOLATION = 1
 
-EARTH_RADIUS = 6371000
-
-SECONDS_PER_DAY = 86400
-
+### DTYPES ###
 SATELLITE_DTYPE = np.dtype(
     [
         ("ID", np.int16),  # ID number, unique, = array index
         ("plane_number", np.int16),  # which orbital plane is the satellite in?
-        ("offset_number", np.int16),  # What satellite withen the plane?
-        ("time_offset", np.float32),  # time offset for kepler ellipse solver
-        ("in_bbox", bool),  # is sat in bbox?
+        ("offset_number", np.int16),  # What satellite within the plane?
+        ("in_bbox", np.bool_),  # is sat in bbox?
         ("x", np.int32),  # x position in meters
         ("y", np.int32),  # y position in meters
-        ("z", np.int32),
+        ("z", np.int32),  # z position in meters
     ]
-)  # z position in meters
+)
 
 # The numpy data type used to store ground point data
 # ground points have negative unique IDs
@@ -63,111 +35,121 @@ SATELLITE_DTYPE = np.dtype(
 GROUNDPOINT_DTYPE = np.dtype(
     [
         ("ID", np.int16),  # ID number, unique, = array index
-        ("conn_type", np.int32),  # connection type of the ground station
+        ("conn_type", np.uint32),  # connection type of the ground station
         # 0 = all, 1 = one
-        ("max_stg_range", np.int32),  # max stg range of ground stations
+        ("max_stg_range", np.uint32),  # max stg range of ground stations
         # depends on minelevation
-        ("gstpropagation", np.float64),  # max stg range of ground stations
-        # depends on minelevation
-        ("bandwidth", np.int32),  # bandwidth this ground station supports in Kbps
+        (
+            "bandwidth_kbits",
+            np.uint32,
+        ),  # bandwidth this ground station supports in Kbps
         ("init_x", np.int32),  # initial x position in meters
         ("init_y", np.int32),  # initial y position in meters
         ("init_z", np.int32),  # initial z position in meters
         ("x", np.int32),  # x position in meters
         ("y", np.int32),  # y position in meters
-        ("z", np.int32),
+        ("z", np.int32),  # z position in meters
     ]
-)  # z position in meters
+)
 
 # The numpy data type used to store link data
-# link array size may have to be adjusted
 # each index is 8 bytes
 SAT_LINK_DTYPE = np.dtype(
     [
         ("node_1", np.int16),  # an endpoint of the link
         ("node_2", np.int16),  # the other endpoint of the link
-        ("distance", np.int32),  # distance of the link in meters
-        ("delay", np.float64),  # delay of this link in ms
-        ("active", bool),
+        ("active", np.bool_),  # can this link be active?
+        ("distance_m", np.uint32),  # distance of the link in meters
     ]
-)  # can this link be active?
+)
 
 GST_SAT_LINK_DTYPE = np.dtype(
     [
         ("gst", np.int16),  # ground station this link refers to
         ("sat", np.int16),  # satellite endpoint of the link
-        ("distance", np.int32),  # distance of the link in meters
-        ("delay", np.float64),  # delay of this link in ms
-        ("bandwidth", np.int32),
+        ("distance_m", np.uint32),  # distance of the link in meterss
     ]
-)  # bandwidth of this link in Kbps
+)
 
-LINK_ARRAY_SIZE = 10000000  # 10 million indices = 80 megabyte array (huge)
+PATH_DTYPE = np.dtype(
+    [
+        ("active", np.bool_),  # can this link be active?
+        ("next_hop", np.int16),  # the next node in the path
+        ("bandwidth_kbits", np.uint32),  # distance of the link in meters
+        ("delay_us", np.uint32),  # delay of this link in microseconds
+    ]
+)
+
+PATH_LINK_DTYPE = np.dtype(
+    [
+        ("node_1", np.int16),  # an endpoint of the link
+        ("node_2", np.int16),  # the other endpoint of the link
+        ("path", PATH_DTYPE),  # the path between the two endpoints
+    ]
+)
 
 
 class Shell:
     def __init__(
         self,
+        shell_identifier: int,
         planes: int,
         sats: int,
-        altitude: float,
-        bbox: BoundingBoxConfig,
-        groundstations: typing.List[GroundstationConfig],
-        network: NetworkParamsConfig,
-        solver: Solver,
-        include_paths: bool = True,
+        altitude_km: float,
+        inclination: float,
+        arc_of_ascending_nodes: float,
+        eccentricity: float,
+        isl_bandwidth_kbits: int,
+        bbox: celestial.config.BoundingBox,
+        ground_stations: typing.List[celestial.config.GroundStation],
     ):
-        self.profile_time = False
+        self.shell_identifier = shell_identifier
 
-        self.current_time = 0
+        self.current_timestep: celestial.types.timestamp_s = 0
 
-        self.include_paths = include_paths
-
-        # constellation options
         self.number_of_planes = planes
         self.nodes_per_plane = sats
         self.total_sats = planes * sats
 
+        LINK_ARRAY_SIZE = self.total_sats * 2  # + (len(ground_stations) * 16)
+        GST_LINK_ARRAY_SIZE = len(ground_stations) * self.total_sats
+        PATH_MATRIX_SIZE = self.total_sats + len(ground_stations)
+
         # orbit options
-        self.altitude = altitude
+        self.altitude_km = altitude_km
 
-        self.semi_major_axis = float(self.altitude) * 1000 + EARTH_RADIUS
-
-        self.solver = solver
+        self.semi_major_axis = float(self.altitude_km) * 1000 + EARTH_RADIUS_M
 
         # bounding box
         self.bbox = bbox
 
-        # some network options
-        self.min_communication_altitude: int = network.mincommsaltitude
-        self.minelevation: float = network.minelevation
-        self.islpropagation: float = network.islpropagation
-        self.bandwidth: int = network.bandwidth
+        self.isl_bandwidth_kbits = isl_bandwidth_kbits
 
-        self.satellites_array: np.ndarray = np.empty(
-            self.total_sats, dtype=SATELLITE_DTYPE
-        )  # type: ignore
+        self.satellites_array = np.empty(self.total_sats, dtype=SATELLITE_DTYPE)
 
-        self.link_array_size = LINK_ARRAY_SIZE
-        self.link_array: np.ndarray = np.zeros(
-            self.link_array_size, dtype=SAT_LINK_DTYPE
-        )  # type: ignore
-        self.total_links = 0
+        self.link_array = np.zeros(LINK_ARRAY_SIZE, dtype=SAT_LINK_DTYPE)
 
-        self.paths: typing.List[Path] = []
+        self.total_isl_links = 0
 
-        self.total_gst = len(groundstations)
-        self.gst_array: np.ndarray = np.zeros(self.total_gst, dtype=GROUNDPOINT_DTYPE)  # type: ignore
+        self.total_gst = len(ground_stations)
 
-        self.gst_links_array_size = LINK_ARRAY_SIZE
-        self.gst_links_array: np.ndarray = np.zeros(
-            self.gst_links_array_size, dtype=GST_SAT_LINK_DTYPE
-        )  # type: ignore
+        self.gst_array = np.zeros(self.total_gst, dtype=GROUNDPOINT_DTYPE)
+
+        self.gst_names: typing.List[str] = [""] * self.total_gst
+
+        self.gst_links_array = np.zeros(GST_LINK_ARRAY_SIZE, dtype=GST_SAT_LINK_DTYPE)
+
         self.total_gst_links = 0
 
-        self.gst_sat_paths: typing.List[Path] = []
-        self.gst_paths: typing.List[Path] = []
+        self.path_matrix = np.zeros(
+            (PATH_MATRIX_SIZE, PATH_MATRIX_SIZE), dtype=PATH_DTYPE
+        )
 
+        self.path_diff = np.zeros(
+            (self.total_sats + self.total_gst) ** 2, dtype=PATH_LINK_DTYPE
+        )
+
+        # init nodes
         for plane in range(0, self.number_of_planes):
             for node in range(0, self.nodes_per_plane):
                 unique_id = (plane * self.nodes_per_plane) + node
@@ -175,90 +157,37 @@ class Shell:
                 self.satellites_array[unique_id]["plane_number"] = np.int16(plane)
                 self.satellites_array[unique_id]["offset_number"] = np.int16(node)
 
+        self.solver = celestial.sgp4_solver.SGP4Solver(
+            planes=self.number_of_planes,
+            sats=self.nodes_per_plane,
+            altitude_km=self.altitude_km,
+            inclination=inclination,
+            arc_of_ascending_nodes=arc_of_ascending_nodes,
+            eccentricity=eccentricity,
+        )
+
         self.satellites_array = self.solver.init_sat_array(self.satellites_array)
 
-        neg_rotation_matrix = self.get_rotation_matrix(-0.0)
-
         for sat in self.satellites_array:
-            sat["in_bbox"] = self.is_in_bbox(
-                (sat["x"], sat["y"], sat["z"]), neg_rotation_matrix
-            )
+            sat["in_bbox"] = False
 
-        self.init_ground_stations(groundstations)
+        self.init_ground_stations(ground_stations)
 
-        self.initialize_network_design()
-
-    def init_ground_stations(
-        self, groundstations: typing.List[GroundstationConfig]
-    ) -> None:
-        for i in range(len(groundstations)):
-            g = groundstations[i]
-
-            init_pos = [0.0, 0.0, 0.0]
-
-            latitude = math.radians(g.lat)
-            longitude = math.radians(g.lng)
-
-            init_pos[0] = (
-                (EARTH_RADIUS + 100.0) * math.cos(latitude) * math.cos(longitude)
-            )
-            init_pos[1] = (
-                (EARTH_RADIUS + 100.0) * math.cos(latitude) * math.sin(longitude)
-            )
-            init_pos[2] = (EARTH_RADIUS + 100.0) * math.sin(latitude)
-
-            temp: np.ndarray = np.zeros(1, dtype=GROUNDPOINT_DTYPE)  # type: ignore
-            temp[0]["ID"] = np.int16(i)
-            if (
-                g.networkparams.groundstationconnectiontype
-                == GroundstationConnectionTypeConfig.All
-            ):
-                temp[0]["conn_type"] = 0
-            else:
-                temp[0]["conn_type"] = 1
-            temp[0]["max_stg_range"] = self.calculate_max_space_to_gst_distance(
-                g.networkparams.minelevation
-            )
-            temp[0]["bandwidth"] = g.networkparams.bandwidth
-            temp[0]["gstpropagation"] = g.networkparams.gstpropagation
-            temp[0]["init_x"] = np.int32(init_pos[0])
-            temp[0]["init_y"] = np.int32(init_pos[1])
-            temp[0]["init_z"] = np.int32(init_pos[2])
-            temp[0]["x"] = np.int32(init_pos[0])
-            temp[0]["y"] = np.int32(init_pos[1])
-            temp[0]["z"] = np.int32(init_pos[2])
-
-            self.gst_array[i] = temp[0]
-
-    def initialize_network_design(self) -> None:
-        self.init_plus_grid_links(crosslink_interpolation=1)
+        self.init_plus_grid_links()
 
         self.max_isl_range = self.calculate_max_ISL_distance()
 
-        self.update_plus_grid_links()
-        if self.include_paths:
-            self.calculate_paths()
-
-    def set_time(self, time: int) -> None:
-        start_time = tm.time()
-
+    def step(self, time: celestial.types.timestamp_s) -> None:
         self.current_time = int(time)
+
+        self.old_machines = self.satellites_array.copy()
 
         self.satellites_array = self.solver.set_time(time, self.satellites_array)
 
-        sat_pos_time = tm.time()
-
-        if self.current_time == 0 or self.current_time % SECONDS_PER_DAY == 0:
-            degrees_to_rotate = 0.0
-        else:
-            degrees_to_rotate = 360.0 / (
-                SECONDS_PER_DAY / (self.current_time % SECONDS_PER_DAY)
-            )
+        degrees_to_rotate = 360.0 * (self.current_time / SECONDS_PER_DAY)
 
         rotation_matrix = self.get_rotation_matrix(degrees_to_rotate)
         neg_rotation_matrix = self.get_rotation_matrix(-degrees_to_rotate)
-
-        in_bbox = 0
 
         for sat_id in range(len(self.satellites_array)):
             sat_is_in_bbox = self.is_in_bbox(
@@ -266,15 +195,11 @@ class Shell:
                     self.satellites_array[sat_id]["x"],
                     self.satellites_array[sat_id]["y"],
                     self.satellites_array[sat_id]["z"],
-                ),
+                ),  # type: ignore
                 neg_rotation_matrix,
             )
-            if sat_is_in_bbox:
-                in_bbox += 1
 
             self.satellites_array[sat_id]["in_bbox"] = sat_is_in_bbox
-
-        sat_bbox_time = tm.time()
 
         for gst in self.gst_array:
             new_pos = np.dot(
@@ -284,43 +209,173 @@ class Shell:
             gst["y"] = new_pos[1]
             gst["z"] = new_pos[2]
 
-        gst_pos_time = tm.time()
-
         self.update_plus_grid_links()
 
-        links_time = tm.time()
+        self.old_paths = self.path_matrix.copy()
 
-        if self.include_paths:
-            self.calculate_paths()
+        self.update_paths()
 
-        paths_time = tm.time()
+    def get_sat_node_diffs(self) -> celestial.types.MachineDiff:
+        nodes_diff: celestial.types.MachineDiff = {}
 
-        gst_paths_time = tm.time()
+        for sat in self.satellites_array:
+            if sat["in_bbox"] != self.old_machines[sat["ID"]]["in_bbox"]:
+                m_id = celestial.types.MachineID(
+                    group=self.shell_identifier, id=sat["ID"]
+                )
 
-        if self.profile_time:
-            print("⏱ Sat Pos: %.3f" % (sat_pos_time - start_time))
-            print("⏱ Sat BBox: %.3f" % (sat_bbox_time - sat_pos_time))
-            print("⏱ GST Pos: %.3f" % (gst_pos_time - sat_bbox_time))
-            print("⏱ Links: %.3f" % (links_time - gst_pos_time))
-            print("⏱ Paths: %.3f" % (paths_time - links_time))
-            print("⏱ GST Paths: %.3f" % (gst_paths_time - paths_time))
+                nodes_diff[m_id] = (
+                    celestial.types.VMState.ACTIVE
+                    if sat["in_bbox"]
+                    else celestial.types.VMState.STOPPED
+                )
 
-    def get_rotation_matrix(self, degrees: float) -> np.ndarray:  # type: ignore
-        """
-        Return the rotation matrix associated with counterclockwise rotation about
-        the given axis by theta radians.
+        return nodes_diff
 
-        Parameters
-        ----------
-        degrees : float
-            The number of degrees to rotate
+    def get_link_diff(
+        self, delay_update_threshold_us: int = 0
+    ) -> celestial.types.LinkDiff:
+        # t1 = time.perf_counter()
 
-        """
+        link_diff: celestial.types.LinkDiff = {}
 
+        total_link_diff = self.numba_get_link_diff(
+            delay_update_threshold_us=delay_update_threshold_us,
+            total_sats=self.total_sats,
+            total_gst=self.total_gst,
+            old_paths=self.old_paths,
+            path_matrix=self.path_matrix,
+            path_diff=self.path_diff,
+        )[0]
+
+        # print(f"total_link_diff {total_link_diff}")
+        for link in self.path_diff[:total_link_diff]:
+            n1 = (
+                celestial.types.MachineID(self.shell_identifier, link["node_1"])
+                if link["node_1"] < self.total_sats
+                else celestial.types.MachineID(
+                    group=0,
+                    id=link["node_1"] - self.total_sats,
+                    name=self.gst_names[link["node_1"] - self.total_sats],
+                )
+            )
+
+            n2 = (
+                celestial.types.MachineID(self.shell_identifier, link["node_2"])
+                if link["node_2"] < self.total_sats
+                else celestial.types.MachineID(
+                    group=0,  # leaky abstraction but it works
+                    id=link["node_2"] - self.total_sats,
+                    name=self.gst_names[link["node_2"] - self.total_sats],
+                )
+            )
+
+            # if not celestial.types.MachineID_name(n1) == "":
+            # print(f"link diff for gst {n1} to {n2}")
+
+            # if celestial.types.MachineID_id(n1) == celestial.types.MachineID_id(n2):
+            # print("ERROR! link diff between same node")
+            # print(f"n1 {n1} n2 {n2}")
+
+            # if link["path"]["active"]:
+            # print(f"link_diff {n1} {n2} to {np.uint32(link['path']['delay_us'])}")
+
+            link_diff.setdefault(n1, {})[n2] = celestial.types.Link(
+                latency_us=link["path"]["delay_us"],
+                bandwidth_kbits=link["path"]["bandwidth_kbits"],
+                blocked=not link["path"]["active"],
+                next_hop=celestial.types.MachineID(
+                    group=self.shell_identifier, id=link["path"]["next_hop"]
+                ),
+            )
+            # print(f'link_diff {n1} {n2} to {link["path"]["active"]}')
+
+        # t2 = time.perf_counter()
+        # print(f"get_link_diff took {t2 - t1} seconds")
+
+        return link_diff
+
+    def get_sat_positions(self) -> np.ndarray:  # type: ignore
+        sat_positions: np.ndarray = np.copy(  # type: ignore
+            self.satellites_array[["ID", "x", "y", "z", "in_bbox"]]
+        )  # type: ignore
+
+        return sat_positions
+
+    def get_gst_positions(self) -> np.ndarray:  # type: ignore
+        ground_positions: np.ndarray = np.copy(self.gst_array[["x", "y", "z"]])  # type: ignore
+
+        return ground_positions
+
+    def get_links(self) -> np.ndarray:  # type: ignore
+        links: np.ndarray = np.copy(self.link_array[: self.total_isl_links])  # type: ignore
+
+        return links
+
+    def get_gst_links(self) -> np.ndarray:  # type: ignore
+        gst_links: np.ndarray = np.copy(self.gst_links_array[: self.total_gst_links])  # type: ignore
+
+        return gst_links
+
+    @staticmethod
+    @numba.njit  # type: ignore
+    def numba_get_link_diff(
+        delay_update_threshold_us: int,
+        total_sats: int,
+        total_gst: int,
+        old_paths: np.ndarray,  # type: ignore
+        path_matrix: np.ndarray,  # type: ignore
+        path_diff: np.ndarray,  # type: ignore
+    ) -> typing.Tuple[int]:
+        total_link_diff = 0
+
+        # path diff for satellites
+        for n1 in range(total_sats):
+            for n2 in range(n1 + 1, total_sats):
+                p1 = old_paths[n1][n2]
+                p2 = path_matrix[n1][n2]
+
+                if (
+                    np.abs(p1["delay_us"] - p2["delay_us"]) > delay_update_threshold_us
+                    or p1["active"] != p2["active"]
+                    or p1["bandwidth_kbits"] != p2["bandwidth_kbits"]
+                    or p1["next_hop"] != p2["next_hop"]
+                ):
+                    path_diff[total_link_diff]["node_1"] = np.int16(n1)
+                    path_diff[total_link_diff]["node_2"] = np.int16(n2)
+                    path_diff[total_link_diff]["path"] = p2
+                    total_link_diff += 1
+
+        # path diff for ground stations to all
+        for n1 in range(total_sats, total_sats + total_gst):
+            for n2 in range(total_sats + total_gst):
+                if n1 == n2:
+                    continue
+
+                # print(f"n1 {n1} n2 {n2}")
+
+                p1 = old_paths[n1][n2]
+                p2 = path_matrix[n1][n2]
+
+                if (
+                    np.abs(p1["delay_us"] - p2["delay_us"]) > delay_update_threshold_us
+                    or p1["active"] != p2["active"]
+                    or p1["bandwidth_kbits"] != p2["bandwidth_kbits"]
+                    or p1["next_hop"] != p2["next_hop"]
+                ):
+                    # print(f"n1 {n1} n2 {n2} changed")
+                    path_diff[total_link_diff]["node_1"] = np.int16(n1)
+                    path_diff[total_link_diff]["node_2"] = np.int16(n2)
+                    path_diff[total_link_diff]["path"] = p2
+                    total_link_diff += 1
+
+        return (total_link_diff,)
+
+    def get_rotation_matrix(self, degrees: float) -> npt.NDArray[np.float64]:
         theta = math.radians(degrees)
-        # earth"s z axis (eg a vector in the positive z direction)
+        # earth's z axis (eg a vector in the positive z direction)
         # EARTH_ROTATION_AXIS = [0, 0, 1]
-        axis: np.ndarray = np.asarray([0, 0, 1])  # type: ignore
+        axis: npt.NDArray[np.float64] = np.asarray([0, 0, 1])
         axis = axis / math.sqrt(np.dot(axis, axis))
         a = math.cos(theta / 2.0)
         b, c, d = -axis * math.sin(theta / 2.0)
@@ -331,18 +386,20 @@ class Shell:
                 [aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
                 [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
                 [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc],
-            ]
+            ],
         )
 
     def is_in_bbox(
-        self, pos: typing.Tuple[float, float, float], rotation_matrix: np.ndarray
-    ) -> bool:  # type: ignore
+        self,
+        pos: typing.Tuple[np.int32, np.int32, np.int32],
+        rotation_matrix: npt.NDArray[np.float64],
+    ) -> np.bool_:
         # take cartesian coordinates and convert to lat long
-        l = np.dot(rotation_matrix, np.array(pos))
+        xyz_pos = np.dot(rotation_matrix, np.array(pos))
 
-        x = l[0]
-        y = l[1]
-        z = l[2]
+        x = xyz_pos[0]
+        y = xyz_pos[1]
+        z = xyz_pos[2]
 
         # convert that position into lat lon
 
@@ -356,497 +413,56 @@ class Shell:
         # check if lat long is in bounding box
         if self.bbox.lon2 < self.bbox.lon1:
             if lon < self.bbox.lon1 and lon > self.bbox.lon2:
-                return False
+                return np.bool_(False)
         else:
             if lon < self.bbox.lon1 or lon > self.bbox.lon2:
-                return False
+                return np.bool_(False)
 
-        return bool(lat >= self.bbox.lat1 and lat <= self.bbox.lat2)
+        return np.bool_(lat >= self.bbox.lat1 and lat <= self.bbox.lat2)
 
-    def get_sat_positions(self) -> np.ndarray:  # type: ignore
-        """copies a sub array of only position data from
-        satellite array
+    def init_ground_stations(
+        self, groundstations: typing.List[celestial.config.GroundStation]
+    ) -> None:
+        for i in range(len(groundstations)):
+            g = groundstations[i]
 
-        Returns
-        -------
-        sat_positions : np array
-            a copied sub array of the satellite array, that only contains positions data
-        """
+            init_pos = [0.0, 0.0, 0.0]
 
-        sat_positions: np.ndarray = np.copy(
-            self.satellites_array[["ID", "x", "y", "z", "in_bbox"]]
-        )  # type: ignore
+            latitude = math.radians(g.lat)
+            longitude = math.radians(g.lng)
 
-        return sat_positions
-
-    def get_gst_positions(self) -> np.ndarray:  # type: ignore
-        """copies a sub array of only position data from
-         groundpoint array
-
-        Returns
-        -------
-        ground_positions : np array
-            a copied sub array of the ground point array, that only contains positions
-        """
-
-        ground_positions: np.ndarray = np.copy(self.gst_array[["x", "y", "z"]])  # type: ignore
-
-        return ground_positions
-
-    def get_links(self) -> np.ndarray:  # type: ignore
-        """copies a sub array of link data
-
-        Returns
-        -------
-        links : np array
-            contains all links
-        """
-        total_links = self.total_links
-        links: np.ndarray = np.copy(self.link_array[:total_links])  # type: ignore
-
-        return links
-
-    def get_gst_links(self) -> np.ndarray:  # type: ignore
-        """copies a sub array of gst link data
-
-        Returns
-        -------
-        links : np array
-            contains all links
-        """
-        total_gst_links = self.total_gst_links
-        gst_links: np.ndarray = np.copy(self.gst_links_array[:total_gst_links])  # type: ignore
-
-        return gst_links
-
-    def calculate_paths(self) -> None:
-        """calculate the shortest paths between all active
-        satellites
-
-        Returns
-        -------
-        paths : np array
-            contains all links including their total distance
-        """
-
-        # generate an array of active satellites
-        # we also need to add satellites for our ground stations so we can be sure of shortest paths and everything
-        targets = set([x["ID"] for x in self.satellites_array if x["in_bbox"]]).union(
-            [x["sat"] for x in self.gst_links_array[: self.total_gst_links]]
-        )
-
-        # generate a network graph
-        # start with sat links
-        edges = [
-            [e["node_1"], e["node_2"], e["distance"]]
-            for e in self.link_array[: self.total_links]
-            if e["node_1"] >= 0 and e["node_2"] >= 0
-        ]
-
-        # gaussian sum of len(targets) because we don't store stuff twice
-        len_path_array = int(((len(targets) + 1) * len(targets)) / 2)
-
-        paths: typing.List[Path] = []
-        gst_paths: typing.List[Path] = []
-        gst_sat_paths: typing.List[Path] = []
-
-        if len(targets) > math.sqrt(self.total_sats):
-            # use the more efficient floyd warshall algorithm for large graphs where we need to find everything
-
-            # add gst links
-            # simply add them add the end, so the first gst id is self.total_sats
-            # print("have %d sat edges" % len(edges))
-            edges.extend(
-                [
-                    [e["gst"] + self.total_sats, e["sat"], e["distance"]]
-                    for e in self.gst_links_array[: self.total_gst_links]
-                ]
+            init_pos[0] = (
+                (EARTH_RADIUS_M + 100.0) * math.cos(latitude) * math.cos(longitude)
             )
-            # print("have %d gst links" % self.total_gst_links)
-            # print("have %d total edges" % len(edges))
-            # print("gst links:", self.gst_links_array[:self.total_gst_links])
+            init_pos[1] = (
+                (EARTH_RADIUS_M + 100.0) * math.cos(latitude) * math.sin(longitude)
+            )
+            init_pos[2] = (EARTH_RADIUS_M + 100.0) * math.sin(latitude)
 
-            graph = np.zeros(
-                (self.total_sats + self.total_gst, self.total_sats + self.total_gst)
+            temp: npt.NDArray[GROUNDPOINT_DTYPE] = np.zeros(1, dtype=GROUNDPOINT_DTYPE)
+
+            temp[0]["ID"] = np.int16(-i - 1)
+
+            temp[0]["conn_type"] = g.connection_type.value
+
+            temp[0]["max_stg_range"] = self.calculate_max_space_to_gst_distance(
+                g.min_elevation
             )
 
-            # fill the graph with our edges
-            for e in edges:
-                graph[e[0], e[1]] = e[2]
-                graph[e[1], e[0]] = e[2]
+            temp[0]["bandwidth_kbits"] = g.gts_bandwidth_kbits
+            temp[0]["init_x"] = np.int32(init_pos[0])
+            temp[0]["init_y"] = np.int32(init_pos[1])
+            temp[0]["init_z"] = np.int32(init_pos[2])
+            temp[0]["x"] = np.int32(init_pos[0])
+            temp[0]["y"] = np.int32(init_pos[1])
+            temp[0]["z"] = np.int32(init_pos[2])
 
-            # generate a list of all paths
-            dist_matrix, predecessors = scipy.sparse.csgraph.floyd_warshall(
-                csgraph=scipy.sparse.csr_matrix(graph),
-                directed=False,
-                return_predecessors=True,
-            )
-            # print("done with scipy\n")
+            self.gst_names[i] = g.name
 
-            gst_targets = range(self.total_sats, self.total_sats + self.total_gst)
-
-            # print("done creating tuples\n")
-
-            propagation_delays = np.multiply(dist_matrix, self.islpropagation)
-
-            paths = [
-                Path(
-                    node_1=p[0],
-                    node_1_is_gst=False,
-                    node_2=p[-1],
-                    node_2_is_gst=False,
-                    delay=propagation_delays[p[0], p[1]],
-                    distance=dist_matrix[p[0], p[1]],
-                    bandwidth=self.bandwidth,
-                    dist_matrix=dist_matrix,
-                    predecessors=predecessors,
-                    islpropagation=self.islpropagation,
-                    total_sats=self.total_sats,
-                )
-                for p in tqdm.tqdm(
-                    [
-                        (node_1, node_2)
-                        for node_1 in targets
-                        for node_2 in targets
-                        if node_1 <= node_2
-                    ]
-                )
-                if dist_matrix[p[0], p[1]] != np.inf
-            ]
-
-            # and now get the gst_sat_paths
-            gst_sat_paths = [
-                Path(
-                    node_1=p[0] - self.total_sats,
-                    node_1_is_gst=True,
-                    node_2=p[1],
-                    node_2_is_gst=False,
-                    delay=propagation_delays[p[0], p[1]],
-                    distance=dist_matrix[p[0], p[1]],
-                    bandwidth=self.bandwidth,
-                    dist_matrix=dist_matrix,
-                    predecessors=predecessors,
-                    islpropagation=self.islpropagation,
-                    total_sats=self.total_sats,
-                )
-                for p in tqdm.tqdm(
-                    [(node_1, node_2) for node_1 in gst_targets for node_2 in targets]
-                )
-                if dist_matrix[p[0], p[1]] != np.inf
-            ]
-
-            gst_paths = [
-                Path(
-                    node_1=p[0] - self.total_sats,
-                    node_1_is_gst=True,
-                    node_2=p[1] - self.total_sats,
-                    node_2_is_gst=True,
-                    delay=propagation_delays[p[0], p[1]],
-                    distance=dist_matrix[p[0], p[1]],
-                    bandwidth=self.bandwidth,
-                    dist_matrix=dist_matrix,
-                    predecessors=predecessors,
-                    islpropagation=self.islpropagation,
-                    total_sats=self.total_sats,
-                )
-                for p in tqdm.tqdm(
-                    [
-                        (node_1, node_2)
-                        for node_1 in gst_targets
-                        for node_2 in gst_targets
-                        if node_1 <= node_2
-                    ]
-                )
-                if dist_matrix[p[0], p[1]] != np.inf
-            ]
-
-            # print("getting gst path 91")
-            # print(vars(gst_paths[91]))
-            # print(len(list(gst_paths[91].segments)))
-            # for s in gst_paths[91].segments:
-            #     print(vars(s))
-
-            # print("done doing actual paths\n")
-        else:
-            G = ig.Graph.TupleList(edges, weights=True)
-
-            def __get_paths(sat_1: int) -> typing.List[Path]:
-                consider_sat = G.vs.select(
-                    [sat_2 for sat_2 in targets if sat_1 < sat_2]
-                )
-
-                sp = G.get_shortest_paths(v=sat_1, to=consider_sat, weights="weight")
-
-                sat_paths = [
-                    Path(
-                        node_1=sat_1,
-                        node_1_is_gst=False,
-                        node_2=path[-1],
-                        node_2_is_gst=False,
-                        delay=0.0,
-                        distance=0.0,
-                        bandwidth=self.bandwidth,
-                        segments=[
-                            Segment(
-                                node_1=(G.es)()[eid].source,
-                                node_1_is_gst=False,
-                                node_2=(G.es)()[eid].target,
-                                node_2_is_gst=False,
-                                distance=(G.es)()[eid]["weight"],
-                                bandwidth=self.bandwidth,
-                                delay=(G.es)()[eid]["weight"] * self.islpropagation,
-                            )
-                            for eid in G.get_eids(path=path)
-                        ],
-                    )
-                    for path in sp
-                ]
-
-                def __calc_distance(p: Path) -> Path:
-                    p.distance = sum([x.distance for x in p.segments])
-                    p.delay = p.distance * self.islpropagation
-
-                    return p
-
-                return list(map(__calc_distance, sat_paths))
-
-            for sub_paths in map(__get_paths, tqdm.tqdm(targets)):
-                paths.extend(sub_paths)
-
-            # print("done with igraph\n")
-
-            # generate an array of active satellites
-            active = [x for x in self.satellites_array if x["in_bbox"]]
-
-            start_time = tm.time()
-
-            # get all links a ground station has
-            # thankfully these are appended into the list in order
-            start, end = 0, 0
-            while start < self.total_gst_links:
-                source_gst = self.gst_links_array[start]["gst"]
-
-                while (
-                    end < self.total_gst_links
-                    and self.gst_links_array[end]["gst"] == source_gst
-                ):
-                    end += 1
-
-                for sat in active:
-                    best_sat_path: typing.Optional[Path] = None
-
-                    for sat_link in self.gst_links_array[start:end]:
-                        first_leg = Segment(
-                            node_1=source_gst,
-                            node_1_is_gst=True,
-                            node_2=sat_link["sat"],
-                            node_2_is_gst=False,
-                            distance=sat_link["distance"],
-                            bandwidth=sat_link["bandwidth"],
-                            delay=sat_link["delay"],
-                        )
-
-                        segments = [first_leg]
-                        if sat_link["sat"] != sat["ID"]:
-                            source, target = sat_link["sat"], sat["ID"]
-
-                            if source > target:
-                                source, target = target, source
-
-                            # check our path list for that
-                            filtered_path_list = [
-                                x
-                                for x in self.paths
-                                if x.node_1 == source and x.node_2 == target
-                            ]
-
-                            # there is no path? just continue
-                            if len(filtered_path_list) == 0:
-                                continue
-
-                            # there is more than one path? this should never happen
-                            assert len(filtered_path_list) <= 1
-
-                            segments += filtered_path_list[0].segments
-
-                        path = Path(
-                            node_1=source_gst,
-                            node_1_is_gst=True,
-                            node_2=sat["ID"],
-                            node_2_is_gst=False,
-                            distance=sum(s.distance for s in segments),
-                            bandwidth=min(s.bandwidth for s in segments),
-                            delay=sum(s.delay for s in segments),
-                            segments=segments,
-                        )
-
-                        if (
-                            best_sat_path is None
-                            or path.delay < best_sat_path.delay
-                            or (
-                                path.delay == best_sat_path.delay
-                                and path.bandwidth > best_sat_path.bandwidth
-                            )
-                        ):
-                            best_sat_path = path
-
-                    if best_sat_path is not None:
-                        gst_sat_paths.append(best_sat_path)
-
-                start = end
-
-            gst_sat_time = tm.time()
-
-            # get all links a ground station has
-            # thankfully these are appended into the list in order
-            outer_start, outer_end = 0, 0
-            while outer_start < self.total_gst_links:
-                source_gst = self.gst_links_array[outer_start]["gst"]
-                while (
-                    outer_end < self.total_gst_links
-                    and self.gst_links_array[outer_end]["gst"] == source_gst
-                ):
-                    outer_end += 1
-
-                # do stuff
-
-                inner_start, inner_end = outer_end, outer_end
-
-                while inner_start < self.total_gst_links:
-                    target_gst = self.gst_links_array[inner_start]["gst"]
-                    while (
-                        inner_end < self.total_gst_links
-                        and self.gst_links_array[inner_end]["gst"] == target_gst
-                    ):
-                        inner_end += 1
-
-                    best_path: typing.Optional[Path] = None
-
-                    for l1 in self.gst_links_array[outer_start:outer_end]:
-                        first_leg = Segment(
-                            node_1=l1["gst"],
-                            node_1_is_gst=True,
-                            node_2=l1["sat"],
-                            node_2_is_gst=False,
-                            distance=l1["distance"],
-                            bandwidth=l1["bandwidth"],
-                            delay=l1["delay"],
-                        )
-
-                        for l2 in self.gst_links_array[inner_start:inner_end]:
-                            last_leg = Segment(
-                                node_1=l2["gst"],
-                                node_1_is_gst=True,
-                                node_2=l2["sat"],
-                                node_2_is_gst=False,
-                                distance=l2["distance"],
-                                bandwidth=l2["bandwidth"],
-                                delay=l2["delay"],
-                            )
-
-                            segments = [first_leg]
-                            if l1["sat"] != l2["sat"]:
-                                source, target = l1["sat"], l2["sat"]
-
-                                if source > target:
-                                    source, target = target, source
-
-                                # check our path list for that
-                                filtered_path_list = [
-                                    x
-                                    for x in self.paths
-                                    if x.node_1 == source and x.node_2 == target
-                                ]
-
-                                # there is no path? just continue
-                                if len(filtered_path_list) == 0:
-                                    continue
-
-                                # there is more than one path? this should never happen
-                                assert len(filtered_path_list) <= 1
-
-                                segments += filtered_path_list[0].segments
-
-                            segments += [last_leg]
-
-                            path = Path(
-                                node_1=l1["gst"],
-                                node_1_is_gst=True,
-                                node_2=l2["gst"],
-                                node_2_is_gst=True,
-                                distance=sum(s.distance for s in segments),
-                                bandwidth=min(s.bandwidth for s in segments),
-                                delay=sum(s.delay for s in segments),
-                                segments=segments,
-                            )
-
-                            if (
-                                best_path is None
-                                or path.delay < best_path.delay
-                                or (
-                                    path.delay == best_path.delay
-                                    and path.bandwidth > best_path.bandwidth
-                                )
-                            ):
-                                best_path = path
-
-                    if best_path is not None:
-                        gst_paths.append(best_path)
-
-                    inner_start = inner_end
-
-                outer_start = outer_end
-
-            gst_time = tm.time()
-
-            if self.profile_time:
-                print("⏱ GST SAT Paths: %.3f" % (gst_sat_time - start_time))
-                print("⏱ GST Paths %.3f" % (gst_time - gst_sat_time))
-
-        # print("found %d paths" % len(paths))
-        # print("expected %d paths" % len_path_array)
-        assert len(paths) == len_path_array
-
-        self.paths = paths
-        # print("found %d gst_paths" % len(gst_paths))
-        self.gst_paths = gst_paths
-        # print("found %d gst_sat_paths" % len(gst_sat_paths))
-        self.gst_sat_paths = gst_sat_paths
-
-    def get_paths(self) -> typing.List[Path]:
-        return self.paths
-
-    def get_gst_paths(self) -> typing.List[Path]:
-        """
-        Returns
-        -------
-        paths : np array
-            contains all links including their total distance
-        """
-        return self.gst_paths
-
-    def get_gst_sat_paths(self) -> typing.List[Path]:
-        """
-        Returns
-        -------
-        paths : np array
-            contains all links including their total distance
-        """
-        return self.gst_sat_paths
+            self.gst_array[i] = temp[0]
 
     def calculate_max_ISL_distance(self) -> int:
-        """
-        ues some trig to calculate the max coms range between satellites
-        based on some minium communications altitude
-
-        Returns
-        -------
-        max distance : int
-            max distance in meters
-
-        """
-
-        c = EARTH_RADIUS + self.min_communication_altitude
+        c = EARTH_RADIUS_M + MIN_COMMS_ALTITUDE_M
         b = self.semi_major_axis
         B = math.radians(90)
         C = math.asin((c * math.sin(B)) / b)
@@ -855,128 +471,38 @@ class Shell:
         return int(a * 2)
 
     def calculate_max_space_to_gst_distance(self, min_elevation: float) -> int:
-        """
-        Return max satellite to ground coms distance
+        # we're just going to assume a spherical earth
 
-        Uses some trig to calculate the max space to ground communications
-        distance given a field of view for groundstations defined by an
-        minimum elevation angle above the horizon.
-        Uses a circle & line segment intercept calculation.
-
-        Parameters
-        ----------
-        min_elevation : float
-            min elevation in degrees, range: 0<val<90
-
-        Returns
-        -------
-        max distance : int
-            max coms distance in meters
-
-        """
-
-        # TODO
-        # make a drawing explaining this
-
-        # note from Tobias: this seems awfully complicated
-
-        full_line = False
-        tangent_tol = 1e-9
-
-        # point 1 of line segment, representing groundstation
-        p1x, p1y = (0, EARTH_RADIUS)
-
-        # point 2 of line segment, representing really far point
-        # at min_elevation slope from point 1
-        slope = math.tan(math.radians(min_elevation))
-        run = 384748000  # meters, sma of moon
-        rise = slope * run + EARTH_RADIUS
-        p2x, p2y = (run, rise)
-
-        # center of orbit circle = earth center
-        # radius = orbit radius
-        cx, cy = (0, 0)
-        circle_radius = self.semi_major_axis
-
-        (x1, y1), (x2, y2) = (p1x - cx, p1y - cy), (p2x - cx, p2y - cy)
-        dx, dy = (x2 - x1), (y2 - y1)
-        dr = (dx**2 + dy**2) ** 0.5
-        big_d = x1 * y2 - x2 * y1
-        discriminant = circle_radius**2 * dr**2 - big_d**2
-
-        if discriminant < 0:  # No intersection between circle and line
-            print(
-                "❌ ERROR! problem with calculateMaxSpaceToGstDistance, no intersection"
-            )
+        if min_elevation < 0 or min_elevation > 90:
+            print("ERROR! min_elevation must be between 0 and 90 degrees")
             return 0
-        else:  # There may be 0, 1, or 2 intersections with the segment
-            intersections = [
-                (
-                    cx
-                    + (
-                        big_d * dy
-                        + sign * (-1 if dy < 0 else 1) * dx * discriminant**0.5
-                    )
-                    / dr**2,
-                    cy + (-big_d * dx + sign * abs(dy) * discriminant**0.5) / dr**2,
-                )
-                for sign in ((1, -1) if dy < 0 else (-1, 1))
-            ]
 
-            # This makes sure the order along the segment is correct
-            if not full_line:
-                # Filter out intersections that do not fall within the segment
-                fraction_along_segment = [
-                    (xi - p1x) / dx if abs(dx) > abs(dy) else (yi - p1y) / dy
-                    for xi, yi in intersections
-                ]
+        # calculate triangle using law of sines
+        a = self.semi_major_axis
+        b = EARTH_RADIUS_M
 
-                intersections = [
-                    pt
-                    for pt, frac in zip(intersections, fraction_along_segment)
-                    if 0 <= frac <= 1
-                ]
+        alpha = math.radians(min_elevation + 90)
 
-            if len(intersections) == 2 and abs(discriminant) <= tangent_tol:
-                # If line is tangent to circle, return just one point
-                print("❌ ERROR!, got 2 intersections, expecting 1")
-                return 0
-            else:
-                ints_lst = intersections
+        beta = math.asin(math.sin(alpha) * b / a)
 
-        # assuming 2 intersections were found...
-        for i in ints_lst:
-            if i[1] < 0:
-                continue
-            else:
-                # calculate dist to this intersection
-                d = math.sqrt(math.pow(i[0] - p1x, 2) + math.pow(i[1] - p1y, 2))
-                return int(d)
+        c = math.sin(math.radians(180) - alpha - beta) * a / math.sin(alpha)
+        return int(c)
 
-        return 0
-
-    def init_plus_grid_links(self, crosslink_interpolation: int = 1) -> None:
-        self.number_of_isl_links = 0
-
+    def init_plus_grid_links(self) -> None:
         temp = self.numba_init_plus_grid_links(
-            self.link_array,
-            self.link_array_size,
-            self.number_of_planes,
-            self.nodes_per_plane,
-            crosslink_interpolation=crosslink_interpolation,
+            link_array=self.link_array,
+            number_of_planes=self.number_of_planes,
+            nodes_per_plane=self.nodes_per_plane,
         )
         if temp is not None:
-            self.number_of_isl_links = temp[0]
-            self.total_links = self.number_of_isl_links
+            self.total_isl_links = temp[0]
 
     @staticmethod
     @numba.njit  # type: ignore
     def numba_init_plus_grid_links(
         link_array: np.ndarray,  # type: ignore
-        link_array_size: int,
         number_of_planes: int,
         nodes_per_plane: int,
-        crosslink_interpolation: int = 1,
     ) -> typing.Tuple[int]:
         link_idx = 0
 
@@ -989,15 +515,9 @@ class Shell:
                 else:
                     node_2 = node + (plane * nodes_per_plane) + 1
 
-                if link_idx < link_array_size - 1:
-                    link_array[link_idx]["node_1"] = np.int16(node_1)
-                    link_array[link_idx]["node_2"] = np.int16(node_2)
-                    link_idx = link_idx + 1
-                else:
-                    print(
-                        "❌ ERROR! ran out of room in the link array for intra-plane links"
-                    )
-                    return (0,)
+                link_array[link_idx]["node_1"] = np.int16(node_1)
+                link_array[link_idx]["node_2"] = np.int16(node_2)
+                link_idx = link_idx + 1
 
         # add the cross-plane links
         for plane in range(number_of_planes):
@@ -1008,48 +528,24 @@ class Shell:
             for node in range(nodes_per_plane):
                 node_1 = node + (plane * nodes_per_plane)
                 node_2 = node + (plane2 * nodes_per_plane)
-                if link_idx < link_array_size - 1:
-                    if (node_1 + 1) % crosslink_interpolation == 0:
-                        link_array[link_idx]["node_1"] = np.int16(node_1)
-                        link_array[link_idx]["node_2"] = np.int16(node_2)
-                        link_idx = link_idx + 1
-                else:
-                    print(
-                        "❌ ERROR! ran out of room in the link array for cross-plane links"
-                    )
-                    return (0,)
+
+                if (node_1 + 1) % CROSSLINK_INTERPOLATION == 0:
+                    link_array[link_idx]["node_1"] = np.int16(node_1)
+                    link_array[link_idx]["node_2"] = np.int16(node_2)
+                    link_idx = link_idx + 1
 
         number_of_isl_links = link_idx
 
         return (number_of_isl_links,)
 
     def update_plus_grid_links(self) -> None:
-        """
-        connect satellites in a +grid network
-
-        Parameters
-        ----------
-        initialize : bool
-            Because PlusGrid ISL are static, they only need to be generated once,
-            If initialize=False, only update link distances, do not regererate
-        crosslink_interpolation : int
-            This value is used to make only 1 out of every crosslink_interpolation
-            satellites able to have crosslinks. For example, with a interpolation
-            value of '2', only every other satellite will have crosslinks, the rest
-            will have only intra-plane links
-
-        """
-
         temp = self.numba_update_plus_grid_links(
             total_sats=self.total_sats,
             satellites_array=self.satellites_array,
             link_array=self.link_array,
-            link_array_size=self.link_array_size,
-            number_of_isl_links=self.number_of_isl_links,
+            total_isl_links=self.total_isl_links,
             gst_array=self.gst_array,
             gst_links_array=self.gst_links_array,
-            bandwidth=self.bandwidth,
-            islpropagation=self.islpropagation,
             max_isl_range=self.max_isl_range,
         )
 
@@ -1061,15 +557,12 @@ class Shell:
         total_sats: int,
         satellites_array: np.ndarray,  # type: ignore
         link_array: np.ndarray,  # type: ignore
-        link_array_size: int,
-        number_of_isl_links: int,
+        total_isl_links: int,
         gst_array: np.ndarray,  # type: ignore
         gst_links_array: np.ndarray,  # type: ignore
-        bandwidth: int,
-        islpropagation: float,
         max_isl_range: int = (2**31) - 1,
     ) -> typing.Tuple[int]:
-        for isl_idx in range(number_of_isl_links):
+        for isl_idx in range(total_isl_links):
             sat_1 = link_array[isl_idx]["node_1"]
             sat_2 = link_array[isl_idx]["node_2"]
             d = int(
@@ -1086,18 +579,13 @@ class Shell:
                 )
             )
             link_array[isl_idx]["active"] = d <= max_isl_range
-            link_array[isl_idx]["distance"] = np.int32(d)
-            link_array[isl_idx]["delay"] = np.float64(d) * np.float64(islpropagation)
+            link_array[isl_idx]["distance_m"] = np.uint32(d)
 
         gst_link_id = 0
         for gst in gst_array:
             shortest_d = np.inf
 
             for sat_idx in range(total_sats):
-                # only proceed if sat is active
-                # if not satellites_array[sat_idx]["in_bbox"]:
-                #    continue
-
                 # calculate distance
                 d = int(
                     math.sqrt(
@@ -1108,38 +596,209 @@ class Shell:
                 )
 
                 # decide if link is valid or not
-                if d <= gst["max_stg_range"]:
-                    if gst_link_id < link_array_size - 1:
-                        # if we allow only one link and the one we found is shorter than the old one overwrite the old one
-                        if gst["conn_type"] == 1:
-                            if d > shortest_d:
-                                continue
+                if d > gst["max_stg_range"]:
+                    continue
 
-                            # but can't overwrite if we're haven't written anything yet
-                            if shortest_d != np.inf:
-                                gst_link_id -= 1
+                # if we allow only one link and the one we found is shorter than the old one overwrite the old one
+                if (
+                    gst["conn_type"]
+                    == celestial.config.GroundStationConnectionType.ONE.value
+                ):
+                    if d > shortest_d:
+                        continue
 
-                            shortest_d = d
+                    # but can't overwrite if we're haven't written anything yet
+                    if shortest_d != np.inf:
+                        gst_link_id -= 1
 
-                        gst_id = gst["ID"]
-                        sat_id = satellites_array[sat_idx]["ID"]
+                    shortest_d = d
 
-                        gst_links_array[gst_link_id]["gst"] = gst_id
-                        gst_links_array[gst_link_id]["sat"] = sat_id
-                        gst_links_array[gst_link_id]["distance"] = np.int32(d)
-                        gst_links_array[gst_link_id]["delay"] = np.float64(
-                            d
-                        ) * np.float64(gst["gstpropagation"])
-                        gst_links_array[gst_link_id]["bandwidth"] = min(
-                            np.int32(bandwidth), gst["bandwidth"]
-                        )
+                gst_id = gst["ID"]
+                sat_id = satellites_array[sat_idx]["ID"]
 
-                        gst_link_id = gst_link_id + 1
+                gst_links_array[gst_link_id]["gst"] = gst_id
+                gst_links_array[gst_link_id]["sat"] = sat_id
+                gst_links_array[gst_link_id]["distance_m"] = np.uint32(d)
 
-                    else:
-                        print("❌ ERROR! ran out of room in the link array")
-                        return (0,)
+                gst_link_id = gst_link_id + 1
 
         total_gst_links = gst_link_id
 
         return (total_gst_links,)
+
+    def update_paths(self) -> None:
+        # t1 = time.perf_counter()
+
+        self.numba_update_paths(
+            sat_link_array=self.link_array,
+            total_isl_links=self.total_isl_links,
+            total_sats=self.total_sats,
+            path_matrix=self.path_matrix,
+            gst_array=self.gst_array,
+            total_gst=self.total_gst,
+            gst_links_array=self.gst_links_array,
+            total_gst_links=self.total_gst_links,
+            isl_bandwidth_kbits=self.isl_bandwidth_kbits,
+        )
+
+        # t2 = time.perf_counter()
+
+        # print(f"update_paths took {t2 - t1} seconds")
+
+    @staticmethod
+    @numba.njit  # type: ignore
+    def numba_update_paths(
+        sat_link_array: np.ndarray,  # type: ignore
+        total_isl_links: int,
+        total_sats: int,
+        path_matrix: np.ndarray,  # type: ignore
+        gst_array: np.ndarray,  # type: ignore
+        total_gst: int,
+        gst_links_array: np.ndarray,  # type: ignore
+        total_gst_links: int,
+        isl_bandwidth_kbits: int,
+    ) -> None:
+        dist_matrix = np.zeros((total_sats, total_sats), dtype=np.float64)
+        next_hops = np.zeros((total_sats, total_sats), dtype=np.int16)
+
+        for i in range(total_sats):
+            for j in range(total_sats):
+                dist_matrix[i, j] = np.inf
+                next_hops[i, j] = -1
+
+        for link in sat_link_array[:total_isl_links]:
+            if not link["active"]:
+                continue
+
+            dist_matrix[link["node_1"], link["node_2"]] = link["distance_m"]
+            next_hops[link["node_1"], link["node_2"]] = link["node_2"]
+
+        for i in range(total_sats):
+            dist_matrix[i, i] = 0
+            next_hops[i, i] = i
+
+        # Floyd-Warshall algorithm
+        for k in range(total_sats):
+            for i in range(total_sats):
+                # it should be possible to optimize this for symmetric graphs
+                for j in range(i + 1, total_sats):
+                    if dist_matrix[i, j] > dist_matrix[i, k] + dist_matrix[k, j]:
+                        dist_matrix[i, j] = dist_matrix[i, k] + dist_matrix[k, j]
+                        next_hops[i, j] = next_hops[i, k]
+
+        for i in range(total_sats):
+            for j in range(i + 1, total_sats):
+                path_matrix[i, j]["active"] = dist_matrix[i, j] != np.inf
+                path_matrix[i, j]["next_hop"] = np.int16(next_hops[i, j])
+                path_matrix[i, j]["delay_us"] = np.uint32(
+                    dist_matrix[i, j] * (LINK_PROPAGATION_S_M * 1e6)
+                )
+                # print(path_matrix[i, j]["delay_us"])
+                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(isl_bandwidth_kbits)
+
+        for g in range(total_gst):
+            for s1 in range(total_sats):
+                _min_dist = np.inf
+                _min_x = -1
+
+                for x in range(total_gst_links):
+                    if gst_links_array[x]["gst"] != gst_array[g]["ID"]:
+                        # print(
+                        # f"path from gst {gst_links_array[x]['gst']} not relevant for {g}"
+                        # )
+                        continue
+
+                    _s2 = gst_links_array[x]["sat"]
+
+                    d = dist_matrix[s1, _s2] if s1 < _s2 else dist_matrix[_s2, s1]
+
+                    _path_dist = d + gst_links_array[x]["distance_m"]
+
+                    if _path_dist >= _min_dist:
+                        # new path is not better than old path
+                        # checking for equal is important as we may have both paths being inf
+                        continue
+
+                    _min_dist = _path_dist
+                    # print("new min dist", _min_dist)
+                    _min_x = x
+
+                    if _s2 == s1:
+                        break
+
+                i = g + total_sats
+                j = s1
+
+                path_matrix[i, j]["active"] = _min_x != -1
+                path_matrix[j, i]["active"] = _min_x != -1
+
+                if _min_x == -1:
+                    continue
+
+                # print(f"path from gst {g} to sat {s1}")
+
+                path_matrix[i, j]["next_hop"] = np.int16(gst_links_array[_min_x]["sat"])
+
+                path_matrix[i, j]["delay_us"] = np.uint32(
+                    _min_dist * (LINK_PROPAGATION_S_M * 1e6)
+                )
+                # print(path_matrix[i, j]["delay_us"])
+                # print(_min_dist)
+
+                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(
+                    min(gst_array[g]["bandwidth_kbits"], isl_bandwidth_kbits)  # type: ignore
+                )
+
+        for g1 in range(total_gst):
+            for g2 in range(g1 + 1, total_gst):
+                _min_dist = np.inf
+                _min_x1 = -1
+
+                for x1 in range(total_gst_links):
+                    if gst_links_array[x1]["gst"] != g1:
+                        continue
+                    for x2 in range(total_gst_links):
+                        if gst_links_array[x2]["gst"] != g2:
+                            continue
+
+                    _s1 = gst_links_array[x1]["sat"]
+                    _s2 = gst_links_array[x2]["sat"]
+
+                    d = dist_matrix[_s1, _s2] if _s1 < _s2 else dist_matrix[_s2, _s1]
+
+                    path_dist = (
+                        d
+                        + gst_links_array[x1]["distance_m"]
+                        + gst_links_array[x2]["distance_m"]
+                    )
+
+                    if path_dist >= _min_dist:
+                        continue
+
+                    _min_dist = path_dist
+                    _min_x1 = x1
+
+                i = g1 + total_sats
+                j = g2 + total_sats
+
+                path_matrix[i, j]["active"] = _min_x1 != -1
+
+                if _min_x1 == -1:
+                    continue
+
+                path_matrix[i, j]["next_hop"] = np.int16(
+                    gst_links_array[_min_x1]["sat"]
+                )
+
+                path_matrix[i, j]["delay_us"] = np.uint32(
+                    _min_dist * (LINK_PROPAGATION_S_M * 1e6)
+                )
+                print(path_matrix[i, j]["delay_us"])
+
+                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(
+                    min(
+                        gst_array[g1]["bandwidth_kbits"],
+                        isl_bandwidth_kbits,
+                        gst_array[g2]["bandwidth_kbits"],
+                    )  # type: ignore
+                )

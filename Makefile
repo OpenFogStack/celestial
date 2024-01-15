@@ -22,8 +22,6 @@ OS=linux
 
 build: proto/ celestial.bin
 
-build2: proto/ celestial2.bin
-
 container: proto Dockerfile celestial.py celestial ## build client docker container
 	docker build -t celestial .
 

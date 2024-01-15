@@ -3,7 +3,7 @@ test/integration/id_ed25519
 test/integration/rootfs/ssh.img
 proto
 pkg
-celestial.go
+celestial2.go
 go.mod
 go.sum
 kernel/vmlinux-5.12.bin

@@ -23,52 +23,30 @@ import grpc
 
 class CelestialStub:
     def __init__(self, channel: grpc.Channel) -> None: ...
-    GetHostInfo: grpc.UnaryUnaryMultiCallable[
-        celestial_pb2.Empty,
-        celestial_pb2.HostInfo,
-    ]
-    HostReady: grpc.UnaryUnaryMultiCallable[
-        celestial_pb2.Empty,
-        celestial_pb2.ReadyInfo,
+    Register: grpc.UnaryUnaryMultiCallable[
+        celestial_pb2.RegisterRequest,
+        celestial_pb2.RegisterResponse,
     ]
     Init: grpc.UnaryUnaryMultiCallable[
         celestial_pb2.InitRequest,
         celestial_pb2.Empty,
     ]
-    InitRemotes: grpc.UnaryUnaryMultiCallable[
-        celestial_pb2.InitRemotesRequest,
+    Update: grpc.UnaryUnaryMultiCallable[
+        celestial_pb2.UpdateRequest,
         celestial_pb2.Empty,
     ]
-    StartPeering: grpc.UnaryUnaryMultiCallable[
+    Stop: grpc.UnaryUnaryMultiCallable[
         celestial_pb2.Empty,
-        celestial_pb2.Empty,
-    ]
-    CreateMachine: grpc.UnaryUnaryMultiCallable[
-        celestial_pb2.CreateMachineRequest,
-        celestial_pb2.Empty,
-    ]
-    ModifyMachine: grpc.UnaryUnaryMultiCallable[
-        celestial_pb2.ModifyMachineRequest,
-        celestial_pb2.Empty,
-    ]
-    ModifyLinks: grpc.UnaryUnaryMultiCallable[
-        celestial_pb2.ModifyLinksRequest,
         celestial_pb2.Empty,
     ]
 
 class CelestialServicer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def GetHostInfo(
+    def Register(
         self,
-        request: celestial_pb2.Empty,
+        request: celestial_pb2.RegisterRequest,
         context: grpc.ServicerContext,
-    ) -> celestial_pb2.HostInfo: ...
-    @abc.abstractmethod
-    def HostReady(
-        self,
-        request: celestial_pb2.Empty,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.ReadyInfo: ...
+    ) -> celestial_pb2.RegisterResponse: ...
     @abc.abstractmethod
     def Init(
         self,
@@ -76,33 +54,15 @@ class CelestialServicer(metaclass=abc.ABCMeta):
         context: grpc.ServicerContext,
     ) -> celestial_pb2.Empty: ...
     @abc.abstractmethod
-    def InitRemotes(
+    def Update(
         self,
-        request: celestial_pb2.InitRemotesRequest,
+        request: celestial_pb2.UpdateRequest,
         context: grpc.ServicerContext,
     ) -> celestial_pb2.Empty: ...
     @abc.abstractmethod
-    def StartPeering(
+    def Stop(
         self,
         request: celestial_pb2.Empty,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
-    @abc.abstractmethod
-    def CreateMachine(
-        self,
-        request: celestial_pb2.CreateMachineRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
-    @abc.abstractmethod
-    def ModifyMachine(
-        self,
-        request: celestial_pb2.ModifyMachineRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
-    @abc.abstractmethod
-    def ModifyLinks(
-        self,
-        request: celestial_pb2.ModifyLinksRequest,
         context: grpc.ServicerContext,
     ) -> celestial_pb2.Empty: ...
 

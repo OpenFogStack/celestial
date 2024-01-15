@@ -6,7 +6,7 @@ ROOT="../.."
 
 pushd "$ROOT" || exit
 
-make build rootfsbuilder -B
+make build2 rootfsbuilder -B
 
 popd || exit
 

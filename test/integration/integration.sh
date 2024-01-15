@@ -6,11 +6,11 @@ DIVIDER="=============================="
 ROOT="../.."
 
 pushd "$ROOT"
-make rootfsbuilder -B
+make rootfsbuilder
 popd
 
 pushd rootfs
-make -B
+make
 popd
 
 echo "$DIVIDER"

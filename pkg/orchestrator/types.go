@@ -1,46 +1,77 @@
-/*
-* This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-* Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, version 3.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>.
-**/
-
 package orchestrator
 
-import (
-	"sync"
+import "fmt"
+
+type MachineState uint8
+
+const (
+	STOPPED MachineState = iota
+	ACTIVE
 )
 
-type shellid int64
-type id uint64
+const defaultLatency = 0
+const defaultBandwidth = 1000_000_000
 
-type shell struct {
-	// some shell information
-	planeNo uint64
+type Link struct {
+	// Blocked is true if the link is blocked
+	Blocked bool
+	// Latency in microseconds
+	Latency uint32
+	// Bandwidth in bytes per second
+	Bandwidth uint64
 
-	// firecracker machines
-	machines map[id]*machine
-	sync.RWMutex
+	// used for path reconstruction
+	Next MachineID
 }
 
-type link struct {
-	handle    int64
-	sourceNet string
-	targetNet string
+type MachineID struct {
+	// is 0 for ground stations
+	Group uint8
+	Id    uint32
+}
 
-	blocked     bool
-	initialized bool
+func (m MachineID) String() string {
+	return fmt.Sprintf("%d.%d", m.Group, m.Id)
+}
 
-	latency   float64
-	bandwidth uint64
+func (m MachineID) lt(b MachineID) bool {
+	return m.Group < b.Group || (m.Group == b.Group && m.Id < b.Id)
+}
+
+type Host uint8
+
+type NetworkState map[MachineID]map[MachineID]*Link
+
+type MachinesState map[MachineID]MachineState
+
+type State struct {
+	NetworkState
+	MachinesState
+}
+
+type ISL struct {
+	// Latency in microseconds
+	Latency uint32
+	// Bandwidth in bytes per second
+	Bandwidth uint64
+}
+
+type machine struct {
+	name   string
+	Host   Host
+	config MachineConfig
+}
+
+type MachineConfig struct {
+	VCPUCount uint8
+	// RAM in bytes
+	RAM uint64
+	// DiskSize in bytes
+	DiskSize uint64
+	// DiskImage is the path to the disk image
+	DiskImage string
+	// Kernel is the path to the kernel
+	Kernel string
+	// BootParams are the additional boot parameters
+	BootParams []string
 }

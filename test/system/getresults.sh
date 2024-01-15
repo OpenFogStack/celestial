@@ -23,14 +23,14 @@ OUT_FILES=$(ssh "$TEST_HOST_NAME" "ls -1 /celestial/out")
 
 for f in $OUT_FILES; do
     echo "Processing file $f..."
-    # if the file starts with err, then we skip it
-    if [[ $f == err* ]]; then
+    # if the file ends with .err, then we skip it
+    if [[ $f == *.err ]]; then
         echo "Skipping file $f..."
         continue
     fi
 
     echo "Copying file $f..."
-    scp "$TEST_HOST_NAME:/celestial/out/$f" "$RESULTS_DIR/$f.txt"
+    scp "$TEST_HOST_NAME:/celestial/out/$f" "$RESULTS_DIR/$f"
 done
 
 # clean up results

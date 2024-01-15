@@ -21,15 +21,56 @@ import builtins
 import collections.abc
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
+import google.protobuf.internal.enum_type_wrapper
 import google.protobuf.message
 import sys
+import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+
+class _VMState:
+    ValueType = typing.NewType("ValueType", builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+
+class _VMStateEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_VMState.ValueType], builtins.type):
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    VM_STATE_STOPPED: _VMState.ValueType  # 0
+    VM_STATE_ACTIVE: _VMState.ValueType  # 1
+
+class VMState(_VMState, metaclass=_VMStateEnumTypeWrapper): ...
+
+VM_STATE_STOPPED: VMState.ValueType  # 0
+VM_STATE_ACTIVE: VMState.ValueType  # 1
+global___VMState = VMState
+
+@typing_extensions.final
+class MachineID(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    GROUP_FIELD_NUMBER: builtins.int
+    ID_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
+    group: builtins.int
+    id: builtins.int
+    name: builtins.str
+    """ignored for non-groundstations"""
+    def __init__(
+        self,
+        *,
+        group: builtins.int = ...,
+        id: builtins.int = ...,
+        name: builtins.str | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_name", b"_name", "name", b"name"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_name", b"_name", "group", b"group", "id", b"id", "name", b"name"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_name", b"_name"]) -> typing_extensions.Literal["name"] | None: ...
+
+global___MachineID = MachineID
 
 @typing_extensions.final
 class Empty(google.protobuf.message.Message):
@@ -42,322 +83,215 @@ class Empty(google.protobuf.message.Message):
 global___Empty = Empty
 
 @typing_extensions.final
-class HostInfo(google.protobuf.message.Message):
+class RegisterRequest(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    CPU_FIELD_NUMBER: builtins.int
-    MEM_FIELD_NUMBER: builtins.int
-    cpu: builtins.int
-    mem: builtins.int
+    HOST_FIELD_NUMBER: builtins.int
+    host: builtins.int
     def __init__(
         self,
         *,
-        cpu: builtins.int = ...,
-        mem: builtins.int = ...,
+        host: builtins.int = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["cpu", b"cpu", "mem", b"mem"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["host", b"host"]) -> None: ...
 
-global___HostInfo = HostInfo
+global___RegisterRequest = RegisterRequest
 
 @typing_extensions.final
-class ReadyInfo(google.protobuf.message.Message):
+class RegisterResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    READY_FIELD_NUMBER: builtins.int
-    CREATED_FIELD_NUMBER: builtins.int
-    ready: builtins.bool
-    created: builtins.int
+    AVAILABLE_CPUS_FIELD_NUMBER: builtins.int
+    AVAILABLE_RAM_FIELD_NUMBER: builtins.int
+    PUBLIC_KEY_FIELD_NUMBER: builtins.int
+    available_cpus: builtins.int
+    available_ram: builtins.int
+    public_key: builtins.str
     def __init__(
         self,
         *,
-        ready: builtins.bool = ...,
-        created: builtins.int = ...,
+        available_cpus: builtins.int = ...,
+        available_ram: builtins.int = ...,
+        public_key: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created", b"created", "ready", b"ready"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["available_cpus", b"available_cpus", "available_ram", b"available_ram", "public_key", b"public_key"]) -> None: ...
 
-global___ReadyInfo = ReadyInfo
-
-@typing_extensions.final
-class Shell(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    ID_FIELD_NUMBER: builtins.int
-    PLANES_FIELD_NUMBER: builtins.int
-    id: builtins.int
-    planes: builtins.int
-    def __init__(
-        self,
-        *,
-        id: builtins.int = ...,
-        planes: builtins.int = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["id", b"id", "planes", b"planes"]) -> None: ...
-
-global___Shell = Shell
+global___RegisterResponse = RegisterResponse
 
 @typing_extensions.final
 class InitRequest(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    DATABASE_FIELD_NUMBER: builtins.int
-    DATABASEHOST_FIELD_NUMBER: builtins.int
-    SHELLCOUNT_FIELD_NUMBER: builtins.int
-    SHELLS_FIELD_NUMBER: builtins.int
-    database: builtins.bool
-    databaseHost: builtins.str
-    shellcount: builtins.int
+    @typing_extensions.final
+    class Host(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        ID_FIELD_NUMBER: builtins.int
+        ADDR_FIELD_NUMBER: builtins.int
+        PUBLICKEY_FIELD_NUMBER: builtins.int
+        id: builtins.int
+        addr: builtins.str
+        publickey: builtins.str
+        def __init__(
+            self,
+            *,
+            id: builtins.int = ...,
+            addr: builtins.str = ...,
+            publickey: builtins.str = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["addr", b"addr", "id", b"id", "publickey", b"publickey"]) -> None: ...
+
+    @typing_extensions.final
+    class Machine(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        @typing_extensions.final
+        class MachineConfig(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            VCPU_COUNT_FIELD_NUMBER: builtins.int
+            RAM_FIELD_NUMBER: builtins.int
+            DISK_SIZE_FIELD_NUMBER: builtins.int
+            ROOT_IMAGE_FIELD_NUMBER: builtins.int
+            KERNEL_FIELD_NUMBER: builtins.int
+            BOOT_PARAMETERS_FIELD_NUMBER: builtins.int
+            vcpu_count: builtins.int
+            """should also be 8 bit but protobuf doesn't support uint8..."""
+            ram: builtins.int
+            disk_size: builtins.int
+            root_image: builtins.str
+            kernel: builtins.str
+            @property
+            def boot_parameters(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+            def __init__(
+                self,
+                *,
+                vcpu_count: builtins.int = ...,
+                ram: builtins.int = ...,
+                disk_size: builtins.int = ...,
+                root_image: builtins.str = ...,
+                kernel: builtins.str = ...,
+                boot_parameters: collections.abc.Iterable[builtins.str] | None = ...,
+            ) -> None: ...
+            def ClearField(self, field_name: typing_extensions.Literal["boot_parameters", b"boot_parameters", "disk_size", b"disk_size", "kernel", b"kernel", "ram", b"ram", "root_image", b"root_image", "vcpu_count", b"vcpu_count"]) -> None: ...
+
+        ID_FIELD_NUMBER: builtins.int
+        HOST_FIELD_NUMBER: builtins.int
+        CONFIG_FIELD_NUMBER: builtins.int
+        @property
+        def id(self) -> global___MachineID: ...
+        host: builtins.int
+        """should actually be 8 bit but protobuf doesn't support uint8..."""
+        @property
+        def config(self) -> global___InitRequest.Machine.MachineConfig: ...
+        def __init__(
+            self,
+            *,
+            id: global___MachineID | None = ...,
+            host: builtins.int = ...,
+            config: global___InitRequest.Machine.MachineConfig | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["config", b"config", "id", b"id"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["config", b"config", "host", b"host", "id", b"id"]) -> None: ...
+
+    HOSTS_FIELD_NUMBER: builtins.int
+    MACHINES_FIELD_NUMBER: builtins.int
     @property
-    def shells(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Shell]: ...
+    def hosts(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___InitRequest.Host]: ...
+    @property
+    def machines(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___InitRequest.Machine]: ...
     def __init__(
         self,
         *,
-        database: builtins.bool = ...,
-        databaseHost: builtins.str = ...,
-        shellcount: builtins.int = ...,
-        shells: collections.abc.Iterable[global___Shell] | None = ...,
+        hosts: collections.abc.Iterable[global___InitRequest.Host] | None = ...,
+        machines: collections.abc.Iterable[global___InitRequest.Machine] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["database", b"database", "databaseHost", b"databaseHost", "shellcount", b"shellcount", "shells", b"shells"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["hosts", b"hosts", "machines", b"machines"]) -> None: ...
 
 global___InitRequest = InitRequest
 
 @typing_extensions.final
-class RemoteHost(google.protobuf.message.Message):
+class UpdateRequest(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-    INDEX_FIELD_NUMBER: builtins.int
-    ADDR_FIELD_NUMBER: builtins.int
-    index: builtins.int
-    addr: builtins.str
+    @typing_extensions.final
+    class MachineDiff(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        ID_FIELD_NUMBER: builtins.int
+        ACTIVE_FIELD_NUMBER: builtins.int
+        @property
+        def id(self) -> global___MachineID: ...
+        active: global___VMState.ValueType
+        def __init__(
+            self,
+            *,
+            id: global___MachineID | None = ...,
+            active: global___VMState.ValueType = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["id", b"id"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["active", b"active", "id", b"id"]) -> None: ...
+
+    @typing_extensions.final
+    class NetworkDiff(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        @typing_extensions.final
+        class Link(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            TARGET_FIELD_NUMBER: builtins.int
+            LATENCY_FIELD_NUMBER: builtins.int
+            BANDWIDTH_FIELD_NUMBER: builtins.int
+            BLOCKED_FIELD_NUMBER: builtins.int
+            NEXT_FIELD_NUMBER: builtins.int
+            @property
+            def target(self) -> global___MachineID: ...
+            latency: builtins.int
+            bandwidth: builtins.int
+            blocked: builtins.bool
+            @property
+            def next(self) -> global___MachineID:
+                """used for path reconstruction"""
+            def __init__(
+                self,
+                *,
+                target: global___MachineID | None = ...,
+                latency: builtins.int = ...,
+                bandwidth: builtins.int = ...,
+                blocked: builtins.bool = ...,
+                next: global___MachineID | None = ...,
+            ) -> None: ...
+            def HasField(self, field_name: typing_extensions.Literal["next", b"next", "target", b"target"]) -> builtins.bool: ...
+            def ClearField(self, field_name: typing_extensions.Literal["bandwidth", b"bandwidth", "blocked", b"blocked", "latency", b"latency", "next", b"next", "target", b"target"]) -> None: ...
+
+        ID_FIELD_NUMBER: builtins.int
+        LINKS_FIELD_NUMBER: builtins.int
+        @property
+        def id(self) -> global___MachineID: ...
+        @property
+        def links(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___UpdateRequest.NetworkDiff.Link]: ...
+        def __init__(
+            self,
+            *,
+            id: global___MachineID | None = ...,
+            links: collections.abc.Iterable[global___UpdateRequest.NetworkDiff.Link] | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["id", b"id"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["id", b"id", "links", b"links"]) -> None: ...
+
+    MACHINE_DIFFS_FIELD_NUMBER: builtins.int
+    NETWORK_DIFFS_FIELD_NUMBER: builtins.int
+    @property
+    def machine_diffs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___UpdateRequest.MachineDiff]: ...
+    @property
+    def network_diffs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___UpdateRequest.NetworkDiff]: ...
     def __init__(
         self,
         *,
-        index: builtins.int = ...,
-        addr: builtins.str = ...,
+        machine_diffs: collections.abc.Iterable[global___UpdateRequest.MachineDiff] | None = ...,
+        network_diffs: collections.abc.Iterable[global___UpdateRequest.NetworkDiff] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["addr", b"addr", "index", b"index"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["machine_diffs", b"machine_diffs", "network_diffs", b"network_diffs"]) -> None: ...
 
-global___RemoteHost = RemoteHost
-
-@typing_extensions.final
-class InitRemotesRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    INDEX_FIELD_NUMBER: builtins.int
-    REMOTEHOSTS_FIELD_NUMBER: builtins.int
-    index: builtins.int
-    @property
-    def remotehosts(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___RemoteHost]: ...
-    def __init__(
-        self,
-        *,
-        index: builtins.int = ...,
-        remotehosts: collections.abc.Iterable[global___RemoteHost] | None = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["index", b"index", "remotehosts", b"remotehosts"]) -> None: ...
-
-global___InitRemotesRequest = InitRemotesRequest
-
-@typing_extensions.final
-class Machine(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    SHELL_FIELD_NUMBER: builtins.int
-    ID_FIELD_NUMBER: builtins.int
-    NAME_FIELD_NUMBER: builtins.int
-    shell: builtins.int
-    """allow -1 for ground stations"""
-    id: builtins.int
-    name: builtins.str
-    """name is only used for ground stations"""
-    def __init__(
-        self,
-        *,
-        shell: builtins.int = ...,
-        id: builtins.int = ...,
-        name: builtins.str = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["id", b"id", "name", b"name", "shell", b"shell"]) -> None: ...
-
-global___Machine = Machine
-
-@typing_extensions.final
-class FirecrackerConfig(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    VCPU_FIELD_NUMBER: builtins.int
-    MEM_FIELD_NUMBER: builtins.int
-    HT_FIELD_NUMBER: builtins.int
-    DISK_FIELD_NUMBER: builtins.int
-    KERNEL_FIELD_NUMBER: builtins.int
-    ROOTFS_FIELD_NUMBER: builtins.int
-    BOOTPARAMS_FIELD_NUMBER: builtins.int
-    vcpu: builtins.int
-    mem: builtins.int
-    ht: builtins.bool
-    disk: builtins.int
-    kernel: builtins.str
-    rootfs: builtins.str
-    bootparams: builtins.str
-    def __init__(
-        self,
-        *,
-        vcpu: builtins.int = ...,
-        mem: builtins.int = ...,
-        ht: builtins.bool = ...,
-        disk: builtins.int = ...,
-        kernel: builtins.str = ...,
-        rootfs: builtins.str = ...,
-        bootparams: builtins.str = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["bootparams", b"bootparams", "disk", b"disk", "ht", b"ht", "kernel", b"kernel", "mem", b"mem", "rootfs", b"rootfs", "vcpu", b"vcpu"]) -> None: ...
-
-global___FirecrackerConfig = FirecrackerConfig
-
-@typing_extensions.final
-class NetworkConfig(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    BANDWIDTH_FIELD_NUMBER: builtins.int
-    bandwidth: builtins.int
-    def __init__(
-        self,
-        *,
-        bandwidth: builtins.int = ...,
-    ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["bandwidth", b"bandwidth"]) -> None: ...
-
-global___NetworkConfig = NetworkConfig
-
-@typing_extensions.final
-class CreateMachineRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    MACHINE_FIELD_NUMBER: builtins.int
-    FIRECRACKERCONFIG_FIELD_NUMBER: builtins.int
-    NETWORKCONFIG_FIELD_NUMBER: builtins.int
-    STATUS_FIELD_NUMBER: builtins.int
-    @property
-    def machine(self) -> global___Machine: ...
-    @property
-    def firecrackerconfig(self) -> global___FirecrackerConfig: ...
-    @property
-    def networkconfig(self) -> global___NetworkConfig: ...
-    status: builtins.bool
-    def __init__(
-        self,
-        *,
-        machine: global___Machine | None = ...,
-        firecrackerconfig: global___FirecrackerConfig | None = ...,
-        networkconfig: global___NetworkConfig | None = ...,
-        status: builtins.bool = ...,
-    ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["firecrackerconfig", b"firecrackerconfig", "machine", b"machine", "networkconfig", b"networkconfig"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["firecrackerconfig", b"firecrackerconfig", "machine", b"machine", "networkconfig", b"networkconfig", "status", b"status"]) -> None: ...
-
-global___CreateMachineRequest = CreateMachineRequest
-
-@typing_extensions.final
-class CreateRemoteMachineRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    MACHINE_FIELD_NUMBER: builtins.int
-    NETWORKCONFIG_FIELD_NUMBER: builtins.int
-    @property
-    def machine(self) -> global___Machine: ...
-    @property
-    def networkconfig(self) -> global___NetworkConfig: ...
-    def __init__(
-        self,
-        *,
-        machine: global___Machine | None = ...,
-        networkconfig: global___NetworkConfig | None = ...,
-    ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["machine", b"machine", "networkconfig", b"networkconfig"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["machine", b"machine", "networkconfig", b"networkconfig"]) -> None: ...
-
-global___CreateRemoteMachineRequest = CreateRemoteMachineRequest
-
-@typing_extensions.final
-class ModifyMachineRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    MACHINE_FIELD_NUMBER: builtins.int
-    STATUS_FIELD_NUMBER: builtins.int
-    @property
-    def machine(self) -> global___Machine: ...
-    status: builtins.bool
-    def __init__(
-        self,
-        *,
-        machine: global___Machine | None = ...,
-        status: builtins.bool = ...,
-    ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["machine", b"machine"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["machine", b"machine", "status", b"status"]) -> None: ...
-
-global___ModifyMachineRequest = ModifyMachineRequest
-
-@typing_extensions.final
-class ModifyLinksRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    A_FIELD_NUMBER: builtins.int
-    REMOVE_FIELD_NUMBER: builtins.int
-    MODIFY_FIELD_NUMBER: builtins.int
-    @property
-    def a(self) -> global___Machine: ...
-    @property
-    def remove(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___RemoveLinkRequest]: ...
-    @property
-    def modify(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ModifyLinkRequest]: ...
-    def __init__(
-        self,
-        *,
-        a: global___Machine | None = ...,
-        remove: collections.abc.Iterable[global___RemoveLinkRequest] | None = ...,
-        modify: collections.abc.Iterable[global___ModifyLinkRequest] | None = ...,
-    ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["a", b"a"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["a", b"a", "modify", b"modify", "remove", b"remove"]) -> None: ...
-
-global___ModifyLinksRequest = ModifyLinksRequest
-
-@typing_extensions.final
-class RemoveLinkRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    B_FIELD_NUMBER: builtins.int
-    @property
-    def b(self) -> global___Machine: ...
-    def __init__(
-        self,
-        *,
-        b: global___Machine | None = ...,
-    ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["b", b"b"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["b", b"b"]) -> None: ...
-
-global___RemoveLinkRequest = RemoveLinkRequest
-
-@typing_extensions.final
-class ModifyLinkRequest(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-    B_FIELD_NUMBER: builtins.int
-    LATENCY_FIELD_NUMBER: builtins.int
-    BANDWIDTH_FIELD_NUMBER: builtins.int
-    @property
-    def b(self) -> global___Machine: ...
-    latency: builtins.float
-    bandwidth: builtins.int
-    def __init__(
-        self,
-        *,
-        b: global___Machine | None = ...,
-        latency: builtins.float = ...,
-        bandwidth: builtins.int = ...,
-    ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["b", b"b"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["b", b"b", "bandwidth", b"bandwidth", "latency", b"latency"]) -> None: ...
-
-global___ModifyLinkRequest = ModifyLinkRequest
+global___UpdateRequest = UpdateRequest

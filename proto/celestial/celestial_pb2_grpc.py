@@ -14,44 +14,24 @@ class CelestialStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.GetHostInfo = channel.unary_unary(
-                '/openfogstack.celestial.celestial.Celestial/GetHostInfo',
-                request_serializer=celestial__pb2.Empty.SerializeToString,
-                response_deserializer=celestial__pb2.HostInfo.FromString,
-                )
-        self.HostReady = channel.unary_unary(
-                '/openfogstack.celestial.celestial.Celestial/HostReady',
-                request_serializer=celestial__pb2.Empty.SerializeToString,
-                response_deserializer=celestial__pb2.ReadyInfo.FromString,
+        self.Register = channel.unary_unary(
+                '/openfogstack.celestial.celestial.Celestial/Register',
+                request_serializer=celestial__pb2.RegisterRequest.SerializeToString,
+                response_deserializer=celestial__pb2.RegisterResponse.FromString,
                 )
         self.Init = channel.unary_unary(
                 '/openfogstack.celestial.celestial.Celestial/Init',
                 request_serializer=celestial__pb2.InitRequest.SerializeToString,
                 response_deserializer=celestial__pb2.Empty.FromString,
                 )
-        self.InitRemotes = channel.unary_unary(
-                '/openfogstack.celestial.celestial.Celestial/InitRemotes',
-                request_serializer=celestial__pb2.InitRemotesRequest.SerializeToString,
+        self.Update = channel.unary_unary(
+                '/openfogstack.celestial.celestial.Celestial/Update',
+                request_serializer=celestial__pb2.UpdateRequest.SerializeToString,
                 response_deserializer=celestial__pb2.Empty.FromString,
                 )
-        self.StartPeering = channel.unary_unary(
-                '/openfogstack.celestial.celestial.Celestial/StartPeering',
+        self.Stop = channel.unary_unary(
+                '/openfogstack.celestial.celestial.Celestial/Stop',
                 request_serializer=celestial__pb2.Empty.SerializeToString,
-                response_deserializer=celestial__pb2.Empty.FromString,
-                )
-        self.CreateMachine = channel.unary_unary(
-                '/openfogstack.celestial.celestial.Celestial/CreateMachine',
-                request_serializer=celestial__pb2.CreateMachineRequest.SerializeToString,
-                response_deserializer=celestial__pb2.Empty.FromString,
-                )
-        self.ModifyMachine = channel.unary_unary(
-                '/openfogstack.celestial.celestial.Celestial/ModifyMachine',
-                request_serializer=celestial__pb2.ModifyMachineRequest.SerializeToString,
-                response_deserializer=celestial__pb2.Empty.FromString,
-                )
-        self.ModifyLinks = channel.unary_unary(
-                '/openfogstack.celestial.celestial.Celestial/ModifyLinks',
-                request_serializer=celestial__pb2.ModifyLinksRequest.SerializeToString,
                 response_deserializer=celestial__pb2.Empty.FromString,
                 )
 
@@ -59,13 +39,7 @@ class CelestialStub(object):
 class CelestialServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def GetHostInfo(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def HostReady(self, request, context):
+    def Register(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -77,31 +51,13 @@ class CelestialServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def InitRemotes(self, request, context):
+    def Update(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def StartPeering(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def CreateMachine(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ModifyMachine(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ModifyLinks(self, request, context):
+    def Stop(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -110,44 +66,24 @@ class CelestialServicer(object):
 
 def add_CelestialServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'GetHostInfo': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetHostInfo,
-                    request_deserializer=celestial__pb2.Empty.FromString,
-                    response_serializer=celestial__pb2.HostInfo.SerializeToString,
-            ),
-            'HostReady': grpc.unary_unary_rpc_method_handler(
-                    servicer.HostReady,
-                    request_deserializer=celestial__pb2.Empty.FromString,
-                    response_serializer=celestial__pb2.ReadyInfo.SerializeToString,
+            'Register': grpc.unary_unary_rpc_method_handler(
+                    servicer.Register,
+                    request_deserializer=celestial__pb2.RegisterRequest.FromString,
+                    response_serializer=celestial__pb2.RegisterResponse.SerializeToString,
             ),
             'Init': grpc.unary_unary_rpc_method_handler(
                     servicer.Init,
                     request_deserializer=celestial__pb2.InitRequest.FromString,
                     response_serializer=celestial__pb2.Empty.SerializeToString,
             ),
-            'InitRemotes': grpc.unary_unary_rpc_method_handler(
-                    servicer.InitRemotes,
-                    request_deserializer=celestial__pb2.InitRemotesRequest.FromString,
+            'Update': grpc.unary_unary_rpc_method_handler(
+                    servicer.Update,
+                    request_deserializer=celestial__pb2.UpdateRequest.FromString,
                     response_serializer=celestial__pb2.Empty.SerializeToString,
             ),
-            'StartPeering': grpc.unary_unary_rpc_method_handler(
-                    servicer.StartPeering,
+            'Stop': grpc.unary_unary_rpc_method_handler(
+                    servicer.Stop,
                     request_deserializer=celestial__pb2.Empty.FromString,
-                    response_serializer=celestial__pb2.Empty.SerializeToString,
-            ),
-            'CreateMachine': grpc.unary_unary_rpc_method_handler(
-                    servicer.CreateMachine,
-                    request_deserializer=celestial__pb2.CreateMachineRequest.FromString,
-                    response_serializer=celestial__pb2.Empty.SerializeToString,
-            ),
-            'ModifyMachine': grpc.unary_unary_rpc_method_handler(
-                    servicer.ModifyMachine,
-                    request_deserializer=celestial__pb2.ModifyMachineRequest.FromString,
-                    response_serializer=celestial__pb2.Empty.SerializeToString,
-            ),
-            'ModifyLinks': grpc.unary_unary_rpc_method_handler(
-                    servicer.ModifyLinks,
-                    request_deserializer=celestial__pb2.ModifyLinksRequest.FromString,
                     response_serializer=celestial__pb2.Empty.SerializeToString,
             ),
     }
@@ -161,7 +97,7 @@ class Celestial(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def GetHostInfo(request,
+    def Register(request,
             target,
             options=(),
             channel_credentials=None,
@@ -171,26 +107,9 @@ class Celestial(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/GetHostInfo',
-            celestial__pb2.Empty.SerializeToString,
-            celestial__pb2.HostInfo.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def HostReady(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/HostReady',
-            celestial__pb2.Empty.SerializeToString,
-            celestial__pb2.ReadyInfo.FromString,
+        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/Register',
+            celestial__pb2.RegisterRequest.SerializeToString,
+            celestial__pb2.RegisterResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -212,7 +131,7 @@ class Celestial(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def InitRemotes(request,
+    def Update(request,
             target,
             options=(),
             channel_credentials=None,
@@ -222,14 +141,14 @@ class Celestial(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/InitRemotes',
-            celestial__pb2.InitRemotesRequest.SerializeToString,
+        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/Update',
+            celestial__pb2.UpdateRequest.SerializeToString,
             celestial__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def StartPeering(request,
+    def Stop(request,
             target,
             options=(),
             channel_credentials=None,
@@ -239,59 +158,8 @@ class Celestial(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/StartPeering',
+        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/Stop',
             celestial__pb2.Empty.SerializeToString,
-            celestial__pb2.Empty.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def CreateMachine(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/CreateMachine',
-            celestial__pb2.CreateMachineRequest.SerializeToString,
-            celestial__pb2.Empty.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def ModifyMachine(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/ModifyMachine',
-            celestial__pb2.ModifyMachineRequest.SerializeToString,
-            celestial__pb2.Empty.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def ModifyLinks(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/ModifyLinks',
-            celestial__pb2.ModifyLinksRequest.SerializeToString,
             celestial__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

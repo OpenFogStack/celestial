@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
-import os
-import itertools
-import glob
-import datetime
 
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import matplotlib as mpl
-import matplotlib.ticker
 import matplotlib.pyplot as plt
 
 
@@ -104,7 +98,9 @@ if __name__ == "__main__":
     plt.clf()
 
     # now do the average difference over time with a 5s rolling mean
-    results_rolling = results.groupby(["a", "b"]).rolling(10, on="t").mean(numeric_only=True)
+    results_rolling = (
+        results.groupby(["a", "b"]).rolling(10, on="t").mean(numeric_only=True)
+    )
 
     sns.lineplot(data=results_rolling, x="t", y="diff_approx", hue="a")
     plt.savefig(f"{OUTPUT_DIR}/lineplot.png", bbox_inches="tight")

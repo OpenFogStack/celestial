@@ -23,28 +23,37 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
-	"github.com/OpenFogStack/celestial/pkg/dnsservice"
-	"github.com/OpenFogStack/celestial/pkg/infoserver"
+	"github.com/OpenFogStack/celestial/pkg/dns"
+	"github.com/OpenFogStack/celestial/pkg/info"
+	"github.com/OpenFogStack/celestial/pkg/netem"
 	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 	"github.com/OpenFogStack/celestial/pkg/peer"
 	"github.com/OpenFogStack/celestial/pkg/server"
+	"github.com/OpenFogStack/celestial/pkg/virt"
 	"github.com/OpenFogStack/celestial/proto/celestial"
-	"github.com/OpenFogStack/celestial/proto/peering"
+)
+
+const (
+	PEER_WGPORT        = 3000
+	PEER_WGINTERFACE   = "wg0"
+	PEER_MASK          = "/26"
+	PEER_KEYPATH       = "/celestial/privatekey"
+	DEFAULT_IF         = "ens4"
+	DEFAULT_INIT_DELAY = 15
 )
 
 func main() {
 	// needs some configuration data
-	port := flag.Int("port", 1969, "Port to bind to")
-	peeringPort := flag.Int("peer-port", 1970, "Port to bind peer to")
-	dnsServicePort := flag.Int("dns-service-port", 53, "Port to bind DNS service server to")
-	infoServerPort := flag.Int("info-server-port", 80, "Port to bind info server to")
-	networkInterface := flag.String("network-interface", "ens4", "Name of your main network interface")
-	initDelay := flag.Int("init-delay", 15, "Maximum delay when initially booting a machine -- can help reduce load at beginning of emulation")
-	eager := flag.Bool("eager", false, "Eager initialization -- start each machine at the beginning instead of lazily (default off)")
+	port := flag.Uint64("port", 1969, "Port to bind to")
+	dnsServicePort := flag.Uint64("dns-service-port", 53, "Port to bind DNS service server to")
+	infoServerPort := flag.Uint64("info-server-port", 80, "Port to bind info server to")
+	networkInterface := flag.String("network-interface", DEFAULT_IF, "Name of your main network interface")
+	initDelay := flag.Uint64("init-delay", DEFAULT_INIT_DELAY, "Maximum delay when initially booting a machine -- can help reduce load at beginning of emulation")
 	debug := flag.Bool("debug", false, "Enable debug logging")
 
 	flag.Parse()
@@ -56,38 +65,44 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	p := grpc.NewServer()
 
-	o, err := orchestrator.New(*eager, *initDelay, *networkInterface, *debug)
-
-	if err != nil {
-		panic(err)
-	}
-
-	celestial.RegisterCelestialServer(s, server.New(o))
-	peering.RegisterPeeringServer(p, peer.New(o))
-
-	lisS, err := net.Listen("tcp", net.JoinHostPort("", strconv.Itoa(*port)))
+	pb, err := peer.New(PEER_MASK, PEER_KEYPATH, PEER_WGINTERFACE, PEER_WGPORT)
 
 	if err != nil {
 		panic(err)
 	}
 
-	lisP, err := net.Listen("tcp", net.JoinHostPort("", strconv.Itoa(*peeringPort)))
+	neb := netem.New()
+
+	if err != nil {
+		panic(err)
+	}
+
+	vb, err := virt.New(*networkInterface, *initDelay, pb, neb)
+
+	if err != nil {
+		panic(err)
+	}
+
+	o := orchestrator.New(vb)
+
+	celestial.RegisterCelestialServer(s, server.New(o, pb))
+
+	lisS, err := net.Listen("tcp", net.JoinHostPort("", strconv.Itoa(int(*port))))
 
 	if err != nil {
 		panic(err)
 	}
 
 	go func() {
-		err := dnsservice.Start(*dnsServicePort, o)
+		err := dns.Start(*dnsServicePort, o)
 		if err != nil {
 			panic(err.Error())
 		}
 	}()
 
 	go func() {
-		err := infoserver.Start(*infoServerPort, o)
+		err := info.Start(*infoServerPort, o)
 		if err != nil {
 			panic(err.Error())
 		}
@@ -100,28 +115,21 @@ func main() {
 		}
 	}()
 
-	go func() {
-		err := p.Serve(lisP)
-		if err != nil {
-			panic(err.Error())
-		}
-	}()
-
 	// listen for SIGINT
 	c := make(chan os.Signal, 1)
 
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
-	// block until SIGINT is received
 	<-c
+
+	err = o.Stop()
+
+	if err != nil {
+		panic(err.Error())
+	}
 
 	// stop the grpc servers
 	s.Stop()
-	p.Stop()
 
-	err = o.Cleanup()
-
-	if err != nil {
-		panic(err)
-	}
+	os.Exit(0)
 }

@@ -5,8 +5,8 @@ import subprocess
 import struct
 import typing
 
-import satgen.types
-import satgen.config
+import celestial.types
+import celestial.config
 
 CONFIG_FILE = "c"
 INIT_FILE = "i"
@@ -14,14 +14,14 @@ DIFF_LINK_FILE_PREFIX = "l"
 DIFF_MACHINE_FILE_PREFIX = "m"
 
 
-def config_to_bytes(config: satgen.config.Config) -> bytes:
+def config_to_bytes(config: celestial.config.Config) -> bytes:
     return pickle.dumps(config)
 
 
-def config_from_bytes(b: bytes) -> satgen.config.Config:
+def config_from_bytes(b: bytes) -> celestial.config.Config:
     c = pickle.loads(b)
 
-    if not isinstance(c, satgen.config.Config):
+    if not isinstance(c, celestial.config.Config):
         raise TypeError(f"Invalid config: {c}")
 
     return c
@@ -33,7 +33,7 @@ LIST_SEP = "|"
 
 
 def init_to_str(
-    machine: satgen.types.MachineID_dtype, config: satgen.config.MachineConfig
+    machine: celestial.types.MachineID_dtype, config: celestial.config.MachineConfig
 ) -> str:
     b = LIST_SEP.join(config.boot_parameters)
 
@@ -42,7 +42,7 @@ def init_to_str(
 
 def init_from_str(
     s: str,
-) -> typing.Tuple[satgen.types.MachineID_dtype, satgen.config.MachineConfig]:
+) -> typing.Tuple[celestial.types.MachineID_dtype, celestial.config.MachineConfig]:
     (
         group,
         id,
@@ -56,8 +56,8 @@ def init_from_str(
     ) = s.split(",")
     try:
         return (
-            satgen.types.MachineID(int(group), int(id), name),
-            satgen.config.MachineConfig(
+            celestial.types.MachineID(int(group), int(id), name),
+            celestial.config.MachineConfig(
                 int(vcpu_count),
                 int(mem_size_mib),
                 int(disk_size),
@@ -82,21 +82,21 @@ DIFF_MACHINE_FMT = "<BHB"
 
 
 def diff_link_to_bytes(
-    source: satgen.types.MachineID_dtype,
-    target: satgen.types.MachineID_dtype,
-    link: satgen.types.Link_dtype,
+    source: celestial.types.MachineID_dtype,
+    target: celestial.types.MachineID_dtype,
+    link: celestial.types.Link_dtype,
 ) -> bytes:
     return struct.pack(
         DIFF_LINK_FMT,
-        satgen.types.MachineID_group(source),
-        satgen.types.MachineID_id(source),
-        satgen.types.MachineID_group(target),
-        satgen.types.MachineID_id(target),
-        satgen.types.Link_latency_us(link),
-        satgen.types.Link_bandwidth_kbits(link),
-        satgen.types.Link_blocked(link),
-        satgen.types.MachineID_group(satgen.types.Link_next_hop(link)),
-        satgen.types.MachineID_id(satgen.types.Link_next_hop(link)),
+        celestial.types.MachineID_group(source),
+        celestial.types.MachineID_id(source),
+        celestial.types.MachineID_group(target),
+        celestial.types.MachineID_id(target),
+        celestial.types.Link_latency_us(link),
+        celestial.types.Link_bandwidth_kbits(link),
+        celestial.types.Link_blocked(link),
+        celestial.types.MachineID_group(celestial.types.Link_next_hop(link)),
+        celestial.types.MachineID_id(celestial.types.Link_next_hop(link)),
     )
 
 
@@ -104,20 +104,20 @@ def diff_link_from_bytes(
     b: bytes,
 ) -> typing.List[
     typing.Tuple[
-        satgen.types.MachineID_dtype,
-        satgen.types.MachineID_dtype,
-        satgen.types.Link_dtype,
+        celestial.types.MachineID_dtype,
+        celestial.types.MachineID_dtype,
+        celestial.types.Link_dtype,
     ]
 ]:
     return [
         (
-            satgen.types.MachineID(source_machine_id_group, source_machine_id_id),
-            satgen.types.MachineID(target_machine_id_group, target_machine_id_id),
-            satgen.types.Link(
+            celestial.types.MachineID(source_machine_id_group, source_machine_id_id),
+            celestial.types.MachineID(target_machine_id_group, target_machine_id_id),
+            celestial.types.Link(
                 link_latency_us,
                 link_bandwidth_kbits,
                 link_blocked,
-                satgen.types.MachineID(
+                celestial.types.MachineID(
                     link_next_hop_machine_id_group, link_next_hop_machine_id_id
                 ),
             ),
@@ -137,23 +137,25 @@ def diff_link_from_bytes(
 
 
 def diff_machine_to_bytes(
-    machine: satgen.types.MachineID_dtype, s: satgen.types.VMState
+    machine: celestial.types.MachineID_dtype, s: celestial.types.VMState
 ) -> bytes:
     return struct.pack(
         DIFF_MACHINE_FMT,
-        satgen.types.MachineID_group(machine),
-        satgen.types.MachineID_id(machine),
+        celestial.types.MachineID_group(machine),
+        celestial.types.MachineID_id(machine),
         s.value,
     )
 
 
 def diff_machine_from_bytes(
     b: bytes,
-) -> typing.List[typing.Tuple[satgen.types.MachineID_dtype, satgen.types.VMState]]:
+) -> typing.List[
+    typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
+]:
     return [
         (
-            satgen.types.MachineID(machine_id_group, machine_id_id),
-            satgen.types.VMState(vm_state),
+            celestial.types.MachineID(machine_id_group, machine_id_id),
+            celestial.types.VMState(vm_state),
         )
         for (machine_id_group, machine_id_id, vm_state) in struct.iter_unpack(
             DIFF_MACHINE_FMT, b
@@ -163,7 +165,7 @@ def diff_machine_from_bytes(
 
 class ZipSerializer:
     def __init__(
-        self, config: satgen.config.Config, output_file: typing.Optional[str] = None
+        self, config: celestial.config.Config, output_file: typing.Optional[str] = None
     ):
         if output_file is None:
             self.filename = "{:08x}".format(abs(hash(config)))
@@ -197,17 +199,19 @@ class ZipSerializer:
             f.write(config_to_bytes(config))
 
     def init_machine(
-        self, machine: satgen.types.MachineID_dtype, config: satgen.config.MachineConfig
+        self,
+        machine: celestial.types.MachineID_dtype,
+        config: celestial.config.MachineConfig,
     ) -> None:
         with open(os.path.join(self.write_dir, INIT_FILE), "a") as f:
             f.write(f"{init_to_str(machine, config)}\n")
 
     def diff_link(
         self,
-        t: satgen.types.timestamp_s,
-        source: satgen.types.MachineID_dtype,
-        target: satgen.types.MachineID_dtype,
-        link: satgen.types.Link_dtype,
+        t: celestial.types.timestamp_s,
+        source: celestial.types.MachineID_dtype,
+        target: celestial.types.MachineID_dtype,
+        link: celestial.types.Link_dtype,
     ) -> None:
         with open(
             os.path.join(self.write_dir, f"{DIFF_LINK_FILE_PREFIX}{t}"), "ab"
@@ -216,9 +220,9 @@ class ZipSerializer:
 
     def diff_machine(
         self,
-        t: satgen.types.timestamp_s,
-        machine: satgen.types.MachineID_dtype,
-        s: satgen.types.VMState,
+        t: celestial.types.timestamp_s,
+        machine: celestial.types.MachineID_dtype,
+        s: celestial.types.VMState,
     ) -> None:
         # print(f"diff_machine: {t} {machine} {s}")
         with open(
@@ -266,14 +270,14 @@ class ZipDeserializer:
         # unzip the file
         shutil.unpack_archive(self.filename, self.tmp_dir)
 
-    def config(self) -> satgen.config.Config:
+    def config(self) -> celestial.config.Config:
         with open(os.path.join(self.tmp_dir, CONFIG_FILE), "rb") as f:
             return config_from_bytes(f.read())
 
     def init_machines(
         self,
     ) -> typing.List[
-        typing.Tuple[satgen.types.MachineID_dtype, satgen.config.MachineConfig]
+        typing.Tuple[celestial.types.MachineID_dtype, celestial.config.MachineConfig]
     ]:
         if not os.path.exists(os.path.join(self.tmp_dir, INIT_FILE)):
             return []
@@ -281,12 +285,12 @@ class ZipDeserializer:
             return [init_from_str(line) for line in f.readlines()]
 
     def diff_links(
-        self, t: satgen.types.timestamp_s
+        self, t: celestial.types.timestamp_s
     ) -> typing.List[
         typing.Tuple[
-            satgen.types.MachineID_dtype,
-            satgen.types.MachineID_dtype,
-            satgen.types.Link_dtype,
+            celestial.types.MachineID_dtype,
+            celestial.types.MachineID_dtype,
+            celestial.types.Link_dtype,
         ]
     ]:
         if not os.path.exists(
@@ -298,8 +302,10 @@ class ZipDeserializer:
             return diff_link_from_bytes(f.read())
 
     def diff_machines(
-        self, t: satgen.types.timestamp_s
-    ) -> typing.List[typing.Tuple[satgen.types.MachineID_dtype, satgen.types.VMState]]:
+        self, t: celestial.types.timestamp_s
+    ) -> typing.List[
+        typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
+    ]:
         if not os.path.exists(
             os.path.join(self.tmp_dir, f"{DIFF_MACHINE_FILE_PREFIX}{t}")
         ):

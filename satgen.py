@@ -20,13 +20,13 @@ import sys
 import toml
 import tqdm
 
-import satgen.config
-import satgen.zip_serializer
-import satgen.constellation
+import celestial.config
+import celestial.zip_serializer
+import celestial.constellation
 
 if __name__ == "__main__":
     if len(sys.argv) > 3 or len(sys.argv) < 2:
-        exit("Usage: python3 satgen.py [config.toml] [output-file (optional)]")
+        exit("Usage: python3 celestial.py [config.toml] [output-file (optional)]")
 
     # read toml
     try:
@@ -39,14 +39,14 @@ if __name__ == "__main__":
         output_file = sys.argv[2]
 
     # read the configuration
-    config: satgen.config.Config = satgen.config.Config(text_config)
+    config: celestial.config.Config = celestial.config.Config(text_config)
 
     # prepare serializer
-    # serializer = satgen.json_serializer.JSONSerializer(config)
-    serializer = satgen.zip_serializer.ZipSerializer(config, output_file)
+    # serializer = celestial.json_serializer.JSONSerializer(config)
+    serializer = celestial.zip_serializer.ZipSerializer(config, output_file)
 
     # init the constellation
-    constellation = satgen.constellation.Constellation(config, serializer)
+    constellation = celestial.constellation.Constellation(config, serializer)
 
     # run the simulation
     i = 0
