@@ -1,411 +1,189 @@
-/*
-* This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-* Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, version 3.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>.
-**/
-
 package orchestrator
 
 import (
 	"fmt"
-	"net"
-	"os"
-	"os/exec"
+	"sort"
+	"strings"
 
-	"github.com/firecracker-microvm/firecracker-go-sdk"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/OpenFogStack/celestial/pkg/commons"
 )
 
-// GetIPAddress returns an IP address of a satellite machine.
-func (o *Orchestrator) GetIPAddress(shell int64, id uint64) (string, error) {
-	m, err := o.getMachine(commons.MachineID{
-		Shell: shell,
-		ID:    id})
+func (n NetworkState) String() string {
+	s := make([]string, 0)
 
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	return m.address.String(), nil
-}
-
-// GetGSTIPAddress returns an IP address of a ground station machine.
-func (o *Orchestrator) GetGSTIPAddress(name string) (string, error) {
-
-	m, err := o.getGSTMachineByName(name)
-
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	return m.address.String(), nil
-}
-
-// GetMachineByIP returns a machine identifier based on an IP address.
-func (o *Orchestrator) GetMachineByIP(ip net.IP) (commons.MachineID, error) {
-
-	ip = ip.To4()
-
-	if ip[0] != 10&0xFF {
-		return commons.MachineID{}, errors.Errorf("ip %s unknown", ip.String())
-	}
-
-	shell := int64(ip[1])
-
-	if shell == 255 {
-		shell = -1
-	}
-
-	id := uint64(ip[2]<<6) + uint64((ip[3]-2)>>2)
-
-	m := commons.MachineID{
-		Shell: shell,
-		ID:    id,
-	}
-
-	machine, err := o.getMachine(m)
-
-	if err != nil {
-		return commons.MachineID{}, errors.WithStack(err)
-	}
-
-	return commons.MachineID{
-		Shell: m.Shell,
-		ID:    m.ID,
-		Name:  machine.name,
-	}, nil
-}
-
-// getIPAddressMACAndTapName returns an IP Address (CIDR format), a custom MAC address, and a tap name for a given
-// machine identifier. Group is limited to 8 bits (max. 256) and ID to 14 bits (max. 16,384) because of IPv4. I
-// theory we could split this up differently, so that shell has 6 bits and ID 16 bits, etc. This limit is enforced
-// and is also used to ensure the tap device name is less than 14 digits long. Each tap has to have its own network,
-// that network is 10.[shell].[id>>6 & 0xFF].[id<<2 & 0xFF]/30, leaves 3 addresses on that network: network + 1 is
-// gateway IP, network + 2 is tap IP.
-// Since I'm bolting on support for ground stations now I have decided to give those the shell -1. As that would get
-// us 0 (since we only check the last 8 bits), let's just invert that so we get a load of 1s. This should leave us
-// with 255 for the second byte of the network/address. Because we're doing that, limit the shells to 255 as well.
-func getIPAddressMACAndTapName(shell int64, id uint64) (ip string, gateway string, mac string, tapName string, chainName string, ipBlockSet string, err error) {
-
-	if shell > 255 {
-		err = errors.Errorf("shell %d is larger than permitted 256", shell)
-		return
-	}
-
-	if shell < -1 {
-		err = errors.Errorf("shell %d is lower than permitted -1", shell)
-		return
-	}
-
-	if id > 16384 {
-		err = errors.Errorf("id %d is larger than permitted 16,384", id)
-	}
-
-	// I tried the ^ operator first but I got a bit confused
-	if shell == -1 {
-		shell = 255
-	}
-
-	gateway = fmt.Sprintf("10.%d.%d.%d/30", shell&0xFF, ((id)>>6)&0xFF, ((id)<<2)&0xFF+1)
-	ip = fmt.Sprintf("10.%d.%d.%d/30", shell&0xFF, ((id)>>6)&0xFF, ((id)<<2)&0xFF+2)
-
-	mac = net.HardwareAddr{0xAA, 0xCE, byte((shell) & 0xFF), 0x00, byte(((id + 2) >> 8) & 0xFF), byte(((id + 2) >> 0) & 0xFF)}.String()
-
-	// tapName can be max 14 digits long
-	// implicitly assuming that shell
-	// tapName is "ct-[shell]-[id]" to limit length
-	tapName = fmt.Sprintf("ct-%d-%d", shell, id)
-
-	if shell == 255 {
-		tapName = fmt.Sprintf("ct-gst-%d", id)
-	}
-
-	// chainName is "CT-[shell]-[id]" to limit length
-	chainName = fmt.Sprintf("CT-%d-%d", shell, id)
-
-	if shell == 255 {
-		chainName = fmt.Sprintf("CT-GST-%d", id)
-	}
-
-	// ipBlockSet is "CT-[shell]-[id]-bl
-	ipBlockSet = fmt.Sprintf("CT-%d-%d-bl", shell, id)
-
-	if shell == 255 {
-		ipBlockSet = fmt.Sprintf("CT-GST-%d-bl", id)
-	}
-
-	return
-}
-
-func getFirecrackerNetworkInterfaces(ip string, gateway string, mac string, tapName string) ([]firecracker.NetworkInterface, error) {
-
-	ipIP, ipNet, err := net.ParseCIDR(ip)
-
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	gatewayIP, _, err := net.ParseCIDR(gateway)
-
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	config := firecracker.NetworkInterface{
-		StaticConfiguration: &firecracker.StaticNetworkConfiguration{
-			MacAddress:  mac,
-			HostDevName: tapName,
-			IPConfiguration: &firecracker.IPConfiguration{
-				IPAddr: net.IPNet{
-					IP:   ipIP,
-					Mask: ipNet.Mask,
-				},
-				Gateway:     gatewayIP,
-				Nameservers: []string{NAMESERVER},
-				IfName:      GUESTINTERFACE,
-			},
-		},
-	}
-
-	// log.Infof("Static Network Configuration: %#v, IP Configuration: %#v with IP %s", *config.StaticConfiguration, *config.StaticConfiguration.IPConfiguration, config.StaticConfiguration.IPConfiguration.IPAddr.String())
-
-	return []firecracker.NetworkInterface{config}, nil
-}
-
-// initHost resets the hosts iptables and sets up basics on the host.
-func initHost(hostInterface string) error {
-
-	// clear iptables
-	// iptables -F
-	cmd := exec.Command(IPTABLES, "-F")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
-
-	file, err := os.Create("/proc/sys/net/ipv4/ip_forward")
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			log.Error(err.Error())
+	for i := range n {
+		for j := range n[i] {
+			s = append(s, fmt.Sprintf("%s -> %s : %s", i.String(), j.String(), n[i][j].String()))
 		}
-	}(file)
-
-	if _, err := file.WriteString("1"); err != nil {
-		return errors.WithStack(err)
 	}
 
-	// Configure packet forwarding
-	// sysctl -wq net.ipv4.conf.all.forwarding=1
+	// sort
+	sort.Strings(s)
 
-	cmd = exec.Command("sysctl", "-wq", "net.ipv4.conf.all.forwarding=1")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// Avoid "neighbour: arp_cache: neighbor table overflow!"
-	// sysctl -wq net.ipv4.neigh.default.gc_thresh1=1024
-	cmd = exec.Command("sysctl", "-wq", "net.ipv4.neigh.default.gc_thresh1=1024")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// sysctl -wq net.ipv4.neigh.default.gc_thresh2=2048
-	cmd = exec.Command("sysctl", "-wq", "net.ipv4.neigh.default.gc_thresh2=2048")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// sysctl -wq net.ipv4.neigh.default.gc_thresh3=4096
-	cmd = exec.Command("sysctl", "-wq", "net.ipv4.neigh.default.gc_thresh3=4096")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	//sudo iptables -t nat -A POSTROUTING -o [HOSTINTERFACE] -j MASQUERADE
-
-	cmd = exec.Command(IPTABLES, "-t", "nat", "-A", "POSTROUTING", "-o", hostInterface, "-j", "MASQUERADE")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-
-	cmd = exec.Command(IPTABLES, "-A", "FORWARD", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	return nil
+	return strings.Join(s, "\n")
 }
 
-// createNetworkDevice creates a new network device for a microVM.
-func createNetworkDevice(gateway string, tapName string, chainName string, ipBlockSet string, hostInterface string) error {
-
-	// remove old network tap if exists
-	err := removeNetworkDevice(tapName, chainName, ipBlockSet, hostInterface, true)
-
-	if err != nil {
-		return errors.WithStack(err)
+func (l Link) String() string {
+	if l.Blocked {
+		return "blocked"
 	}
 
-	// ip tuntap add [TAP_NAME] mode tap
-
-	cmd := exec.Command("ip", "tuntap", "add", tapName, "mode", "tap")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// set up proxy ARP
-	// sysctl -w net.ipv4.conf.[TAP_NAME].proxy_arp=1
-	cmd = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv4.conf.%s.proxy_arp=1", tapName))
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// disable ipv6
-	// sysctl -w net.ipv6.conf.[TAP_NAME].disable_ipv6=1
-	cmd = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv6.conf.%s..disable_ipv6=1", tapName))
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// ip addr add [IP_ADDRESS] dev [TAP_NAME]
-
-	cmd = exec.Command("ip", "addr", "add", gateway, "dev", tapName)
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// ip link set [TAP_NAME] up
-
-	cmd = exec.Command("ip", "link", "set", tapName, "up")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// iptables -N [CHAIN_NAME]
-
-	cmd = exec.Command(IPTABLES, "-N", chainName)
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// iptables -A FORWARD -i [TAP_NAME] -j [CHAIN_NAME]
-
-	cmd = exec.Command(IPTABLES, "-A", "FORWARD", "-i", tapName, "-j", chainName)
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// ipset create [IP_BLOCK_SET] hash:net
-
-	cmd = exec.Command(IPSET, "create", ipBlockSet, "hash:net")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// iptables -A [CHAIN_NAME] -m set --match-set [IP_BLOCK_SET] dst -j REJECT --reject-with icmp-net-unreachable
-
-	cmd = exec.Command(IPTABLES, "-A", chainName, "-m", "set", "--match-set", ipBlockSet, "dst", "-j", "REJECT", "--reject-with", "icmp-net-unreachable")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	// iptables -A FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
-
-	cmd = exec.Command(IPTABLES, "-A", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	return nil
+	return fmt.Sprintf("%dus %dbps (next: %s)", l.Latency, l.Bandwidth, l.Next.String())
 }
 
-// removeNetworkDevice removes a network device.
-func removeNetworkDevice(tapName string, chainName string, ipBlockSet string, hostInterface string, allowFail bool) error {
-	// ip link del [TAP_NAME]
-
-	cmd := exec.Command("ip", "link", "del", tapName)
-
-	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+func path(a, b MachineID, n NetworkState) (PathInfo, error) {
+	if a == b {
+		return PathInfo{}, errors.Errorf("cannot give path from %s to itself", a)
 	}
 
-	// iptables -D FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
+	log.Debugf("path from %s to %s", a.String(), b.String())
 
-	cmd = exec.Command(IPTABLES, "-D", "FORWARD", "-i", tapName, "-o", hostInterface, "-j", "ACCEPT")
-
-	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	if b.lt(a) {
+		return path(b, a, n)
 	}
 
-	// iptables -D FORWARD -i [TAP_NAME] -j [CHAIN_NAME]
-
-	cmd = exec.Command(IPTABLES, "-D", "FORWARD", "-i", tapName, "-j", chainName)
-
-	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	p := PathInfo{
+		Source: a,
+		Target: b,
 	}
 
-	// iptables -F [CHAIN_NAME]
-
-	cmd = exec.Command(IPTABLES, "-F", chainName)
-
-	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	if n[a][b].Blocked {
+		log.Debugf("path from %s to %s is blocked", a.String(), b.String())
+		p.Blocked = true
+		return p, nil
 	}
 
-	// iptables -X [CHAIN_NAME]
+	p.Latency = n[a][b].Latency
+	p.Bandwidth = n[a][b].Bandwidth
+	p.Segments = make([]SegmentInfo, 0)
 
-	cmd = exec.Command(IPTABLES, "-X", chainName)
-	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	for a != b {
+		x, y := a, b
+		if y.lt(x) {
+			x, y = y, x
+		}
+
+		hop := n[x][y]
+
+		log.Debugf("path from %s to %s: %s", a.String(), b.String(), hop.String())
+		s := SegmentInfo{
+			Source:    x,
+			Target:    hop.Next,
+			Latency:   n[x][hop.Next].Latency,
+			Bandwidth: n[x][hop.Next].Bandwidth,
+		}
+
+		// weird prepend action
+		//p.Segments = append([]SegmentInfo{s}, p.Segments...)
+		p.Segments = append(p.Segments, s)
+
+		a = hop.Next
+		b = y
 	}
 
-	// ipset destroy [IP_BLOCK_SET]
-
-	cmd = exec.Command(IPSET, "destroy", ipBlockSet)
-	if out, err := cmd.CombinedOutput(); !allowFail && err != nil {
-		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
-	}
-
-	return nil
+	return p, nil
 }
+
+/*
+// consider: technically, we allow paths to go through a ground station. Decide if this makes sense...
+func distances(machines []MachineID, state ISLState) (links, error) {
+	t := time.Now()
+
+	type distance struct {
+		latency   uint32
+		bandwidth uint64
+	}
+
+	// generate a matrix
+	dist := make([][]distance, len(machines))
+	// next hop graph
+	next := make([][]int, len(machines))
+
+	for i := range dist {
+		dist[i] = make([]distance, len(machines))
+		for j := range dist[i] {
+			dist[i][j] = distance{latency: ^uint32(0)}
+		}
+
+		next[i] = make([]int, len(machines))
+		for j := range next[i] {
+			next[i][j] = -1
+		}
+	}
+
+	id := make(map[MachineID]int)
+
+	for i, m := range machines {
+		id[m] = i
+	}
+
+	for a := range state {
+		for b := range state[a] {
+			dist[id[a]][id[b]].latency = state[a][b].Latency
+			dist[id[a]][id[b]].bandwidth = state[a][b].Bandwidth
+			next[id[a]][id[b]] = id[b]
+		}
+	}
+
+	for a := range machines {
+		dist[a][a].latency = 0
+		dist[a][a].bandwidth = ^uint64(0)
+		// not adding itself to matrix
+		// only reason is compatibility with scipy implementation
+		//pred[a][a] = a
+	}
+
+	// floyd-warshall
+	for k := range dist {
+		for i := range dist {
+			for j := range dist {
+				if dist[i][k].latency == ^uint32(0) || dist[k][j].latency == ^uint32(0) {
+					continue
+				}
+				if dist[i][j].latency > dist[i][k].latency+dist[k][j].latency {
+					dist[i][j].latency = dist[i][k].latency + dist[k][j].latency
+					dist[i][j].bandwidth = min(dist[i][k].bandwidth, dist[k][j].bandwidth)
+
+					next[i][j] = next[i][k]
+				}
+			}
+		}
+	}
+
+	log.Debugf("fw took %s", time.Since(t))
+
+	l := make(links)
+
+	for i := range dist {
+		for j := range dist {
+			if i == j {
+				continue
+			}
+
+			if _, ok := l[machines[i]]; !ok {
+				l[machines[i]] = make(map[MachineID]*Link)
+			}
+
+			if dist[i][j].latency == ^uint32(0) {
+				l[machines[i]][machines[j]] = &Link{
+					Blocked: true,
+				}
+				// no need for path matrix entry if link is blocked
+				continue
+			}
+
+			l[machines[i]][machines[j]] = &Link{
+				Latency:   dist[i][j].latency,
+				Bandwidth: dist[i][j].bandwidth,
+				Blocked:   false,
+				next:      machines[next[i][j]],
+			}
+		}
+	}
+
+	log.Debugf("distances took %s", time.Since(t))
+
+	return l, nil
+}
+*/

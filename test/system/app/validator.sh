@@ -42,16 +42,6 @@ sleep 10
 # now it should report the correct timesource
 chronyc tracking
 
-# sync up again, just in case
-chronyc -a makestep
-
-# and check again
-chronyc tracking
-
-# wait and check again
-sleep 10
-chronyc tracking
-
 # ready to start the application!
 # everything that is sent to stdout will be sent to our file
 echo "STARTING VALIDATOR"

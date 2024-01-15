@@ -1,6 +1,6 @@
 /*
 * This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-* Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+* Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -19,206 +19,194 @@ package server
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"time"
 
-	"github.com/pkg/errors"
-
-	"github.com/pbnjay/memory"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/OpenFogStack/celestial/pkg/commons"
-	"github.com/OpenFogStack/celestial/pkg/orchestrator"
+	"github.com/OpenFogStack/celestial/pkg/peer"
 	"github.com/OpenFogStack/celestial/proto/celestial"
+
+	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 )
+
+type PeeringBackend interface {
+	Register(host orchestrator.Host) (string, error)
+	InitPeering(map[orchestrator.Host]peer.HostInfo) error
+	Stop() error
+}
 
 // Server handles grpc requests.
 type Server struct {
-	o *orchestrator.Orchestrator
+	o  *orchestrator.Orchestrator
+	pb PeeringBackend
 }
 
 // New creates a new Server for grpc requests.
-func New(o *orchestrator.Orchestrator) *Server {
-	return &Server{o: o}
+func New(o *orchestrator.Orchestrator, pb PeeringBackend) *Server {
+	return &Server{
+		o:  o,
+		pb: pb,
+	}
 }
 
-func (s *Server) InitRemotes(_ context.Context, request *celestial.InitRemotesRequest) (*celestial.Empty, error) {
-	log.Debugf("Setting peer ID to %d", request.Index)
-	err := s.o.SetPeerID(request.Index)
-
+func (s *Server) Stop(ctx context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
+	err := s.o.Stop()
 	if err != nil {
-		log.Errorf("%+v\n", err)
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
-	addr := make([]string, len(request.Remotehosts))
+	s.o = nil
+	s.pb = nil
 
-	for i := range request.Remotehosts {
-		addr[request.Remotehosts[i].Index] = request.Remotehosts[i].Addr
-	}
+	go func() {
+		time.Sleep(5 * time.Second)
+		log.Debugf("stopping backend")
+		os.Exit(0)
+	}()
 
-	log.Debug("Initializing remotes")
-	err = s.o.InitRemotes(addr)
-
-	if err != nil {
-		log.Errorf("%+v\n", err)
-	}
-
-	return &celestial.Empty{}, errors.WithStack(err)
+	return &celestial.Empty{}, nil
 }
 
-func (s *Server) StartPeering(_ context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
-	err := s.o.StartPeering()
-
-	if err != nil {
-		log.Errorf("%+v\n", err)
-	}
-
-	return &celestial.Empty{}, errors.WithStack(err)
-}
-
-// GetHostInfo handles GetHostInfo grpc requests.
-func (s *Server) GetHostInfo(_ context.Context, _ *celestial.Empty) (*celestial.HostInfo, error) {
-
-	log.Info("Server: received GetHostInfo request")
-
-	return &celestial.HostInfo{
-		Cpu: uint64(runtime.NumCPU()),
-		Mem: memory.TotalMemory(),
-	}, nil
-}
-
-func (s *Server) HostReady(_ context.Context, _ *celestial.Empty) (*celestial.ReadyInfo, error) {
-	ready, created := s.o.Ready()
-	return &celestial.ReadyInfo{
-		Ready:   ready,
-		Created: created,
-	}, nil
-}
-
-// Init handles Init grpc requests.
-func (s *Server) Init(_ context.Context, r *celestial.InitRequest) (*celestial.Empty, error) {
-
-	log.Infof("Server: received Init for database: useDB: %v, host: %s", r.Database, r.DatabaseHost)
-
-	if r.Database {
-		err := s.o.InitDB(r.DatabaseHost)
-		if err != nil {
-			log.Errorf("%+v\n", err)
-			return nil, errors.WithStack(err)
-		}
-	}
-
-	log.Infof("Server: received Init request for %d shells", r.Shellcount)
-
-	shells := make([]commons.Shell, 0, len(r.Shells))
-
-	for _, shell := range r.Shells {
-		shells = append(shells, commons.Shell{
-			ShellID: shell.Id,
-			Planes:  shell.Planes,
-		})
-	}
-
-	err := s.o.InitShells(shells)
-
-	if err != nil {
-		log.Errorf("%+v\n", err)
-	}
-
-	return &celestial.Empty{}, errors.WithStack(err)
-}
-
-// CreateMachine handles CreateMachine grpc requests.
-func (s *Server) CreateMachine(_ context.Context, r *celestial.CreateMachineRequest) (*celestial.Empty, error) {
-
-	log.Infof("Server: received CreateMachine request for machine %#v with config %#v, status: %v", r.Machine, r.Firecrackerconfig, r.Status)
-
-	if !s.o.Initialized {
-		return nil, errors.New("host is not yet initialized")
-	}
-
-	err := s.o.CreateMachine(commons.MachineID{
-		Shell: r.Machine.Shell,
-		ID:    r.Machine.Id,
-		Name:  r.Machine.Name,
-	}, r.Firecrackerconfig.Vcpu, r.Firecrackerconfig.Mem, r.Firecrackerconfig.Ht, r.Firecrackerconfig.Disk, r.Firecrackerconfig.Bootparams, r.Firecrackerconfig.Kernel, r.Firecrackerconfig.Rootfs, r.Networkconfig.Bandwidth, r.Status)
-
-	if err != nil {
-		log.Errorf("%+v\n", err)
-	}
-
-	return &celestial.Empty{}, errors.WithStack(err)
-}
-
-// ModifyMachine handles ModifyMachine grpc requests.
-func (s *Server) ModifyMachine(_ context.Context, r *celestial.ModifyMachineRequest) (*celestial.Empty, error) {
-
-	log.Infof("Server: received ModifyMachine request for machine %s to status %t", r.Machine.String(), r.Status)
-
-	if !s.o.Initialized {
-		return nil, errors.New("host is not yet initialized")
-	}
-
-	err := s.o.ModifyMachine(commons.MachineID{
-		Shell: r.Machine.Shell,
-		ID:    r.Machine.Id,
-	}, r.Status)
-
-	if err != nil {
-		log.Errorf("%+v\n", err)
-	}
-
-	return &celestial.Empty{}, errors.WithStack(err)
-}
-
-// ModifyLinks handles ModifyLinks grpc requests.
-func (s *Server) ModifyLinks(_ context.Context, r *celestial.ModifyLinksRequest) (*celestial.Empty, error) {
-
-	// log.Infof("Server: received ModifyLinks request for machine %s: %d to modify, %d to remove", r.A.String(), len(r.Modify), len(r.Remove))
-
-	if !s.o.Initialized {
-		return nil, errors.New("host is not yet initialized")
-	}
-
-	machineA := commons.MachineID{
-		Shell: r.A.Shell,
-		ID:    r.A.Id,
-	}
-
-	err := s.o.LockForLink(machineA)
+func (s *Server) Register(_ context.Context, request *celestial.RegisterRequest) (*celestial.RegisterResponse, error) {
+	cpus, ram, err := s.o.GetResources()
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer func(o *orchestrator.Orchestrator, a commons.MachineID) {
-		err := o.UnlockForLink(a)
-		if err != nil {
-			log.Error(err.Error())
+	publickey, err := s.pb.Register(orchestrator.Host(request.Host))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &celestial.RegisterResponse{
+		AvailableCpus: cpus,
+		AvailableRam:  ram,
+		PublicKey:     publickey,
+	}, nil
+}
+
+func (s *Server) Init(_ context.Context, request *celestial.InitRequest) (*celestial.Empty, error) {
+	machineList := make(map[orchestrator.MachineID]orchestrator.MachineConfig)
+	machineHosts := make(map[orchestrator.MachineID]orchestrator.Host)
+
+	for _, machine := range request.Machines {
+		id := orchestrator.MachineID{
+			Group: uint8(machine.Id.Group),
+			Id:    machine.Id.Id,
 		}
-	}(s.o, machineA)
 
-	for _, modify := range r.Modify {
-		//log.Debugf("modify: %s", modify.String())
-		err := s.o.ModifyLink(machineA, commons.MachineID{
-			Shell: modify.B.Shell,
-			ID:    modify.B.Id,
-		}, modify.Latency, modify.Bandwidth)
+		machineList[id] = orchestrator.MachineConfig{
+			VCPUCount:  uint8(machine.Config.VcpuCount),
+			RAM:        machine.Config.Ram,
+			DiskSize:   machine.Config.DiskSize,
+			DiskImage:  machine.Config.RootImage,
+			Kernel:     machine.Config.Kernel,
+			BootParams: machine.Config.BootParameters,
+		}
 
-		if err != nil {
-			log.Errorf("%+v\n", err)
+		machineHosts[id] = orchestrator.Host(machine.Host)
+	}
+
+	machineNames := make(map[orchestrator.MachineID]string)
+
+	for _, machine := range request.Machines {
+		if machine.Id.Name != nil {
+			machineNames[orchestrator.MachineID{
+				Group: uint8(machine.Id.Group),
+				Id:    machine.Id.Id,
+			}] = *machine.Id.Name
 		}
 	}
 
-	for _, remove := range r.Remove {
-		err := s.o.RemoveLink(machineA, commons.MachineID{
-			Shell: remove.B.Shell,
-			ID:    remove.B.Id,
-		})
+	hostList := make(map[orchestrator.Host]peer.HostInfo)
 
-		if err != nil {
-			log.Errorf("%+v\n", err)
+	for _, host := range request.Hosts {
+		hostList[orchestrator.Host(host.Id)] = peer.HostInfo{
+			Addr:      host.Addr,
+			PublicKey: host.Publickey,
 		}
+	}
+
+	err := s.pb.InitPeering(hostList)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.o.Initialize(machineList, machineHosts, machineNames)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &celestial.Empty{}, nil
+}
+
+func (s *Server) Update(_ context.Context, request *celestial.UpdateRequest) (*celestial.Empty, error) {
+
+	ns := make(orchestrator.NetworkState)
+
+	for _, n := range request.NetworkDiffs {
+		id := orchestrator.MachineID{
+			Group: uint8(n.Id.Group),
+			Id:    n.Id.Id,
+		}
+
+		ns[id] = make(map[orchestrator.MachineID]*orchestrator.Link)
+
+		for _, l := range n.Links {
+			target := orchestrator.MachineID{
+				Group: uint8(l.Target.Group),
+				Id:    l.Target.Id,
+			}
+
+			//log.Debugf("link from %s to %s: %v", id.String(), target.String(), l)
+
+			if l.Blocked {
+				ns[id][target] = &orchestrator.Link{
+					Blocked: true,
+				}
+				continue
+			}
+
+			ns[id][target] = &orchestrator.Link{
+				Latency:   l.Latency,
+				Bandwidth: l.Bandwidth,
+				Blocked:   false,
+				Next: orchestrator.MachineID{
+					Group: uint8(l.Next.Group),
+					Id:    l.Next.Id,
+				},
+			}
+		}
+	}
+
+	ms := make(map[orchestrator.MachineID]orchestrator.MachineState)
+
+	for _, m := range request.MachineDiffs {
+		id := orchestrator.MachineID{
+			Group: uint8(m.Id.Group),
+			Id:    m.Id.Id,
+		}
+
+		switch m.Active {
+		case celestial.VMState_VM_STATE_ACTIVE:
+			ms[id] = orchestrator.ACTIVE
+		case celestial.VMState_VM_STATE_STOPPED:
+			ms[id] = orchestrator.STOPPED
+		}
+	}
+
+	err := s.o.Update(&orchestrator.State{
+		NetworkState:  ns,
+		MachinesState: ms,
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return &celestial.Empty{}, nil

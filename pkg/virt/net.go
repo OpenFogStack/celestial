@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	orchestrator "github.com/OpenFogStack/celestial/pkg/orchestrator2"
+	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 )
 
 // getNet returns an IP Address (CIDR format), a custom MAC address, and a tap name for a given

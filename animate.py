@@ -15,62 +15,61 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+import time
 import toml
 import sys
 import multiprocessing as mp
 
-from celestial.animation import Animation
-from celestial.configuration import fill_configuration, validate_configuration
-from celestial.check_bbox import check_bbox
-from celestial.constellation import Constellation
-from celestial.repeated_timer import RepeatedTimer
+import celestial.config
+import celestial.constellation
+import celestial.animation
 
 if __name__ == "__main__":
-    if not len(sys.argv) == 2:
-        exit("Usage: python3 animate.py [config.toml]")
+    if len(sys.argv) > 3 or len(sys.argv) < 2:
+        exit("Usage: python3 celestial.py [config.toml] [output-file (optional)]")
 
     # read toml
     try:
         text_config = toml.load(sys.argv[1])
     except Exception as e:
-        exit(e)
+        exit(str(e))
 
-    print("📄 Validating configuration...")
-    try:
-        validate_configuration(text_config)
-    except Exception as e:
-        print("\033[91m❌ Invalid configuration!\033[0m")
-        exit(e)
-    print("\033[92m✅ Configuration valid!\033[0m")
+    output_file = None
+    if len(sys.argv) == 3:
+        output_file = sys.argv[2]
 
-    config = fill_configuration(text_config)
-
-    config.animation = True
-
-    print("🗺  Validating bounding box...")
-    if check_bbox(config.bbox, config.shells, config.groundstations):
-        print("\033[92m✅ All ground stations are covered by your bounding box!\033[0m")
-
-    # initialize a constellation
-    constellation_conn, mm_conn = mp.Pipe()
-
-    animation_conn = None
+    # read the configuration
+    config: celestial.config.Config = celestial.config.Config(text_config)
 
     animation_conn, animation_constellation_conn = mp.Pipe()
 
-    animation = mp.Process(target=Animation, kwargs={"p": animation_constellation_conn})
-    animation.start()
-
-    c = Constellation(
-        model=config.model,
-        shells=config.shells,
-        groundstations=config.groundstations,
-        mm_conn=mm_conn,
-        interval=config.interval,
-        animate=True,
-        animate_only=True,
-        bbox=config.bbox,
-        animation_conn=animation_conn,
+    animation = mp.Process(
+        target=celestial.animation.Animation,
+        kwargs={
+            "config": config,
+            "animation_conn": animation_conn,
+        },
     )
 
-    timer = RepeatedTimer(config.interval, c.update)
+    animation.start()
+
+    # init the constellation
+    constellation = celestial.animation.AnimationConstellation(
+        config, animation_constellation_conn
+    )
+
+    # run the simulation
+    i = 0
+    start_time = time.perf_counter()
+
+    while i < config.duration:
+        print(f"step {i}")
+        constellation.step(i)
+        i += config.resolution
+
+        while time.perf_counter() - start_time < i:
+            time.sleep(0.001)
+
+    animation.join()
+
+    print("Done!")

@@ -28,14 +28,18 @@ if __name__ == "__main__":
             parts = filename.split("-")
 
             # check if gst or sat
-            if len(parts) != 3:
+
+            if len(parts) != 2:
+                raise Exception("invalid filename")
+
+            if parts[0] == "gst":
                 a_shell = "-1"
-                a_sat = parts[1]
+
             else:
                 # first part is a_shell
-                a_shell = parts[1]
-                # second part is a_sat
-                a_sat = parts[2]
+                a_shell = parts[0]
+
+            a_sat = parts[1].split(".")[0]
 
             with open(os.path.join(raw, filename), "r") as in_file:
                 # read all lines
@@ -48,8 +52,10 @@ if __name__ == "__main__":
 
                     read_lines += 1
 
-                    if not "," in line:
+                    if "," not in line:
                         continue
+
+                    line = line.strip()
 
                     # split line by comma
                     parts = line.split(",")
@@ -62,7 +68,7 @@ if __name__ == "__main__":
                         continue
 
                     # write the line!
-                    out_file.write(f"{a_shell},{a_sat},{line}")
+                    out_file.write(f"{a_shell},{a_sat},{line}\n")
                     written_lines += 1
 
     print(f"read {read_lines} lines, wrote {written_lines} lines")

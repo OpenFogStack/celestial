@@ -5,7 +5,7 @@ import (
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
 
-	orchestrator "github.com/OpenFogStack/celestial/pkg/orchestrator2"
+	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 )
 
 type state uint8

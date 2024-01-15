@@ -1,7 +1,7 @@
 # The bounding box of the area you would like to simulate. Satellite servers
 # outside of this bounding box are suspended to save on resources. Provide
 # coordinates in a Lat-Long (bottom left) Lat-Long (top right) format. You may
-# want to checkout http://bboxfinder.com/ to find your bounding box.
+# want to check out http://bboxfinder.com/ to find your bounding box.
 bbox = [34.657635, -13.881488, 58.794799, 26.196637]
 
 # Set the minimum update resolution in seconds. For example, a value of 1 means

@@ -23,9 +23,9 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 import types
 import typing
 
-from .types import BoundingBoxConfig, Path
+import celestial.config
 
-EARTH_RADIUS = 6371000  # radius of Earth in meters
+EARTH_RADIUS_M = 6371000  # radius of Earth in meters
 
 LANDMASS_OUTLINE_COLOR = (0.0, 0.0, 0.0)  # black, best contrast
 EARTH_LAND_OPACITY = 1.0
@@ -37,6 +37,7 @@ BACKGROUND_COLOR = (1.0, 1.0, 1.0)  # white
 
 # SAT_COLOR = (1.0, 0.0, 0.0)  # red, color of satellites
 SAT_OPACITY = 1.0
+SAT_INACTIVE_OPACITY = 0.5
 
 GST_COLOR = (0.0, 1.0, 0.0)  # green, color of groundstations
 GST_OPACITY = 10.0
@@ -61,32 +62,109 @@ GST_POINT_SIZE = 8  # how big ground points are in (probably) screen pixels
 SECONDS_PER_DAY = 86400  # number of seconds per earth rotation (day)
 
 
+class AnimationConstellation:
+    def __init__(
+        self,
+        config: celestial.config.Config,
+        conn: MultiprocessingConnection,
+    ):
+        self.conn = conn
+        self.config = config
+
+        self.current_time: celestial.types.timestamp_s = 0
+        self.shells: typing.List[celestial.shell.Shell] = []
+
+        for i, sc in enumerate(config.shells):
+            s = celestial.shell.Shell(
+                shell_identifier=i + 1,
+                planes=sc.planes,
+                sats=sc.sats,
+                altitude_km=sc.altitude_km,
+                inclination=sc.inclination,
+                arc_of_ascending_nodes=sc.arc_of_ascending_nodes,
+                eccentricity=sc.eccentricity,
+                isl_bandwidth_kbits=sc.isl_bandwidth_kbits,
+                bbox=config.bbox,
+                ground_stations=config.ground_stations,
+            )
+
+            self.shells.append(s)
+
+        for s in self.shells:
+            s.step(self.current_time)
+
+        self.conn.send(
+            {
+                "type": "init",
+                "num_shells": len(self.shells),
+                "total_sats": [s.total_sats for s in self.shells],
+                "sat_positions": [s.get_sat_positions() for s in self.shells],
+                "links": [s.get_links() for s in self.shells],
+                "gst_positions": self.shells[0].get_gst_positions(),
+                "gst_links": [s.get_gst_links() for s in self.shells],
+            }
+        )
+
+    def step(self, t: celestial.types.timestamp_s) -> None:
+        self.current_time = t
+
+        for s in self.shells:
+            s.step(self.current_time)
+
+        self.conn.send(
+            {
+                "type": "time",
+                "time": self.current_time,
+            }
+        )
+
+        for i in range(len(self.shells)):
+            self.conn.send(
+                {
+                    "type": "shell",
+                    "shell": i,
+                    "sat_positions": self.shells[i].get_sat_positions(),
+                    "links": self.shells[i].get_links(),
+                    "gst_positions": self.shells[i].get_gst_positions(),
+                    "gst_links": self.shells[i].get_gst_links(),
+                }
+            )
+
+
 class Animation:
     def __init__(
         self,
-        p: MultiprocessingConnection,
+        config: celestial.config.Config,
+        animation_conn: MultiprocessingConnection,
         draw_links: bool = True,
         frequency: int = 7,
     ):
-        init = p.recv()
-        if type(init) != list or init[0] != "init":
+        self.initialized = False
+        self.conn = animation_conn
+        init = self.conn.recv()
+        if init["type"] != "init":
             raise ValueError("Animation: did not receive init message first!")
 
-        num_shells: int = init[1]["num_shells"]
-        total_sats: typing.List[int] = init[1]["total_sats"]
+        num_shells: int = init["num_shells"]
+        total_sats: typing.List[int] = init["total_sats"]
         sat_positions: typing.List[
             typing.List[typing.Dict[str, typing.Union[float, bool]]]
-        ] = init[1]["sat_positions"]
+        ] = init["sat_positions"]
         links: typing.List[
             typing.List[typing.Dict[str, typing.Union[float, int, bool]]]
-        ] = init[1]["links"]
-        bbox: BoundingBoxConfig = init[1]["bbox"]
-        gst_positions: typing.List[typing.Dict[str, float]] = init[1]["gst_positions"]
+        ] = init["links"]
+
+        # print(f"Animation: initializing with links {links}")
+
+        gst_positions: typing.List[typing.Dict[str, float]] = init["gst_positions"]
         gst_links: typing.List[
             typing.List[typing.Dict[str, typing.Union[float, int, bool]]]
-        ] = init[1]["gst_links"]
+        ] = init["gst_links"]
 
         self.num_shells = num_shells
+
+        # print(f"Animation: initializing with {num_shells} shells")
+
         self.shell_sats = total_sats
         self.sat_positions = sat_positions
         self.links = links
@@ -99,13 +177,16 @@ class Animation:
         self.frequency = frequency
         self.frameCount = 0
 
-        self.makeEarthActor(EARTH_RADIUS)
+        self.makeEarthActor(EARTH_RADIUS_M)
 
         self.shell_actors = []
+        self.shell_inactive_actors = []
+
         self.isl_actors = []
 
         for i in range(self.num_shells):
             self.shell_actors.append(types.SimpleNamespace())
+            self.shell_inactive_actors.append(types.SimpleNamespace())
             self.isl_actors.append(types.SimpleNamespace())
 
         self.sat_colors = sns.color_palette(n_colors=self.num_shells)
@@ -115,19 +196,20 @@ class Animation:
 
         for shell in range(self.num_shells):
             self.makeSatsActor(shell, self.shell_sats[shell])
+            self.makeInactiveSatsActor(shell, self.shell_sats[shell])
             if self.draw_links:
                 self.makeLinkActors(shell, self.shell_sats[shell])
 
         self.gst_num = len(self.gst_positions)
         self.gst_actor = types.SimpleNamespace()
         self.gst_link_actor = types.SimpleNamespace()
+
+        # print(f"Animation: initializing with {self.gst_num} ground stations")
+
         self.makeGstActor(self.gst_num)
         if self.draw_links:
             self.makeGstLinkActors(self.gst_num)
 
-        # init the 'pipe' object used for inter-process communication
-        # this comes from the multiprocessing library
-        self.pipe_conn = p
         self.controlThread = td.Thread(target=self.controlThreadHandler)
         self.controlThread.start()
 
@@ -176,6 +258,7 @@ class Animation:
         # rotate earth and land
 
         steps_to_animate = self.current_simulation_time - self.last_animate
+
         self.last_animate = self.current_simulation_time
 
         rotation_per_time_step = 360.0 / (SECONDS_PER_DAY) * steps_to_animate
@@ -188,11 +271,24 @@ class Animation:
                 x = float(self.sat_positions[s][i]["x"])
                 y = float(self.sat_positions[s][i]["y"])
                 z = float(self.sat_positions[s][i]["z"])
-                self.shell_actors[s].satVtkPts.SetPoint(
-                    self.shell_actors[s].satPointIDs[i], x, y, z
-                )
+
+                if self.sat_positions[s][i]["in_bbox"]:
+                    self.shell_actors[s].satVtkPts.SetPoint(
+                        self.shell_actors[s].satPointIDs[i], x, y, z
+                    )
+                    self.shell_inactive_actors[s].satVtkPts.SetPoint(
+                        self.shell_actors[s].satPointIDs[i], 0, 0, 0
+                    )
+                else:
+                    self.shell_actors[s].satVtkPts.SetPoint(
+                        self.shell_actors[s].satPointIDs[i], 0, 0, 0
+                    )
+                    self.shell_inactive_actors[s].satVtkPts.SetPoint(
+                        self.shell_actors[s].satPointIDs[i], x, y, z
+                    )
 
             self.shell_actors[s].satPolyData.GetPoints().Modified()
+            self.shell_inactive_actors[s].satPolyData.GetPoints().Modified()
 
             if self.draw_links:
                 # grab the arrays of connections
@@ -262,7 +358,7 @@ class Animation:
 
             for s in range(self.num_shells):
                 for i in range(len(self.gst_links[s])):
-                    e1 = self.gst_links[s][i]["gst"]
+                    e1 = self.gst_links[s][i]["gst"] * -1 - 1
 
                     e2 = self.gst_links[s][i]["sat"] + offset
 
@@ -286,13 +382,6 @@ class Animation:
 
         obj.GetRenderWindow().Render()
 
-        # hi there! looks like you're poking around the animation code. if you
-        # want to get a PNG (including transparent background) for each frame
-        # of the animation, just uncomment the line below. make sure to create
-        # an "animation" directory.
-
-        # self.renderToPng()
-
     def makeRenderWindow(self) -> None:
         """
         Makes a render window object using vtk.
@@ -314,6 +403,9 @@ class Animation:
         # add the actor objects
         for actor in self.shell_actors:
             self.renderer.AddActor(actor.satsActor)
+
+        for actor in self.shell_inactive_actors:
+            self.renderer.AddActor(actor.inactiveSatsActor)
 
         self.renderer.AddActor(self.earthActor)
         self.renderer.AddActor(self.sphereActor)
@@ -341,8 +433,10 @@ class Animation:
         self.renderWindow.SetSize(2048, 2048)
         self.renderWindow.Render()
 
-        print("🖍  Animation: ready to return control...")
-        self.pipe_conn.send(True)
+        # print("🖍  Animation: ready to return control...")
+        # self.conn.send(True)
+
+        self.initialized = True
 
         self.interactor.Start()
 
@@ -409,6 +503,70 @@ class Animation:
             self.sat_colors[shell_no]
         )
         self.shell_actors[shell_no].satsActor.GetProperty().SetPointSize(SAT_POINT_SIZE)
+
+    def makeInactiveSatsActor(self, shell_no: int, shell_total_sats: int) -> None:
+        """
+        generate the point cloud to represent inactive satellites
+
+        Parameters
+        ----------
+        shell_no : int
+            index of this shell
+        shell_total_satellites : int
+            number of satellties in the shell
+        """
+
+        # declare a points & cell array to hold position data
+        self.shell_inactive_actors[shell_no].satVtkPts = vtk.vtkPoints()
+        self.shell_inactive_actors[shell_no].satVtkVerts = vtk.vtkCellArray()
+
+        # init a array for IDs
+        self.shell_inactive_actors[shell_no].satPointIDs = [None] * shell_total_sats
+
+        # initialize all the positions
+        for i in range(len(self.sat_positions[shell_no])):
+            self.shell_inactive_actors[shell_no].satPointIDs[
+                i
+            ] = self.shell_inactive_actors[shell_no].satVtkPts.InsertNextPoint(0, 0, 0)
+
+            self.shell_inactive_actors[shell_no].satVtkVerts.InsertNextCell(1)
+            self.shell_inactive_actors[shell_no].satVtkVerts.InsertCellPoint(
+                self.shell_inactive_actors[shell_no].satPointIDs[i]
+            )
+
+        # convert points into poly data
+        # (because that's what they do in the vtk examples)
+        self.shell_inactive_actors[shell_no].satPolyData = vtk.vtkPolyData()
+        self.shell_inactive_actors[shell_no].satPolyData.SetPoints(
+            self.shell_inactive_actors[shell_no].satVtkPts
+        )
+        self.shell_inactive_actors[shell_no].satPolyData.SetVerts(
+            self.shell_inactive_actors[shell_no].satVtkVerts
+        )
+
+        # create mapper object and connect to the poly data
+        self.shell_inactive_actors[shell_no].satsMapper = vtk.vtkPolyDataMapper()
+        self.shell_inactive_actors[shell_no].satsMapper.SetInputData(
+            self.shell_inactive_actors[shell_no].satPolyData
+        )
+
+        # create actor, and connect to the mapper
+        # (again, its just what you do to make a vtk render pipeline)
+        self.shell_inactive_actors[shell_no].inactiveSatsActor = vtk.vtkActor()
+        self.shell_inactive_actors[shell_no].inactiveSatsActor.SetMapper(
+            self.shell_inactive_actors[shell_no].satsMapper
+        )
+
+        # edit appearance of satellites
+        self.shell_inactive_actors[shell_no].inactiveSatsActor.GetProperty().SetOpacity(
+            SAT_INACTIVE_OPACITY
+        )
+        self.shell_inactive_actors[shell_no].inactiveSatsActor.GetProperty().SetColor(
+            self.sat_colors[shell_no]
+        )
+        self.shell_inactive_actors[
+            shell_no
+        ].inactiveSatsActor.GetProperty().SetPointSize(SAT_POINT_SIZE)
 
     def makeLinkActors(self, shell_no: int, shell_total_satellites: int) -> None:
         """
@@ -577,7 +735,7 @@ class Animation:
 
         for s in range(self.num_shells):
             for i in range(len(self.gst_links[s])):
-                e1 = self.gst_links[s][i]["gst"]
+                e1 = self.gst_links[s][i]["gst"] * -1 - 1
 
                 e2 = self.gst_links[s][i]["sat"] + offset
 
@@ -694,55 +852,35 @@ class Animation:
         self.sphereActor.GetProperty().SetColor(EARTH_BASE_COLOR)
         self.sphereActor.GetProperty().SetOpacity(EARTH_OPACITY)
 
-    def renderToPng(self, path: str = "animation/p") -> None:
-        """
-        Take a .png of the render window, and save it.
-        Parameters
-        ----------
-        path : str
-        The relative path of where to save the image
-        """
-
-        # make sure the path exists
-        if not path:
-            return
-
-        # connect the image writer to the render window
-        w2i = vtk.vtkWindowToImageFilter()
-        w2i.SetInputBufferTypeToRGBA()
-        w2i.SetInput(self.renderWindow)
-        w2i.Update()
-        pngfile = vtk.vtkPNGWriter()
-        pngfile.SetInputConnection(w2i.GetOutputPort())
-
-        # name the file with 7 digit int, leading zeros
-        mask = ["0", "0", "0", "0", "0", "0", "0"]
-        var = list(str(self.frameCount))
-        t = len(mask) - len(var)
-        for i in range(len(var)):
-            mask[i + t] = var[i]
-        f = "".join(mask)
-
-        pngfile.SetFileName(path + "_" + f + ".png")
-        pngfile.Write()
-
     def controlThreadHandler(self) -> None:
         """
         Start a thread to deal with inter-process communications
 
         """
+        while not self.initialized:
+            pass
+
         while True:
-            received_data = self.pipe_conn.recv()
+            received_data = self.conn.recv()
             # either update constellation time
             # or update status of a shell
-            if type(received_data) == list:
-                command = received_data[0]
-                if command == "time":
-                    self.current_simulation_time = received_data[1]
-                if command == "shell":
-                    self.sat_positions[received_data[1]] = received_data[2][
-                        "sat_positions"
-                    ]
-                    self.links[received_data[1]] = received_data[2]["links"]
-                    self.gst_positions = received_data[2]["gst_positions"]
-                    self.gst_links[received_data[1]] = received_data[2]["gst_links"]
+            command = received_data["type"]
+            if command == "time":
+                self.current_simulation_time = received_data["time"]
+                # print(f"Animation: time is now {self.current_simulation_time}")
+            if command == "shell":
+                shell = received_data["shell"]
+                # print(f"Animation: updating shell {shell}")
+                self.sat_positions[shell] = received_data["sat_positions"]
+                # print(
+                #     f"Animation: updated shell {shell} sat positions: {self.sat_positions[shell]}"
+                # )
+                self.links[shell] = received_data["links"]
+                # print(f"Animation: updated shell {shell} links: {self.links[shell]}")
+                self.gst_links[shell] = received_data["gst_links"]
+                # print(
+                #     f"Animation: updated shell {shell} gst links: {self.gst_links[shell]}"
+                # )
+
+                if shell == 0:
+                    self.gst_positions = received_data["gst_positions"]

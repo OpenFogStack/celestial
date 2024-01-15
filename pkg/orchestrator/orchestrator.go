@@ -1,165 +1,274 @@
-/*
-* This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-* Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, version 3.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>.
-**/
-
 package orchestrator
 
 import (
+	"os"
+	"runtime"
 	"sync"
+	"sync/atomic"
+	"time"
 
+	"github.com/pbnjay/memory"
 	"github.com/pkg/errors"
-
-	"google.golang.org/grpc"
-
-	"github.com/OpenFogStack/celestial/pkg/commons"
-	"github.com/OpenFogStack/celestial/proto/database"
+	log "github.com/sirupsen/logrus"
 )
 
-const (
-	FCROOTPATH    = "/celestial"
-	FCOUTFILEPATH = "/celestial/out/"
-
-	DEFAULTRATE = "10.0Gbps"
-
-	// MAXLATENCY means unusable: nothing is usable above 999.999 seconds?
-	MAXLATENCY   = 999999.9
-	MINBANDWIDTH = 0
-
-	GUESTINTERFACE = "eth0"
-	NAMESERVER     = "1.1.1.1"
-
-	WGPORT      = 3000
-	WGINTERFACE = "wg0"
-	MASK        = "/26"
-
-	// setting the path directly means we don't have to consult lookpath for each command
-	// TODO: in theory we should probably add a LookPath to this
-
-	TC       = "/sbin/tc"
-	IPTABLES = "/sbin/iptables"
-	IPSET    = "/sbin/ipset"
-)
-
-// Orchestrator orchestrates different firecracker microVMs on the host.
 type Orchestrator struct {
-	shells      map[shellid]*shell
-	shellNo     int
-	Initialized bool
+	// State is the description of the desired state of the emulation (as determined by simulation)
+	State
 
-	eager            bool
-	initDelay        int
-	networkInterface string
+	machines     map[MachineID]*machine
+	machineNames map[string]MachineID
 
-	groundstations map[string]*machine
-	gstLock        *sync.RWMutex
+	virt VirtualizationBackend
 
-	remoteHosts map[uint64]*host
-	ownID       uint64
-	ownHost     *host
+	host Host
 
-	useDB    bool
-	dbClient database.DatabaseClient
-
-	debug bool
-
-	// some information on how many machines were created and how many are left
-	outstanding int64
-	created     uint64
+	initialized bool
 }
 
-func (o *Orchestrator) InitDB(host string) error {
-	o.useDB = true
-
-	c, err := grpc.Dial(host, grpc.WithInsecure())
-
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	o.dbClient = database.NewDatabaseClient(c)
-
-	return errors.WithStack(err)
-
-}
-
-func (o *Orchestrator) InitShells(s []commons.Shell) error {
-	// bootstrapping
-	for i, curr := range s {
-
-		machines := make(map[id]*machine)
-
-		o.shells[shellid(i)] = &shell{
-			planeNo:  curr.Planes,
-			machines: machines,
-			RWMutex:  sync.RWMutex{},
-		}
-	}
-
-	// init shell for ground stations
-	o.shells[shellid(-1)] = &shell{
-		machines: make(map[id]*machine),
-		RWMutex:  sync.RWMutex{},
-	}
-
-	o.shellNo = len(s)
-	o.Initialized = true
-
-	err := initHost(o.networkInterface)
-
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	return nil
-}
-
-func (o *Orchestrator) Ready() (bool, uint64) {
-	return o.outstanding <= 0, o.created
-}
-
-func (o *Orchestrator) Cleanup() error {
-	if !o.Initialized {
-		return errors.New("cannot run cleanup: orchestrator not initialized")
-	}
-
-	// shutdown all machines
-	for _, shell := range o.shells {
-		for _, machine := range shell.machines {
-			err := o.destroy(machine)
-
-			if err != nil {
-				return errors.WithStack(err)
-			}
-		}
-	}
-
-	return nil
-}
-
-// New creates a new Orchestrator.
-func New(eager bool, initDelay int, networkInterface string, debug bool) (*Orchestrator, error) {
-
+func New(vb VirtualizationBackend) *Orchestrator {
 	return &Orchestrator{
-		eager:            eager,
-		initDelay:        initDelay,
-		shells:           make(map[shellid]*shell),
-		remoteHosts:      make(map[uint64]*host),
-		groundstations:   make(map[string]*machine),
-		gstLock:          &sync.RWMutex{},
-		debug:            debug,
-		networkInterface: networkInterface,
-	}, nil
+		virt: vb,
+	}
+}
+
+func (o *Orchestrator) GetResources() (availcpus uint32, availram uint64, err error) {
+	return uint32(runtime.NumCPU()), memory.TotalMemory(), nil
+}
+
+func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machineHosts map[MachineID]Host, machineNames map[MachineID]string) error {
+	if o.initialized {
+		return errors.Errorf("orchestrator already initialized")
+	}
+
+	log.Debugf("initializing orchestrator with %d machines", len(machineList))
+
+	o.machines = make(map[MachineID]*machine)
+	o.machineNames = make(map[string]MachineID)
+
+	for m, config := range machineList {
+		o.machines[m] = &machine{
+			name:   machineNames[m],
+			config: config,
+		}
+
+		if machineNames[m] != "" {
+			o.machineNames[machineNames[m]] = m
+		}
+	}
+
+	for m, host := range machineHosts {
+		o.machines[m].Host = host
+	}
+
+	for m, name := range machineNames {
+		o.machines[m].name = name
+	}
+
+	// init state
+	o.State = State{
+		NetworkState:  make(NetworkState),
+		MachinesState: make(MachinesState),
+	}
+
+	// register all machines
+	progress := 0
+	for m := range o.machines {
+		o.State.MachinesState[m] = STOPPED
+
+		err := o.virt.RegisterMachine(m, o.machines[m].name, o.machines[m].Host, o.machines[m].config)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		progress++
+
+		if progress%10 == 0 {
+			log.Debugf("machine init progress: %d/%d", progress, len(o.machines))
+		}
+	}
+	log.Debugf("machine init progress: %d/%d", progress, len(o.machines))
+
+	log.Debugf("starting link init")
+
+	// init networking
+	// by default, all links are blocked
+	var wg sync.WaitGroup
+	var e error
+	progress2 := atomic.Uint32{}
+
+	start := time.Now()
+
+	for m := range o.machines {
+		o.State.NetworkState[m] = make(map[MachineID]*Link)
+
+		wg.Add(1)
+		go func(source MachineID) {
+			defer wg.Done()
+			//log.Debugf("blocking all links from %s", source)
+
+			for otherMachine := range o.machines {
+				// exclude self
+				if source == otherMachine {
+					continue
+				}
+
+				//log.Debugf("blocking link %s -> %s", source, otherMachine)
+				err := o.virt.BlockLink(source, otherMachine)
+				if err != nil {
+					e = errors.WithStack(err)
+				}
+
+				o.State.NetworkState[source][otherMachine] = &Link{
+					// likely better to have all links blocked at the beginning
+					Blocked: true,
+				}
+
+				// progress
+				progress2.Add(1)
+			}
+			//log.Debugf("done blocking all links from %s", source)
+
+		}(m)
+	}
+
+	shown := 0
+	total := len(o.machines) * (len(o.machines) - 1)
+	for state := 0; state < total; state = int(progress2.Load()) {
+		if state > shown && state%100 == 0 {
+			log.Debugf("link init progress: %d/%d", progress2.Load(), total)
+			shown = state
+		}
+	}
+
+	wg.Wait()
+	if e != nil {
+		return errors.WithStack(e)
+	}
+
+	log.Debugf("done blocking all links in %s", time.Since(start))
+
+	o.initialized = true
+
+	return nil
+}
+
+func (o *Orchestrator) Stop() error {
+	log.Debugf("stopping orchestrator")
+	err := o.virt.Stop()
+	if err != nil {
+		log.Error(err.Error())
+		return errors.WithStack(err)
+	}
+
+	os.Exit(0)
+
+	return nil
+}
+
+func (o *Orchestrator) Update(s *State) error {
+	// run the update procedure and apply changes
+
+	// 1. update all the links
+
+	var wg sync.WaitGroup
+	var e error
+
+	for m, ls := range s.NetworkState {
+		wg.Add(1)
+		go func(source MachineID, links map[MachineID]*Link) {
+			defer wg.Done()
+			for target, l := range links {
+				if l.Blocked && !o.State.NetworkState[source][target].Blocked {
+					log.Debug("blocking link ", source, " -> ", target)
+					err := o.virt.BlockLink(source, target)
+					if err != nil {
+						e = errors.WithStack(err)
+					}
+					o.State.NetworkState[source][target].Blocked = true
+				}
+
+				if !l.Blocked && o.State.NetworkState[source][target].Blocked {
+					log.Debug("unblocking link ", source, " -> ", target)
+					err := o.virt.UnblockLink(source, target)
+					if err != nil {
+						e = errors.WithStack(err)
+					}
+					o.State.NetworkState[source][target].Blocked = false
+				}
+
+				if l.Blocked {
+					continue
+				}
+
+				log.Debugf("updating link %s -> %s", source, target)
+				if l.Next != o.State.NetworkState[source][target].Next {
+					log.Debug("setting next hop ", source, " -> ", target, " to ", l.Next)
+					o.State.NetworkState[source][target].Next = l.Next
+				}
+
+				if l.Latency != o.State.NetworkState[source][target].Latency {
+					log.Debug("setting latency ", source, " -> ", target, " to ", l.Latency)
+					err := o.virt.SetLatency(source, target, l.Latency)
+					if err != nil {
+						e = errors.WithStack(err)
+					}
+					o.State.NetworkState[source][target].Latency = l.Latency
+				}
+
+				if l.Bandwidth != o.State.NetworkState[source][target].Bandwidth {
+					log.Debug("setting bandwidth ", source, " -> ", target, " to ", l.Bandwidth)
+					err := o.virt.SetBandwidth(source, target, l.Bandwidth)
+					if err != nil {
+						e = errors.WithStack(err)
+					}
+					o.State.NetworkState[source][target].Bandwidth = l.Bandwidth
+				}
+			}
+		}(m, ls)
+	}
+
+	wg.Wait()
+	if e != nil {
+		return errors.WithStack(e)
+	}
+
+	// 2. update all the machines
+	wg = sync.WaitGroup{}
+	e = nil
+
+	for m, state := range s.MachinesState {
+		if state == STOPPED && o.State.MachinesState[m] == ACTIVE {
+			wg.Add(1)
+			go func(machine MachineID) {
+				// stop machine
+				err := o.virt.StopMachine(machine)
+				if err != nil {
+					e = errors.WithStack(err)
+				}
+			}(m)
+			o.State.MachinesState[m] = STOPPED
+			continue
+		}
+
+		if state == ACTIVE && o.State.MachinesState[m] == STOPPED {
+			wg.Add(1)
+			go func(machine MachineID) {
+				// start machine
+				err := o.virt.StartMachine(machine)
+				if err != nil {
+					e = errors.WithStack(err)
+				}
+			}(m)
+			o.State.MachinesState[m] = ACTIVE
+			continue
+		}
+	}
+
+	wg.Wait()
+	if e != nil {
+		return errors.WithStack(e)
+	}
+
+	return nil
 }

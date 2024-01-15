@@ -21,6 +21,11 @@ echo "$DIVIDER"
 ./build.sh
 
 echo "$DIVIDER"
+echo "Running satgen.sh..."
+echo "$DIVIDER"
+./satgen.sh
+
+echo "$DIVIDER"
 echo "Running prepare.sh..."
 echo "$DIVIDER"
 ./prepare.sh
@@ -38,7 +43,7 @@ ssh "$INSTANCE_NAME" "./dependencies.sh"
 echo "Done running dependencies.sh on host"
 
 echo "$DIVIDER"
-echo "Running celestial.bin..."
+echo "Running celestial2.bin..."
 echo "$DIVIDER"
 # move files
 echo "Moving files..."
@@ -49,7 +54,7 @@ echo "Shutting off systemd-resolved..."
 ssh "$INSTANCE_NAME" "sudo systemctl stop systemd-resolved"
 
 echo "Running celestial..."
-ssh "$INSTANCE_NAME" sudo ./celestial.bin --debug >> $HOST_LOG 2>&1 &
+ssh "$INSTANCE_NAME" sudo ./celestial2.bin --debug >> $HOST_LOG 2>&1 &
 CELESTIAL_PID=$!
 
 echo -n "Waiting for celestial to start."
@@ -61,7 +66,7 @@ done
 echo "$DIVIDER"
 echo "Running celestial coordinator..."
 echo "$DIVIDER"
-ssh "$INSTANCE_NAME" python3 celestial.py config.toml >> $COORD_LOG 2>&1 &
+ssh "$INSTANCE_NAME" PYTHONUNBUFFERED=1 python3 celestial2.py satgen.zip "127.0.0.1:1969" >> $COORD_LOG 2>&1 &
 COORDINATOR_PID=$!
 
 # run for 10 minutes
@@ -71,16 +76,16 @@ sleep 600
 echo "$DIVIDER"
 echo "Killing celestial coordinator..."
 echo "$DIVIDER"
-kill "$COORDINATOR_PID"
+# necessary to get SIGTERM to work
+ssh "$INSTANCE_NAME" "sudo killall python3"
+# kill "$COORDINATOR_PID"
 
 echo "$DIVIDER"
 echo "Killing celestial..."
 echo "$DIVIDER"
-kill "$CELESTIAL_PID"
+# kill "$CELESTIAL_PID"
 ssh "$INSTANCE_NAME" "sudo systemctl restart systemd-resolved"
 
-# kill $HOST_TAIL_PID
-# kill $COORD_TAIL_PID
 
 # get the results
 echo "$DIVIDER"
@@ -97,6 +102,9 @@ python3 analyze.py
 echo "$DIVIDER"
 echo "Done!"
 echo "$DIVIDER"
+
+kill "$COORDINATOR_PID"
+kill "$CELESTIAL_PID"
 
 # destroy the infrastructure
 echo "Destroying infrastructure..."

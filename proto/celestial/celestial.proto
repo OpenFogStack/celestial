@@ -21,97 +21,84 @@ package openfogstack.celestial.celestial;
 option go_package = "./;celestial";
 
 service Celestial {
-  rpc GetHostInfo(Empty) returns (HostInfo);
-  rpc HostReady(Empty) returns (ReadyInfo);
-  rpc Init(InitRequest) returns (Empty);
-  rpc InitRemotes(InitRemotesRequest) returns (Empty);
-  rpc StartPeering(Empty) returns (Empty);
-  rpc CreateMachine(CreateMachineRequest) returns (Empty);
-  rpc ModifyMachine(ModifyMachineRequest) returns (Empty);
-  rpc ModifyLinks(ModifyLinksRequest) returns (Empty);
+    rpc Register(RegisterRequest) returns (RegisterResponse);
+    rpc Init(InitRequest) returns (Empty);
+    rpc Update(UpdateRequest) returns (Empty);
+    rpc Stop(Empty) returns (Empty);
+}
+
+enum VMState {
+    VM_STATE_STOPPED = 0;
+    VM_STATE_ACTIVE = 1;
+}
+
+message MachineID {
+    uint32 group = 1;
+    uint32 id = 2;
+    // ignored for non-groundstations
+    optional string name = 3;
 }
 
 message Empty {}
 
-message HostInfo {
-  uint64 cpu = 1;
-  uint64 mem = 2;
+message RegisterRequest {
+    uint32 host = 1;
 }
 
-message ReadyInfo {
-  bool ready = 1;
-  uint64 created = 2;
+message RegisterResponse {
+    uint32 available_cpus = 1;
+    uint64 available_ram = 2;
+    string public_key = 3;
 }
 
-message Shell {
-  uint64 id = 1;
-  uint64 planes = 2;
-}
 
 message InitRequest {
-  bool database = 1;
-  string databaseHost = 2;
-  uint64 shellcount = 3;
-  repeated Shell shells = 4;
+    message Host {
+        uint32 id = 1;
+        string addr = 2;
+        string publickey = 3;
+    }
+
+    repeated Host hosts = 1;
+    message Machine {
+        message MachineConfig {
+            // should also be 8 bit but protobuf doesn't support uint8...
+            uint32 vcpu_count = 1;
+            uint64 ram = 2;
+            uint64 disk_size = 3;
+            string root_image = 4;
+            string kernel = 5;
+            repeated string boot_parameters = 6;
+        }
+
+        MachineID id = 1;
+        // should actually be 8 bit but protobuf doesn't support uint8...
+        uint32 host = 2;
+        MachineConfig config = 3;
+    }
+
+    repeated Machine machines = 2;
 }
 
-message RemoteHost {
-  uint64 index = 1;
-  string addr = 2;
-}
+message UpdateRequest {
+    message MachineDiff {
+        MachineID id = 1;
+        VMState active = 2;
+    }
+    message NetworkDiff {
+        message Link {
+            MachineID target = 1;
+            uint32 latency = 2;
+            uint64 bandwidth = 3;
+            bool blocked = 4;
+            // used for path reconstruction
+            MachineID next = 5;
+        }
 
-message InitRemotesRequest {
-  uint64 index = 1;
-  repeated RemoteHost remotehosts = 2;
-}
+        MachineID id = 1;
+        repeated Link links = 2;
+    }
 
-message Machine {
-  // allow -1 for ground stations
-  int64 shell = 1;
-  uint64 id = 2;
-  // name is only used for ground stations
-  string name = 3;
-}
-
-message FirecrackerConfig {
-  uint64 vcpu = 1;
-  uint64 mem = 2;
-  bool ht = 3;
-  uint64 disk = 4;
-  string kernel = 5;
-  string rootfs = 6;
-  string bootparams = 7;
-}
-
-message NetworkConfig { uint64 bandwidth = 1; }
-
-message CreateMachineRequest {
-  Machine machine = 1;
-  FirecrackerConfig firecrackerconfig = 2;
-  NetworkConfig networkconfig = 3;
-  bool status = 4;
-}
-
-message CreateRemoteMachineRequest {
-  Machine machine = 1;
-  NetworkConfig networkconfig = 3;
-}
-
-message ModifyMachineRequest {
-  Machine machine = 1;
-  bool status = 2;
-}
-
-message ModifyLinksRequest {
-  Machine a = 1;
-  repeated RemoveLinkRequest remove = 2;
-  repeated ModifyLinkRequest modify = 3;
-}
-
-message RemoveLinkRequest { Machine b = 2; }
-
-message ModifyLinkRequest {
-  Machine b = 2;
-  double latency = 3;
-  uint64 bandwidth = 4;
+    repeated MachineDiff machine_diffs = 1;
+    repeated NetworkDiff network_diffs = 2;
 }

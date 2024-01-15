@@ -15,10 +15,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-.PHONY: all celestial celestial2 peering database
+.PHONY: all celestial
 
-all: celestial celestial2 peering database
+all: celestial
 
-celestial celestial2 peering database: ## Compile all proto files
+celestial: ## Compile all proto files
 	@protoc -I $@/ $@.proto --go_out=$@ --go_opt=paths=source_relative --go-grpc_out=$@ --go-grpc_opt=require_unimplemented_servers=false,paths=source_relative
 	@python3 -m grpc_tools.protoc -I $@/ --python_out=$@ --grpc_python_out=$@ --mypy_out=$@ $@.proto --mypy_grpc_out=$@
