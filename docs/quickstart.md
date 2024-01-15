@@ -68,14 +68,16 @@ These steps are correct as of October 2022, but things change quickly.
     sudo apt-get install -y make git
     ```
 
-1. Install terraform following the [official terraform documentation](https://www.terraform.io/downloads):
+1. Install OpenTofu following the [official OpenTofu documentation](https://opentofu.org/docs/intro/install/):
 
     ```sh
-    curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-    sudo apt-add-repository \
-        "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-    sudo apt-get update
-    sudo apt-get install terraform
+    curl --proto '=https' --tlsv1.2 -fsSL \
+        https://get.opentofu.org/install-opentofu.sh \
+         -o install-opentofu.sh
+
+    chmod +x install-opentofu.sh
+    ./install-opentofu.sh --install-method deb
+    rm install-opentofu.sh
     ```
 
 1. We will be using Google Cloud Platform to host our Celestial servers.
@@ -94,7 +96,7 @@ These steps are correct as of October 2022, but things change quickly.
 
     gcloud auth application-default login
     # add your gcloud accoount to the Application Default Credentials
-    # this let's Terraform use it
+    # this let's OpenTofu use it
     ```
 
 1. Clone the Celestial repository:
@@ -194,27 +196,27 @@ This option is only available starting with kernel `v4.19`.
 
 To run Celestial on Google Cloud Platform, we need to create a few Google Compute
 Engine instances.
-In this quick start, we will use Terraform to deploy two host instances (`n2-standard-32`)
-and one instance for the coordinator:
+In this quick start, we will use OpenTofu (instead of Terraform) to deploy two
+host instances (`n2-standard-32`) and one instance for the coordinator:
 
 ```sh
-cd ~/celestial/quick-start/terraform
-terraform init
+cd ~/celestial/quick-start/tofu
+tofu init
 
 # change these values to match your project
 GCP_PROJECT="celestial-quick-start"
 GCP_REGION="europe-west3"
 GCP_ZONE="c"
 
-# this will give you an overview of what Terraform is about to do
+# this will give you an overview of what OpenTofu is about to do
 # check to see if everything looks right
-terraform plan \
+tofu plan \
     -var gcp_project=$GCP_PROJECT \
     -var gcp_region=$GCP_REGION \
     -var gcp_zone=$GCP_ZONE
 
 # type yes to confirm
-terraform apply \
+tofu apply \
     -var gcp_project=$GCP_PROJECT \
     -var gcp_region=$GCP_REGION \
     -var gcp_zone=$GCP_ZONE
@@ -289,7 +291,7 @@ for i in {0..1}; do
 
     # before we start, we need to reboot our hosts once
     # the reason is that we need to adapt file descriptor limits, which we do
-    # with terraform during setup but which requires a reboot after
+    # with tofu during setup but which requires a reboot after
     gcloud compute ssh --zone="$GCP_REGION-$GCP_ZONE" $HOST_INSTANCE \
         --command "sudo reboot now"
 done
@@ -398,8 +400,8 @@ You now have `validator_results.csv` on your machine and can continue to analysi
 Finally, do not forget to shut down your instances with:
 
 ```sh
-cd ~/celestial/quick-start/terraform
-terraform destroy \
+cd ~/celestial/quick-start/tofu
+tofu destroy \
     -var gcp_project=$GCP_PROJECT \
     -var gcp_region=$GCP_REGION \
     -var gcp_zone=$GCP_ZONE \

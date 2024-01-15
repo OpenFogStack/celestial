@@ -5,15 +5,15 @@ set -xe
 ROOT="../.."
 
 # create cloud infrastructure
-terraform init
+tofu init
 
-terraform apply -auto-approve
+tofu apply -auto-approve
 
-GCP_ZONE="$(terraform output -json | jq -r '.zone.value')"
-GCP_PROJECT="$(terraform output -json | jq -r '.project.value')"
-# TEST_HOST_IP="$(terraform output -json | jq -r '.host_ip.value')"
-# TEST_HOST_NAME="$(terraform output -json | jq -r '.host_name.value')"
-TEST_HOST_ID="$(terraform output -json | jq -r '.host_id.value')"
+GCP_ZONE="$(tofu output -json | jq -r '.zone.value')"
+GCP_PROJECT="$(tofu output -json | jq -r '.project.value')"
+# TEST_HOST_IP="$(tofu output -json | jq -r '.host_ip.value')"
+# TEST_HOST_NAME="$(tofu output -json | jq -r '.host_name.value')"
+TEST_HOST_ID="$(tofu output -json | jq -r '.host_id.value')"
 
 gcloud config set project "$GCP_PROJECT"
 
@@ -23,7 +23,7 @@ sleep 5
 gcloud compute instances start --zone="$GCP_ZONE" "$TEST_HOST_ID"
 sleep 5
 
-TEST_HOST_NAME="$(terraform output -json | jq -r '.host_name.value')"
+TEST_HOST_NAME="$(tofu output -json | jq -r '.host_name.value')"
 
 gcloud compute config-ssh
 
