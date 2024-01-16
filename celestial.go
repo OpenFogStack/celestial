@@ -50,7 +50,7 @@ const (
 func main() {
 	// needs some configuration data
 	port := flag.Uint64("port", 1969, "Port to bind to")
-	dnsServicePort := flag.Uint64("dns-service-port", 53, "Port to bind DNS service server to")
+	dnsServicePort := flag.Uint64("dns-service-port", 1970, "Port to bind DNS service server to")
 	infoServerPort := flag.Uint64("info-server-port", 80, "Port to bind info server to")
 	networkInterface := flag.String("network-interface", DEFAULT_IF, "Name of your main network interface")
 	initDelay := flag.Uint64("init-delay", DEFAULT_INIT_DELAY, "Maximum delay when initially booting a machine -- can help reduce load at beginning of emulation")
@@ -94,8 +94,10 @@ func main() {
 		panic(err)
 	}
 
+	d := dns.New(o)
+
 	go func() {
-		err := dns.Start(*dnsServicePort, o)
+		err := d.Start(*dnsServicePort)
 		if err != nil {
 			panic(err.Error())
 		}
@@ -130,6 +132,13 @@ func main() {
 
 	// stop the grpc servers
 	s.Stop()
+
+	// stop the dns server
+	err = d.Stop()
+
+	if err != nil {
+		panic(err.Error())
+	}
 
 	os.Exit(0)
 }

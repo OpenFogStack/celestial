@@ -4,7 +4,7 @@
 - [x] Create a test process
 - [x] Re-structure host-side code with packages and interfaces
 - [x] Move database communication to websockets (or similar)
-- [] find a good solution for DNS
+- [x] find a good solution for DNS
 - [] Battery emulation
 - [] Different topologies
 - [] Support for OCI images

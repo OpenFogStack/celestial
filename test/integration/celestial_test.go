@@ -21,6 +21,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -31,6 +32,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/OpenFogStack/celestial/pkg/dns"
 	"github.com/OpenFogStack/celestial/pkg/netem"
 	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 	"github.com/OpenFogStack/celestial/pkg/peer"
@@ -50,6 +52,7 @@ const (
 	TEST_PEER_KEYPATH     = "/celestial/privatekey"
 	TEST_IF               = "ens4"
 	TEST_INIT_DELAY       = 15
+	TEST_DNS_SERVICE_PORT = 1970
 )
 
 var o *orchestrator.Orchestrator
@@ -105,6 +108,15 @@ func TestMain(m *testing.M) {
 
 	s = server.New(o, pb)
 
+	d := dns.New(o)
+
+	go func() {
+		err := d.Start(TEST_DNS_SERVICE_PORT)
+		if err != nil {
+			panic(err.Error())
+		}
+	}()
+
 	// init
 	_, err = s.Register(context.Background(), &celestial.RegisterRequest{
 		Host: 0,
@@ -116,27 +128,27 @@ func TestMain(m *testing.M) {
 
 	log.Debug("initializing orchestrator")
 
-	machines := make([]*celestial.Machine, len(vms))
+	machines := make([]*celestial.InitRequest_Machine, len(vms))
 
 	for i, vm := range vms {
-		machines[i] = &celestial.Machine{
+		machines[i] = &celestial.InitRequest_Machine{
 			Id: &celestial.MachineID{
 				Group: uint32(vm.group),
 				Id:    uint32(vm.id),
 			},
 			Host: 0,
-			Config: &celestial.MachineConfig{
-				Vcpucount: 1,
+			Config: &celestial.InitRequest_Machine_MachineConfig{
+				VcpuCount: 1,
 				Ram:       128,
-				Disksize:  1024,
-				Image:     rootfs,
+				DiskSize:  1024,
+				RootImage: rootfs,
 				Kernel:    kernel,
 			},
 		}
 	}
 
 	_, err = s.Init(context.Background(), &celestial.InitRequest{
-		Hosts: []*celestial.Host{
+		Hosts: []*celestial.InitRequest_Host{
 			{
 				Id: 0,
 			},
@@ -167,26 +179,32 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
+	err = d.Stop()
+
+	if err != nil {
+		panic(err)
+	}
+
 	log.Debug("exiting")
 	os.Exit(status)
 }
 
 func TestStart(t *testing.T) {
 
-	machines := make([]*celestial.MachineState, len(vms))
+	machines := make([]*celestial.UpdateRequest_MachineDiff, len(vms))
 
 	for i, vm := range vms {
-		machines[i] = &celestial.MachineState{
+		machines[i] = &celestial.UpdateRequest_MachineDiff{
 			Id: &celestial.MachineID{
 				Group: uint32(vm.group),
 				Id:    uint32(vm.id),
 			},
-			Active: celestial.VMState_ACTIVE,
+			Active: celestial.VMState_VM_STATE_ACTIVE,
 		}
 	}
 
 	_, err := s.Update(context.Background(), &celestial.UpdateRequest{
-		Machinestates: machines,
+		MachineDiffs: machines,
 	})
 
 	if err != nil {
@@ -268,13 +286,13 @@ func TestModify(t *testing.T) {
 	v := 0
 
 	_, err := s.Update(context.Background(), &celestial.UpdateRequest{
-		Machinestates: []*celestial.MachineState{
+		MachineDiffs: []*celestial.UpdateRequest_MachineDiff{
 			{
 				Id: &celestial.MachineID{
 					Group: uint32(vms[v].group),
 					Id:    uint32(vms[v].id),
 				},
-				Active: celestial.VMState_STOPPED,
+				Active: celestial.VMState_VM_STATE_STOPPED,
 			},
 		},
 	})
@@ -299,13 +317,13 @@ func TestModify(t *testing.T) {
 	log.Debugf("machine is not reachable")
 
 	_, err = s.Update(context.Background(), &celestial.UpdateRequest{
-		Machinestates: []*celestial.MachineState{
+		MachineDiffs: []*celestial.UpdateRequest_MachineDiff{
 			{
 				Id: &celestial.MachineID{
 					Group: uint32(vms[v].group),
 					Id:    uint32(vms[v].id),
 				},
-				Active: celestial.VMState_ACTIVE,
+				Active: celestial.VMState_VM_STATE_ACTIVE,
 			},
 		},
 	})
@@ -347,13 +365,13 @@ func TestModify(t *testing.T) {
 // check what happens when we adapt the network latency between the machines
 func testModifyLinks(t *testing.T, A int, B int, latency int) {
 	_, err := s.Update(context.Background(), &celestial.UpdateRequest{
-		Networkstates: []*celestial.NetworkState{
+		NetworkDiffs: []*celestial.UpdateRequest_NetworkDiff{
 			{
 				Id: &celestial.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
-				Links: []*celestial.Link{
+				Links: []*celestial.UpdateRequest_NetworkDiff_Link{
 					{
 						Target: &celestial.MachineID{
 							Group: uint32(vms[B].group),
@@ -373,7 +391,7 @@ func testModifyLinks(t *testing.T, A int, B int, latency int) {
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
-				Links: []*celestial.Link{
+				Links: []*celestial.UpdateRequest_NetworkDiff_Link{
 					{
 						Target: &celestial.MachineID{
 							Group: uint32(vms[A].group),
@@ -455,13 +473,13 @@ func TestBlockLink(t *testing.T) {
 	B := 1
 
 	_, err := s.Update(context.Background(), &celestial.UpdateRequest{
-		Networkstates: []*celestial.NetworkState{
+		NetworkDiffs: []*celestial.UpdateRequest_NetworkDiff{
 			{
 				Id: &celestial.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
-				Links: []*celestial.Link{
+				Links: []*celestial.UpdateRequest_NetworkDiff_Link{
 					{
 						Target: &celestial.MachineID{
 							Group: uint32(vms[B].group),
@@ -476,7 +494,7 @@ func TestBlockLink(t *testing.T) {
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
-				Links: []*celestial.Link{
+				Links: []*celestial.UpdateRequest_NetworkDiff_Link{
 					{
 						Target: &celestial.MachineID{
 							Group: uint32(vms[A].group),
@@ -527,7 +545,23 @@ func TestDNS(t *testing.T) {
 	// try modifying the DNS settings on the machine
 	// need to get the gateway address of the machine
 	A := 0
-	gateway := net.IP{10, 1, 0, 1}
+	B := 1
+
+	// ensure that the links are active
+	testModifyLinks(t, A, B, 10)
+
+	ip, err := o.InfoGetIPAddressByID(orchestrator.MachineID{
+		Group: uint8(vms[A].group),
+		Id:    uint32(vms[A].id),
+	})
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	// gateway is always the first IP in the subnet
+	gateway := ip.To4()
+	gateway[3] -= 1
 
 	// write the gateway ip into /etc/resolv.conf on the machine
 	c := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "echo", "nameserver", gateway.String(), ">", "/etc/resolv.conf")
@@ -538,4 +572,17 @@ func TestDNS(t *testing.T) {
 		log.Debug(string(out))
 		t.Error(err)
 	}
+
+	// check if DNS works
+	// run ping over SSH command:
+	// ssh root@[ip1] ping -c 1 [id].[group].celestial
+	c = exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "ping", "-c", "1", fmt.Sprintf("%d.%d.celestial", vms[B].id, vms[B].group))
+
+	out, err = c.CombinedOutput()
+
+	if err != nil {
+		log.Debug(string(out))
+		t.Error(err)
+	}
+
 }

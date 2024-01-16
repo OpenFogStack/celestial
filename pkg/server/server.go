@@ -50,7 +50,7 @@ func New(o *orchestrator.Orchestrator, pb PeeringBackend) *Server {
 	}
 }
 
-func (s *Server) Stop(ctx context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
+func (s *Server) Stop(_ context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
 	err := s.o.Stop()
 	if err != nil {
 		return nil, err
