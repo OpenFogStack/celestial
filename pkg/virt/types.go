@@ -18,7 +18,6 @@ const (
 )
 
 const HOST_INTERFACE = "ens4"
-const NAMESERVER = "1.1.1.1"
 const GUESTINTERFACE = "eth0"
 const ROOTPATH = "/celestial"
 const OUTPUTPATH = "/celestial/out"

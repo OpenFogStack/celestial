@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# clock synchronization
+chronyc -a makestep
+
 echo "Starting user script..."
 
 /bin/sh app.sh

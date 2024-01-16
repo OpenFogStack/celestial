@@ -241,6 +241,7 @@ func (o *Orchestrator) Update(s *State) error {
 		if state == STOPPED && o.State.MachinesState[m] == ACTIVE {
 			wg.Add(1)
 			go func(machine MachineID) {
+				defer wg.Done()
 				// stop machine
 				err := o.virt.StopMachine(machine)
 				if err != nil {
@@ -254,6 +255,7 @@ func (o *Orchestrator) Update(s *State) error {
 		if state == ACTIVE && o.State.MachinesState[m] == STOPPED {
 			wg.Add(1)
 			go func(machine MachineID) {
+				defer wg.Done()
 				// start machine
 				err := o.virt.StartMachine(machine)
 				if err != nil {

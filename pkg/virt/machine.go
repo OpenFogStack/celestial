@@ -57,7 +57,7 @@ func (m *machine) initialize() error {
 						Mask: m.network.ip.Mask,
 					},
 					Gateway:     m.network.gateway.IP,
-					Nameservers: []string{NAMESERVER},
+					Nameservers: []string{m.network.gateway.IP.String()},
 					IfName:      GUESTINTERFACE,
 				},
 			},
@@ -136,8 +136,11 @@ func (m *machine) initialize() error {
 		loglevel = "INFO"
 	case log.ErrorLevel:
 		loglevel = "ERROR"
+	default:
+		loglevel = "DEBUG"
 	}
 
+	// magic!
 	bootparams := "init=/sbin/ceinit ro console=ttyS0 noapic reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb"
 
 	for _, param := range m.bootparams {

@@ -88,6 +88,7 @@ func (n *Netem) Stop() error {
 	for _, v := range n.vms {
 		wg.Add(1)
 		go func(v *vm) {
+			defer wg.Done()
 			// remove ipset
 			err := v.removeIPSet()
 

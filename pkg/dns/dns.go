@@ -3,6 +3,8 @@ package dns
 import (
 	"fmt"
 	"net"
+	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/miekg/dns"
@@ -12,13 +14,13 @@ import (
 	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 )
 
-type dnsServer struct {
+type DNSServer struct {
 	*orchestrator.Orchestrator
 }
 
 // https://gist.github.com/walm/0d67b4fb2d5daf3edd4fad3e13b162cb
 
-func (d *dnsServer) getIPFromDNS(qName string) (string, error) {
+func (d *DNSServer) getIPFromDNS(qName string) (string, error) {
 	labels := dns.SplitDomainName(qName)
 
 	if len(labels) != 3 {
@@ -60,7 +62,7 @@ func (d *dnsServer) getIPFromDNS(qName string) (string, error) {
 	return ip.String(), nil
 }
 
-func (d *dnsServer) handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
+func (d *DNSServer) handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := new(dns.Msg)
 	m.SetReply(r)
 	m.Compress = false
@@ -111,15 +113,87 @@ func (d *dnsServer) handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 	}
 }
 
-// Start starts our DNS service. The service helps applications find out the IP addresses
+// New creates a new DNS service. The service helps applications find out the IP addresses
 // of other satellites. It uses the custom (made up) "celestial." TLD. A satellite DNS
 // record has the form [ID].[SHELL].celestial, where [ID] is the identifier and [SHELL] is
 // the index of the shell of the satellite. That maps to an IP address. Additionally,
 // ground station IP addresses can be determined with [NAME].gst.celestial, where NAME is the
 // ground station name.
 // Our DNS server supports only queries, only UDP (no DNSSEC), and only A records.
-func Start(port uint64, orch *orchestrator.Orchestrator) error {
-	d := &dnsServer{orch}
+// This service relies on configuring systemd-resolved to use our DNS server for the celestial
+// TLD.
+func New(o *orchestrator.Orchestrator) *DNSServer {
+	return &DNSServer{
+		Orchestrator: o,
+	}
+}
+
+// Start starts our DNS service. We first check if systemd-resolved is available
+// and panic otherwise. We then place  a configuration file in
+// /etc/systemd/resolved.conf.d/celestial.conf that contains the following:
+//
+// ```conf
+// [Resolve]
+// DNS=127.0.0.1:[port]
+// Domains=~celestial
+// DNSStubListener=no
+// DNSStubListenerExtra=0.0.0.0:53
+// ```
+//
+// We then restart systemd-resolved.
+func (d *DNSServer) Start(port uint64) error {
+	// check if systemd-resolved is used
+	cmd := exec.Command("systemctl", "is-active", "systemd-resolved")
+
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return errors.Errorf("systemd-resolved is not active: %s", string(out))
+	}
+
+	if string(out) != "active\n" {
+		return errors.Errorf("systemd-resolved is not active: %s", string(out))
+	}
+
+	// configure systemd-resolved
+	// place a new config file in /etc/systemd/resolved.conf.d/celestial.conf
+	err = os.Mkdir("/etc/systemd/resolved.conf.d", 0755)
+
+	if err != nil && !os.IsExist(err) {
+		return errors.WithStack(err)
+	}
+
+	f, err := os.Create("/etc/systemd/resolved.conf.d/celestial.conf")
+
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	_, err = f.WriteString(fmt.Sprintf("[Resolve]\nDNS=127.0.0.1:%d\nDomains=~celestial\nDNSStubListener=no\nDNSStubListenerExtra=0.0.0.0:53", port))
+
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	err = f.Close()
+
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// remove the file when we are done
+	defer func() {
+
+	}()
+
+	// restart systemd-resolved
+	cmd = exec.Command("systemctl", "restart", "systemd-resolved")
+
+	out, err = cmd.CombinedOutput()
+
+	if err != nil {
+		return errors.Errorf("could not restart systemd-resolved: %s", string(out))
+	}
 
 	dns.HandleFunc("celestial.", d.handleDnsRequest)
 
@@ -127,11 +201,31 @@ func Start(port uint64, orch *orchestrator.Orchestrator) error {
 
 	log.Printf("DNS server starting on :%d", port)
 
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 
 	if err != nil {
 		log.Errorf("%+v\n", err)
 	}
 
 	return errors.WithStack(err)
+}
+
+// Stop stops our DNS service. We remove the configuration file we placed in
+// /etc/systemd/resolved.conf.d/celestial.conf and restart systemd-resolved.
+func (d *DNSServer) Stop() error {
+	err := os.Remove("/etc/systemd/resolved.conf.d/celestial.conf")
+	if err != nil {
+		log.Errorf("could not remove /etc/systemd/resolved.conf.d/celestial.conf: %v", err)
+		return err
+	}
+
+	cmd := exec.Command("systemctl", "restart", "systemd-resolved")
+
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return errors.Errorf("could not restart systemd-resolved: %s", string(out))
+	}
+
+	return nil
 }

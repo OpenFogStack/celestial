@@ -10,7 +10,8 @@ apk -X "http://dl-5.alpinelinux.org/alpine/latest-stable/main" -U --allow-untrus
     iproute2 \
     strace \
     attr \
-    grep
+    grep \
+    chrony
 
 # link rc services
 ln -sf /etc/init.d/devfs        /etc/runlevels/boot/devfs
@@ -21,8 +22,13 @@ ln -sf networking               /etc/init.d/net.eth0
 ln -sf /etc/init.d/networking   /etc/runlevels/default/networking
 ln -sf /etc/init.d/net.eth0     /etc/runlevels/default/net.eth0
 
+ln -sf chronyd                  /etc/init.d/chronyd
+
 # disable modules
 echo rc_want="!modules">> /etc/rc.conf
+
+# setup chrony to use PTP as the time source
+echo "refclock PHC /dev/ptp0 poll -2 dpoll -2 offset 0 trust prefer" > /etc/chrony/chrony.conf
 
 passwd root -d root
 exit
