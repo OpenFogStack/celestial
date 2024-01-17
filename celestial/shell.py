@@ -145,9 +145,13 @@ class Shell:
             (PATH_MATRIX_SIZE, PATH_MATRIX_SIZE), dtype=PATH_DTYPE
         )
 
-        self.path_diff = np.zeros(
-            (self.total_sats + self.total_gst) ** 2, dtype=PATH_LINK_DTYPE
+        self.curr_paths = np.zeros(
+            (PATH_MATRIX_SIZE, PATH_MATRIX_SIZE), dtype=PATH_DTYPE
         )
+
+        self.link_diff: celestial.types.LinkDiff = {}
+
+        self.nodes_diff: celestial.types.MachineDiff = {}
 
         # init nodes
         for plane in range(0, self.number_of_planes):
@@ -177,7 +181,12 @@ class Shell:
 
         self.max_isl_range = self.calculate_max_ISL_distance()
 
-    def step(self, time: celestial.types.timestamp_s) -> None:
+    def step(
+        self,
+        time: celestial.types.timestamp_s,
+        calculate_diffs: bool = False,
+        delay_update_threshold_us: int = 0,
+    ) -> None:
         self.current_time = int(time)
 
         self.old_machines = self.satellites_array.copy()
@@ -211,45 +220,41 @@ class Shell:
 
         self.update_plus_grid_links()
 
-        self.old_paths = self.path_matrix.copy()
+        if not calculate_diffs:
+            return
 
-        self.update_paths()
-
-    def get_sat_node_diffs(self) -> celestial.types.MachineDiff:
-        nodes_diff: celestial.types.MachineDiff = {}
-
+        self.nodes_diff = {}
+        # calculate the node diffs
         for sat in self.satellites_array:
             if sat["in_bbox"] != self.old_machines[sat["ID"]]["in_bbox"]:
                 m_id = celestial.types.MachineID(
                     group=self.shell_identifier, id=sat["ID"]
                 )
 
-                nodes_diff[m_id] = (
+                self.nodes_diff[m_id] = (
                     celestial.types.VMState.ACTIVE
                     if sat["in_bbox"]
                     else celestial.types.VMState.STOPPED
                 )
 
-        return nodes_diff
+        self.update_paths()
 
-    def get_link_diff(
-        self, delay_update_threshold_us: int = 0
-    ) -> celestial.types.LinkDiff:
-        # t1 = time.perf_counter()
+        self.link_diff = {}
 
-        link_diff: celestial.types.LinkDiff = {}
+        path_diff = np.zeros(
+            (self.total_sats + self.total_gst) ** 2, dtype=PATH_LINK_DTYPE
+        )
 
         total_link_diff = self.numba_get_link_diff(
             delay_update_threshold_us=delay_update_threshold_us,
             total_sats=self.total_sats,
             total_gst=self.total_gst,
-            old_paths=self.old_paths,
+            curr_paths=self.curr_paths,
             path_matrix=self.path_matrix,
-            path_diff=self.path_diff,
+            path_diff=path_diff,
         )[0]
 
-        # print(f"total_link_diff {total_link_diff}")
-        for link in self.path_diff[:total_link_diff]:
+        for link in path_diff[:total_link_diff]:
             n1 = (
                 celestial.types.MachineID(self.shell_identifier, link["node_1"])
                 if link["node_1"] < self.total_sats
@@ -270,17 +275,7 @@ class Shell:
                 )
             )
 
-            # if not celestial.types.MachineID_name(n1) == "":
-            # print(f"link diff for gst {n1} to {n2}")
-
-            # if celestial.types.MachineID_id(n1) == celestial.types.MachineID_id(n2):
-            # print("ERROR! link diff between same node")
-            # print(f"n1 {n1} n2 {n2}")
-
-            # if link["path"]["active"]:
-            # print(f"link_diff {n1} {n2} to {np.uint32(link['path']['delay_us'])}")
-
-            link_diff.setdefault(n1, {})[n2] = celestial.types.Link(
+            self.link_diff.setdefault(n1, {})[n2] = celestial.types.Link(
                 latency_us=link["path"]["delay_us"],
                 bandwidth_kbits=link["path"]["bandwidth_kbits"],
                 blocked=not link["path"]["active"],
@@ -288,12 +283,14 @@ class Shell:
                     group=self.shell_identifier, id=link["path"]["next_hop"]
                 ),
             )
-            # print(f'link_diff {n1} {n2} to {link["path"]["active"]}')
 
-        # t2 = time.perf_counter()
-        # print(f"get_link_diff took {t2 - t1} seconds")
+            self.curr_paths[link["node_1"]][link["node_2"]] = link["path"]
 
-        return link_diff
+    def get_sat_node_diffs(self) -> celestial.types.MachineDiff:
+        return self.nodes_diff
+
+    def get_link_diff(self) -> celestial.types.LinkDiff:
+        return self.link_diff
 
     def get_sat_positions(self) -> np.ndarray:  # type: ignore
         sat_positions: np.ndarray = np.copy(  # type: ignore
@@ -316,60 +313,6 @@ class Shell:
         gst_links: np.ndarray = np.copy(self.gst_links_array[: self.total_gst_links])  # type: ignore
 
         return gst_links
-
-    @staticmethod
-    @numba.njit  # type: ignore
-    def numba_get_link_diff(
-        delay_update_threshold_us: int,
-        total_sats: int,
-        total_gst: int,
-        old_paths: np.ndarray,  # type: ignore
-        path_matrix: np.ndarray,  # type: ignore
-        path_diff: np.ndarray,  # type: ignore
-    ) -> typing.Tuple[int]:
-        total_link_diff = 0
-
-        # path diff for satellites
-        for n1 in range(total_sats):
-            for n2 in range(n1 + 1, total_sats):
-                p1 = old_paths[n1][n2]
-                p2 = path_matrix[n1][n2]
-
-                if (
-                    np.abs(p1["delay_us"] - p2["delay_us"]) > delay_update_threshold_us
-                    or p1["active"] != p2["active"]
-                    or p1["bandwidth_kbits"] != p2["bandwidth_kbits"]
-                    or p1["next_hop"] != p2["next_hop"]
-                ):
-                    path_diff[total_link_diff]["node_1"] = np.int16(n1)
-                    path_diff[total_link_diff]["node_2"] = np.int16(n2)
-                    path_diff[total_link_diff]["path"] = p2
-                    total_link_diff += 1
-
-        # path diff for ground stations to all
-        for n1 in range(total_sats, total_sats + total_gst):
-            for n2 in range(total_sats + total_gst):
-                if n1 == n2:
-                    continue
-
-                # print(f"n1 {n1} n2 {n2}")
-
-                p1 = old_paths[n1][n2]
-                p2 = path_matrix[n1][n2]
-
-                if (
-                    np.abs(p1["delay_us"] - p2["delay_us"]) > delay_update_threshold_us
-                    or p1["active"] != p2["active"]
-                    or p1["bandwidth_kbits"] != p2["bandwidth_kbits"]
-                    or p1["next_hop"] != p2["next_hop"]
-                ):
-                    # print(f"n1 {n1} n2 {n2} changed")
-                    path_diff[total_link_diff]["node_1"] = np.int16(n1)
-                    path_diff[total_link_diff]["node_2"] = np.int16(n2)
-                    path_diff[total_link_diff]["path"] = p2
-                    total_link_diff += 1
-
-        return (total_link_diff,)
 
     def get_rotation_matrix(self, degrees: float) -> npt.NDArray[np.float64]:
         theta = math.radians(degrees)
@@ -627,8 +570,6 @@ class Shell:
         return (total_gst_links,)
 
     def update_paths(self) -> None:
-        # t1 = time.perf_counter()
-
         self.numba_update_paths(
             sat_link_array=self.link_array,
             total_isl_links=self.total_isl_links,
@@ -640,10 +581,6 @@ class Shell:
             total_gst_links=self.total_gst_links,
             isl_bandwidth_kbits=self.isl_bandwidth_kbits,
         )
-
-        # t2 = time.perf_counter()
-
-        # print(f"update_paths took {t2 - t1} seconds")
 
     @staticmethod
     @numba.njit  # type: ignore
@@ -735,15 +672,11 @@ class Shell:
                 if _min_x == -1:
                     continue
 
-                # print(f"path from gst {g} to sat {s1}")
-
                 path_matrix[i, j]["next_hop"] = np.int16(gst_links_array[_min_x]["sat"])
 
                 path_matrix[i, j]["delay_us"] = np.uint32(
                     _min_dist * (LINK_PROPAGATION_S_M * 1e6)
                 )
-                # print(path_matrix[i, j]["delay_us"])
-                # print(_min_dist)
 
                 path_matrix[i, j]["bandwidth_kbits"] = np.uint32(
                     min(gst_array[g]["bandwidth_kbits"], isl_bandwidth_kbits)  # type: ignore
@@ -802,3 +735,58 @@ class Shell:
                         gst_array[g2]["bandwidth_kbits"],
                     )  # type: ignore
                 )
+
+    @staticmethod
+    @numba.njit  # type: ignore
+    def numba_get_link_diff(
+        delay_update_threshold_us: int,
+        total_sats: int,
+        total_gst: int,
+        curr_paths: np.ndarray,  # type: ignore
+        path_matrix: np.ndarray,  # type: ignore
+        path_diff: np.ndarray,  # type: ignore
+    ) -> typing.Tuple[int]:
+        total_link_diff = 0
+
+        # path diff for satellites
+        for n1 in range(total_sats):
+            for n2 in range(n1 + 1, total_sats):
+                p1 = curr_paths[n1][n2]
+                p2 = path_matrix[n1][n2]
+
+                if (
+                    # note that converting to int32 is necessary for subtraction to work correctly
+                    np.abs(np.int32(p1["delay_us"]) - np.int32(p2["delay_us"]))
+                    > delay_update_threshold_us
+                    or p1["active"] != p2["active"]
+                    or p1["bandwidth_kbits"] != p2["bandwidth_kbits"]
+                    or p1["next_hop"] != p2["next_hop"]
+                ):
+                    path_diff[total_link_diff]["node_1"] = np.int16(n1)
+                    path_diff[total_link_diff]["node_2"] = np.int16(n2)
+                    path_diff[total_link_diff]["path"] = p2
+                    total_link_diff += 1
+
+        # path diff for ground stations to all
+        for n1 in range(total_sats, total_sats + total_gst):
+            for n2 in range(total_sats + total_gst):
+                if n1 == n2:
+                    continue
+
+                p1 = curr_paths[n1][n2]
+                p2 = path_matrix[n1][n2]
+
+                if (
+                    np.abs(np.int32(p1["delay_us"]) - np.int32(p2["delay_us"]))
+                    > delay_update_threshold_us
+                    or p1["active"] != p2["active"]
+                    or p1["bandwidth_kbits"] != p2["bandwidth_kbits"]
+                    or p1["next_hop"] != p2["next_hop"]
+                ):
+                    # print(f"n1 {n1} n2 {n2} changed")
+                    path_diff[total_link_diff]["node_1"] = np.int16(n1)
+                    path_diff[total_link_diff]["node_2"] = np.int16(n2)
+                    path_diff[total_link_diff]["path"] = p2
+                    total_link_diff += 1
+
+        return (total_link_diff,)

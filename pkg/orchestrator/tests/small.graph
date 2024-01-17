@@ -1,8 +1,0 @@
-node=0
-node=1
-node=2
-node=3
-link=0,1,10,100
-link=1,0,10,100
-link=1,2,20,10
-link=2,1,20,10

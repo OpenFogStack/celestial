@@ -2,7 +2,7 @@
 
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-# Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+# Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,9 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-
-# the base script install all the necessary dependencies during root
-# filesystem compilation
 
 # add git, curl, and python3 to the root filesystem.
 # our program is based on python3, hence we need to install python3.

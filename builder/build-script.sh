@@ -2,7 +2,7 @@
 
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-# Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+# Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,8 +53,9 @@ mkdir -p ./tmp/overlay/root \
     ./tmp/mnt \
     ./tmp/rom
 
-# now switch back to a public name server
-echo nameserver 1.1.1.1 > ./tmp/etc/resolv.conf
+# now delete the nameserver config agains
+rm ./tmp/etc/resolv.conf
+ln -s /proc/net/pnp ./tmp/etc/resolv.conf
 
 rm ./tmp/prepare.sh
 

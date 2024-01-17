@@ -5,12 +5,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/OpenFogStack/celestial/pkg/orchestrator2"
+	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 )
 
 func Test_getNet(t *testing.T) {
 	type args struct {
-		id orchestrator2.MachineID
+		id orchestrator.MachineID
 	}
 	tests := []struct {
 		name    string
@@ -21,7 +21,7 @@ func Test_getNet(t *testing.T) {
 		{
 			name: "test1",
 			args: args{
-				id: orchestrator2.MachineID{
+				id: orchestrator.MachineID{
 					Group: 1,
 					Id:    1,
 				},
@@ -49,7 +49,7 @@ func Test_getNet(t *testing.T) {
 		{
 			name: "test2",
 			args: args{
-				id: orchestrator2.MachineID{
+				id: orchestrator.MachineID{
 					Group: 1,
 					Id:    16385,
 				},
@@ -59,7 +59,7 @@ func Test_getNet(t *testing.T) {
 		{
 			name: "test3",
 			args: args{
-				id: orchestrator2.MachineID{
+				id: orchestrator.MachineID{
 					Group: 4,
 					Id:    17,
 				},
@@ -118,7 +118,7 @@ func Test_getID(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    orchestrator2.MachineID
+		want    orchestrator.MachineID
 		wantErr bool
 	}{
 		{
@@ -126,7 +126,7 @@ func Test_getID(t *testing.T) {
 			args: args{
 				ip: net.IPv4(10, 1, 0, 6),
 			},
-			want: orchestrator2.MachineID{
+			want: orchestrator.MachineID{
 				Group: 1,
 				Id:    1,
 			},
@@ -137,7 +137,7 @@ func Test_getID(t *testing.T) {
 			args: args{
 				ip: net.IPv4(10, 1, 0, 5),
 			},
-			want: orchestrator2.MachineID{
+			want: orchestrator.MachineID{
 				Group: 1,
 				Id:    1,
 			},
@@ -148,7 +148,7 @@ func Test_getID(t *testing.T) {
 			args: args{
 				ip: net.IPv4(10, 1, 0, 4),
 			},
-			want: orchestrator2.MachineID{
+			want: orchestrator.MachineID{
 				Group: 1,
 				Id:    1,
 			},
@@ -159,7 +159,7 @@ func Test_getID(t *testing.T) {
 			args: args{
 				ip: net.IPv4(10, 1, 0, 2),
 			},
-			want: orchestrator2.MachineID{
+			want: orchestrator.MachineID{
 				Group: 1,
 				Id:    0,
 			},
@@ -170,7 +170,7 @@ func Test_getID(t *testing.T) {
 			args: args{
 				ip: net.IPv4(10, 1, 0, 7),
 			},
-			want: orchestrator2.MachineID{
+			want: orchestrator.MachineID{
 				Group: 1,
 				Id:    1,
 			},
@@ -181,7 +181,7 @@ func Test_getID(t *testing.T) {
 			args: args{
 				ip: net.IPv4(127, 0, 0, 1),
 			},
-			want:    orchestrator2.MachineID{},
+			want:    orchestrator.MachineID{},
 			wantErr: true,
 		},
 		{
@@ -189,7 +189,7 @@ func Test_getID(t *testing.T) {
 			args: args{
 				ip: net.IPv6zero,
 			},
-			want:    orchestrator2.MachineID{},
+			want:    orchestrator.MachineID{},
 			wantErr: true,
 		},
 		{
@@ -197,7 +197,7 @@ func Test_getID(t *testing.T) {
 			args: args{
 				ip: net.IPv4(10, 1, 0, 0),
 			},
-			want: orchestrator2.MachineID{
+			want: orchestrator.MachineID{
 				Group: 1,
 				Id:    0,
 			},

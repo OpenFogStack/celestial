@@ -1,6 +1,6 @@
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-# Copyright (c) 2021 Ben S. Kempton, Tobias Pfandzelter, The OpenFogStack Team.
+# Copyright (c) 2024 Ben S. Kempton, Tobias Pfandzelter, The OpenFogStack Team.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ class AnimationConstellation:
             self.shells.append(s)
 
         for s in self.shells:
-            s.step(self.current_time)
+            s.step(self.current_time, calculate_diffs=False)
 
         self.conn.send(
             {

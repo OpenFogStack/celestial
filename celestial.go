@@ -39,6 +39,9 @@ import (
 )
 
 const (
+	DEFAULT_PORT       = 1969
+	DEFAULT_DNS_PORT   = 1970
+	DEFAULT_INFO_PORT  = 80
 	PEER_WGPORT        = 3000
 	PEER_WGINTERFACE   = "wg0"
 	PEER_MASK          = "/26"
@@ -49,9 +52,9 @@ const (
 
 func main() {
 	// needs some configuration data
-	port := flag.Uint64("port", 1969, "Port to bind to")
-	dnsServicePort := flag.Uint64("dns-service-port", 1970, "Port to bind DNS service server to")
-	infoServerPort := flag.Uint64("info-server-port", 80, "Port to bind info server to")
+	port := flag.Uint64("port", DEFAULT_PORT, "Port to bind to")
+	dnsServicePort := flag.Uint64("dns-service-port", DEFAULT_DNS_PORT, "Port to bind DNS service server to")
+	infoServerPort := flag.Uint64("info-server-port", DEFAULT_INFO_PORT, "Port to bind info server to")
 	networkInterface := flag.String("network-interface", DEFAULT_IF, "Name of your main network interface")
 	initDelay := flag.Uint64("init-delay", DEFAULT_INIT_DELAY, "Maximum delay when initially booting a machine -- can help reduce load at beginning of emulation")
 	debug := flag.Bool("debug", false, "Enable debug logging")
@@ -62,6 +65,13 @@ func main() {
 
 	if *debug {
 		log.SetLevel(log.DebugLevel)
+	}
+
+	// check that the network interface exists
+	_, err := net.InterfaceByName(*networkInterface)
+
+	if err != nil {
+		panic(err)
 	}
 
 	s := grpc.NewServer()

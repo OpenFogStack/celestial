@@ -1,6 +1,6 @@
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-# Copyright (c) 2021 Ben S. Kempton, Tobias Pfandzelter, The OpenFogStack Team.
+# Copyright (c) 2024 Ben S. Kempton, Tobias Pfandzelter, The OpenFogStack Team.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -101,7 +101,11 @@ class Constellation:
         self.current_time = t
 
         for s in self.shells:
-            s.step(self.current_time)
+            s.step(
+                self.current_time,
+                calculate_diffs=True,
+                delay_update_threshold_us=DELAY_UPDATE_THRESHOLD_US,
+            )
 
         # initially, turn on all ground stations
         if not self.ground_stations_initialized:
@@ -120,6 +124,6 @@ class Constellation:
             for machine, state in s.get_sat_node_diffs().items():
                 self.writer.diff_machine(self.current_time, machine, state)
 
-            for source, links in s.get_link_diff(DELAY_UPDATE_THRESHOLD_US).items():
+            for source, links in s.get_link_diff().items():
                 for target, link in links.items():
                     self.writer.diff_link(self.current_time, source, target, link)

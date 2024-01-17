@@ -81,15 +81,6 @@ func (m *machine) initialize() error {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	// prepare the file writers for output
-
-	if _, err := os.Stat(OUTPUTPATH); os.IsNotExist(err) {
-		err = os.Mkdir(OUTPUTPATH, fs.FileMode(0755))
-		if err != nil {
-			return err
-		}
-	}
-
 	outPath := filepath.Join(OUTPUTPATH, fmt.Sprintf("%s.out", m.name))
 
 	errPath := filepath.Join(OUTPUTPATH, fmt.Sprintf("%s.err", m.name))

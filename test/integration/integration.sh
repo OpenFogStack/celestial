@@ -84,10 +84,6 @@ echo "Moving files..."
 echo "$DIVIDER"
 ssh "$INSTANCE_NAME" "sudo mv ./ssh.img /celestial/ssh.img"
 
-# shut off dns server
-# echo "Shutting off systemd-resolved..."
-# ssh "$INSTANCE_NAME" "sudo systemctl stop systemd-resolved"
-
 echo "Running test..."
 ssh "$INSTANCE_NAME" "sudo /usr/local/go/bin/go test"
 

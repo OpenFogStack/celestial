@@ -22,7 +22,7 @@ ln -sf networking               /etc/init.d/net.eth0
 ln -sf /etc/init.d/networking   /etc/runlevels/default/networking
 ln -sf /etc/init.d/net.eth0     /etc/runlevels/default/net.eth0
 
-ln -sf chronyd                  /etc/init.d/chronyd
+ln -sf /etc/init.d/chronyd      /etc/runlevels/default/chronyd
 
 # disable modules
 echo rc_want="!modules">> /etc/rc.conf
