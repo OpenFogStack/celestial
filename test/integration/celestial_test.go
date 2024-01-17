@@ -542,43 +542,18 @@ func TestBlockLink(t *testing.T) {
 }
 
 func TestDNS(t *testing.T) {
-	// try modifying the DNS settings on the machine
-	// need to get the gateway address of the machine
 	A := 0
 	B := 1
 
 	// ensure that the links are active
 	testModifyLinks(t, A, B, 10)
 
-	ip, err := o.InfoGetIPAddressByID(orchestrator.MachineID{
-		Group: uint8(vms[A].group),
-		Id:    uint32(vms[A].id),
-	})
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	// gateway is always the first IP in the subnet
-	gateway := ip.To4()
-	gateway[3] -= 1
-
-	// write the gateway ip into /etc/resolv.conf on the machine
-	c := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "echo", "nameserver", gateway.String(), ">", "/etc/resolv.conf")
-
-	out, err := c.CombinedOutput()
-
-	if err != nil {
-		log.Debug(string(out))
-		t.Error(err)
-	}
-
 	// check if DNS works
 	// run ping over SSH command:
 	// ssh root@[ip1] ping -c 1 [id].[group].celestial
-	c = exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "ping", "-c", "1", fmt.Sprintf("%d.%d.celestial", vms[B].id, vms[B].group))
+	c := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "ping", "-c", "1", fmt.Sprintf("%d.%d.celestial", vms[B].id, vms[B].group))
 
-	out, err = c.CombinedOutput()
+	out, err := c.CombinedOutput()
 
 	if err != nil {
 		log.Debug(string(out))

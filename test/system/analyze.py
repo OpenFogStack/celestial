@@ -39,9 +39,9 @@ if __name__ == "__main__":
         .astype(float)
     )
 
-    results["diff"] = np.abs(results["actual"] - results["expected_avg"])
-    results["diff_before"] = np.abs(results["actual"] - results["expected_before"])
-    results["diff_after"] = np.abs(results["actual"] - results["expected_after"])
+    results["diff"] = results["actual"] - results["expected_avg"]
+    results["diff_before"] = results["actual"] - results["expected_before"]
+    results["diff_after"] = results["actual"] - results["expected_after"]
     results["diff_approx"] = results.apply(
         lambda x: min(x["diff_before"], x["diff_after"]), axis=1
     )
@@ -93,7 +93,9 @@ if __name__ == "__main__":
         .pivot(index="a", columns="b", values="diff_approx")
     )
 
-    sns.heatmap(data=results_2d, fmt=".2f", vmax=10, label=True, cmap="viridis")
+    sns.heatmap(
+        data=results_2d, fmt=".2f", vmax=10, vmin=-10, label=True, cmap="viridis"
+    )
     plt.savefig(f"{OUTPUT_DIR}/heatmap.png", bbox_inches="tight")
     plt.clf()
 

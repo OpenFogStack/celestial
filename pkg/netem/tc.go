@@ -93,7 +93,7 @@ func (v *vm) createQDisc(target net.IPNet) (uint16, error) {
 
 func (v *vm) updateDelay(target net.IPNet, delay uint32) error {
 
-	log.Debugf("updating delay on %s for %s  to %d", v.netIf, target.String(), delay)
+	log.Debugf("updating delay on %s for %s to %d", v.netIf, target.String(), delay)
 
 	// get the index
 	l, ok := v.links[fromIPNet(target)]

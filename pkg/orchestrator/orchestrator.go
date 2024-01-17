@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -161,8 +160,6 @@ func (o *Orchestrator) Stop() error {
 		return errors.WithStack(err)
 	}
 
-	os.Exit(0)
-
 	return nil
 }
 
@@ -180,7 +177,7 @@ func (o *Orchestrator) Update(s *State) error {
 			defer wg.Done()
 			for target, l := range links {
 				if l.Blocked && !o.State.NetworkState[source][target].Blocked {
-					log.Debug("blocking link ", source, " -> ", target)
+					log.Debugf("blocking link %s -> %s", source, target)
 					err := o.virt.BlockLink(source, target)
 					if err != nil {
 						e = errors.WithStack(err)
@@ -189,7 +186,7 @@ func (o *Orchestrator) Update(s *State) error {
 				}
 
 				if !l.Blocked && o.State.NetworkState[source][target].Blocked {
-					log.Debug("unblocking link ", source, " -> ", target)
+					log.Debugf("unblocking link %s -> %s", source, target)
 					err := o.virt.UnblockLink(source, target)
 					if err != nil {
 						e = errors.WithStack(err)
@@ -203,12 +200,12 @@ func (o *Orchestrator) Update(s *State) error {
 
 				log.Debugf("updating link %s -> %s", source, target)
 				if l.Next != o.State.NetworkState[source][target].Next {
-					log.Debug("setting next hop ", source, " -> ", target, " to ", l.Next)
+					log.Debugf("setting next hop %s -> %s to %s ", source, target, l.Next)
 					o.State.NetworkState[source][target].Next = l.Next
 				}
 
 				if l.Latency != o.State.NetworkState[source][target].Latency {
-					log.Debug("setting latency ", source, " -> ", target, " to ", l.Latency)
+					log.Debugf("changing latency %s -> %s from %d to %d", source, target, l.Latency, o.State.NetworkState[source][target].Latency)
 					err := o.virt.SetLatency(source, target, l.Latency)
 					if err != nil {
 						e = errors.WithStack(err)
@@ -217,7 +214,7 @@ func (o *Orchestrator) Update(s *State) error {
 				}
 
 				if l.Bandwidth != o.State.NetworkState[source][target].Bandwidth {
-					log.Debug("setting bandwidth ", source, " -> ", target, " to ", l.Bandwidth)
+					log.Debugf("setting bandwidth %s -> %s to %d", source, target, l.Bandwidth)
 					err := o.virt.SetBandwidth(source, target, l.Bandwidth)
 					if err != nil {
 						e = errors.WithStack(err)

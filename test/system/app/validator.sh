@@ -2,7 +2,7 @@
 
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-# Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+# Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,8 +25,11 @@ chronyc tracking
 # everything that is sent to stdout will be sent to our file
 echo "STARTING VALIDATOR"
 
+# let's get the gateway IP by parsing "/sbin/ip route"
+IP=$(/sbin/ip route | awk '/default/ { print $3 }')
+
 # the validation script should know where it can find the HTTP server
-# (also at our gateway)
+# (at our gateway)
 python3 validator.py "$IP"
 
 while true; do

@@ -2,7 +2,7 @@
 
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-# Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+# Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,12 +18,14 @@
 #
 
 import sys
-import ping3
+import ping3  # type: ignore
 import typing
 import time
-import requests
+import requests  # type: ignore
 
 DEBUG = False
+
+ping3.EXCEPTIONS = DEBUG
 
 
 def get_id(gateway: str) -> typing.Tuple[str, str]:
@@ -124,7 +126,18 @@ def get_expected_latency(
 
 
 def get_real_latency(sat: int, shell: int) -> typing.Union[float, bool]:
-    act = ping3.ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
+    if not DEBUG:
+        act = ping3.ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
+    else:
+        try:
+            act = ping3.verbose_ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
+
+        except Exception as e:
+            print(
+                f"got error when trying to get real latency for sat {sat} shell {shell} {e}",
+                file=sys.stderr,
+            )
+            return False
 
     if act is None or act is False:
         return False
@@ -177,12 +190,12 @@ if __name__ == "__main__":
         for sat in targets:
             expBef = get_expected_latency(shell, id, sat["sat"], sat["shell"], gateway)
 
-            act = get_real_latency(sat["sat"], sat["shell"])
+            real_latency = get_real_latency(sat["sat"], sat["shell"])
 
             expAft = get_expected_latency(shell, id, sat["sat"], sat["shell"], gateway)
 
             f.write(
-                f"{time.time()},{sat['shell']},{sat['sat']},{expBef},{expAft},{act}\n"
+                f"{time.time()},{sat['shell']},{sat['sat']},{expBef},{expAft},{real_latency}\n"
             )
 
             f.flush()

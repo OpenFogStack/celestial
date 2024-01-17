@@ -1,6 +1,7 @@
 package virt
 
 import (
+	"io/fs"
 	"os"
 	"os/exec"
 
@@ -9,6 +10,7 @@ import (
 )
 
 // initHost resets the hosts iptables and sets up basics on the host.
+// Partially based on https://github.com/firecracker-microvm/firecracker-demo/blob/main/one-time-setup.sh
 func (v *Virt) initHost() error {
 
 	// clear iptables
@@ -83,6 +85,24 @@ func (v *Virt) initHost() error {
 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
+
+	// prepare an output folder
+
+	// prepare the file writers for output
+	// if the directory exists, remove it
+	if _, err = os.Stat(OUTPUTPATH); err == nil {
+		err = os.RemoveAll(OUTPUTPATH)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// then create it
+	err = os.Mkdir(OUTPUTPATH, fs.FileMode(0755))
+	if err != nil {
+		return err
 	}
 
 	return nil

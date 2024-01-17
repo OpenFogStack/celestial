@@ -4,7 +4,7 @@ test/system/app/validator.img
 test/system/config.toml
 kernel/vmlinux-5.12.bin
 requirements.txt
-satgen
+celestial
 proto
 celestial.py
 __init__.py

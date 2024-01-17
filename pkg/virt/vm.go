@@ -30,7 +30,7 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 			// but keep it as registered only, so that it can be started if it ever transitions to STARTED
 			return nil
 		default:
-			panic("unhandled default case")
+			log.Debugf("cannot transition %s from %d to %d", id, v.machines[id].state, state)
 		}
 	case STARTED:
 		switch v.machines[id].state {
@@ -50,7 +50,7 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 			v.machines[id].state = STARTED
 			return nil
 		default:
-			panic("unhandled default case")
+			log.Debugf("cannot transition %s from %d to %d", id, v.machines[id].state, state)
 		}
 	case REGISTERED:
 		return errors.Errorf("cannot transition to REGISTERED")
@@ -69,7 +69,7 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 			}
 			return nil
 		default:
-			panic("unhandled default case")
+			log.Debugf("cannot transition %s from %d to %d", id, v.machines[id].state, state)
 		}
 	}
 	return nil
