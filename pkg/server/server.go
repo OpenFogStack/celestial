@@ -31,7 +31,7 @@ import (
 )
 
 type PeeringBackend interface {
-	Register(host orchestrator.Host) (string, error)
+	Register(host orchestrator.Host) (string, string, error)
 	InitPeering(map[orchestrator.Host]peer.HostInfo) error
 	Stop() error
 }
@@ -75,16 +75,17 @@ func (s *Server) Register(_ context.Context, request *celestial.RegisterRequest)
 		return nil, err
 	}
 
-	publickey, err := s.pb.Register(orchestrator.Host(request.Host))
+	peerPublicKey, peerListenAddr, err := s.pb.Register(orchestrator.Host(request.Host))
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &celestial.RegisterResponse{
-		AvailableCpus: cpus,
-		AvailableRam:  ram,
-		PublicKey:     publickey,
+		AvailableCpus:  cpus,
+		AvailableRam:   ram,
+		PeerPublicKey:  peerPublicKey,
+		PeerListenAddr: peerListenAddr,
 	}, nil
 }
 
@@ -125,8 +126,8 @@ func (s *Server) Init(_ context.Context, request *celestial.InitRequest) (*celes
 
 	for _, host := range request.Hosts {
 		hostList[orchestrator.Host(host.Id)] = peer.HostInfo{
-			Addr:      host.Addr,
-			PublicKey: host.Publickey,
+			Addr:      host.PeerListenAddr,
+			PublicKey: host.PeerPublicKey,
 		}
 	}
 

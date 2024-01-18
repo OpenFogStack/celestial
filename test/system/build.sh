@@ -10,8 +10,4 @@ make build rootfsbuilder -B
 
 popd || exit
 
-pushd app || exit
-
 make
-
-popd || exit

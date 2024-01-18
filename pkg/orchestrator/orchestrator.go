@@ -71,7 +71,7 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 	}
 
 	// register all machines
-	progress := 0
+	progressMachines := 0
 	for m := range o.machines {
 		o.State.MachinesState[m] = STOPPED
 
@@ -80,13 +80,13 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 			return errors.WithStack(err)
 		}
 
-		progress++
+		progressMachines++
 
-		if progress%10 == 0 {
-			log.Debugf("machine init progress: %d/%d", progress, len(o.machines))
+		if progressMachines%10 == 0 {
+			log.Debugf("machine init progress: %d/%d", progressMachines, len(o.machines))
 		}
 	}
-	log.Debugf("machine init progress: %d/%d", progress, len(o.machines))
+	log.Debugf("machine init progress: %d/%d", progressMachines, len(o.machines))
 
 	log.Debugf("starting link init")
 
@@ -94,7 +94,7 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 	// by default, all links are blocked
 	var wg sync.WaitGroup
 	var e error
-	progress2 := atomic.Uint32{}
+	progressLinks := atomic.Uint32{}
 
 	start := time.Now()
 
@@ -102,7 +102,7 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 		o.State.NetworkState[m] = make(map[MachineID]*Link)
 
 		wg.Add(1)
-		go func(source MachineID) {
+		go func(source MachineID, links map[MachineID]*Link) {
 			defer wg.Done()
 			//log.Debugf("blocking all links from %s", source)
 
@@ -118,24 +118,24 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 					e = errors.WithStack(err)
 				}
 
-				o.State.NetworkState[source][otherMachine] = &Link{
+				links[otherMachine] = &Link{
 					// likely better to have all links blocked at the beginning
 					Blocked: true,
 				}
 
 				// progress
-				progress2.Add(1)
+				progressLinks.Add(1)
 			}
 			//log.Debugf("done blocking all links from %s", source)
 
-		}(m)
+		}(m, o.State.NetworkState[m])
 	}
 
 	shown := 0
 	total := len(o.machines) * (len(o.machines) - 1)
-	for state := 0; state < total; state = int(progress2.Load()) {
+	for state := 0; state < total; state = int(progressLinks.Load()) {
 		if state > shown && state%100 == 0 {
-			log.Debugf("link init progress: %d/%d", progress2.Load(), total)
+			log.Debugf("link init progress: %d/%d", progressLinks.Load(), total)
 			shown = state
 		}
 	}

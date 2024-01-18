@@ -39,6 +39,15 @@ if __name__ == "__main__":
         .astype(float)
     )
 
+    # throw away pings that took longer than 10 seconds
+    results = results[results["actual"] < 10_000]
+
+    # make time relative
+    results["t"] = results["t"] - results["t"].min()
+
+    # cut off last 10 seconds
+    results = results[results["t"] < results["t"].max() - 10]
+
     results["diff"] = results["actual"] - results["expected_avg"]
     results["diff_before"] = results["actual"] - results["expected_before"]
     results["diff_after"] = results["actual"] - results["expected_after"]

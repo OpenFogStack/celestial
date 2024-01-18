@@ -103,18 +103,21 @@ class RegisterResponse(google.protobuf.message.Message):
 
     AVAILABLE_CPUS_FIELD_NUMBER: builtins.int
     AVAILABLE_RAM_FIELD_NUMBER: builtins.int
-    PUBLIC_KEY_FIELD_NUMBER: builtins.int
+    PEER_PUBLIC_KEY_FIELD_NUMBER: builtins.int
+    PEER_LISTEN_ADDR_FIELD_NUMBER: builtins.int
     available_cpus: builtins.int
     available_ram: builtins.int
-    public_key: builtins.str
+    peer_public_key: builtins.str
+    peer_listen_addr: builtins.str
     def __init__(
         self,
         *,
         available_cpus: builtins.int = ...,
         available_ram: builtins.int = ...,
-        public_key: builtins.str = ...,
+        peer_public_key: builtins.str = ...,
+        peer_listen_addr: builtins.str = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["available_cpus", b"available_cpus", "available_ram", b"available_ram", "public_key", b"public_key"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["available_cpus", b"available_cpus", "available_ram", b"available_ram", "peer_listen_addr", b"peer_listen_addr", "peer_public_key", b"peer_public_key"]) -> None: ...
 
 global___RegisterResponse = RegisterResponse
 
@@ -127,19 +130,19 @@ class InitRequest(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
         ID_FIELD_NUMBER: builtins.int
-        ADDR_FIELD_NUMBER: builtins.int
-        PUBLICKEY_FIELD_NUMBER: builtins.int
+        PEER_PUBLIC_KEY_FIELD_NUMBER: builtins.int
+        PEER_LISTEN_ADDR_FIELD_NUMBER: builtins.int
         id: builtins.int
-        addr: builtins.str
-        publickey: builtins.str
+        peer_public_key: builtins.str
+        peer_listen_addr: builtins.str
         def __init__(
             self,
             *,
             id: builtins.int = ...,
-            addr: builtins.str = ...,
-            publickey: builtins.str = ...,
+            peer_public_key: builtins.str = ...,
+            peer_listen_addr: builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["addr", b"addr", "id", b"id", "publickey", b"publickey"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["id", b"id", "peer_listen_addr", b"peer_listen_addr", "peer_public_key", b"peer_public_key"]) -> None: ...
 
     @typing_extensions.final
     class Machine(google.protobuf.message.Message):

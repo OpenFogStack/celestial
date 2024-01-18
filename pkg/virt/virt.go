@@ -1,6 +1,7 @@
 package virt
 
 import (
+	"fmt"
 	"os/exec"
 
 	log "github.com/sirupsen/logrus"
@@ -68,6 +69,26 @@ func New(hostInterface string, initDelay uint64, pb PeeringBackend, neb NetworkE
 }
 
 func (v *Virt) RegisterMachine(id orchestrator.MachineID, name string, host orchestrator.Host, config orchestrator.MachineConfig) error {
+
+	if name != "" {
+		name = fmt.Sprintf("gst-%s", name)
+	}
+
+	if name == "" {
+		name = fmt.Sprintf("%d-%d", id.Group, id.Id)
+	}
+
+	n, err := getNet(id)
+
+	if err != nil {
+		return err
+	}
+
+	m := &machine{
+		name:    name,
+		network: n,
+	}
+
 	// if the machine is on a remote host, we need to route there
 	ownHost, err := v.pb.GetHostID()
 
@@ -76,10 +97,10 @@ func (v *Virt) RegisterMachine(id orchestrator.MachineID, name string, host orch
 	}
 
 	if uint8(host) != ownHost {
-		return v.route(id, host)
+		return v.route(m, host)
 	}
 
-	m, err := v.register(id, name, config)
+	err = v.register(id, m, config)
 
 	if err != nil {
 		return err

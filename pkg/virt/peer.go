@@ -2,6 +2,6 @@ package virt
 
 import "github.com/OpenFogStack/celestial/pkg/orchestrator"
 
-func (v *Virt) route(id orchestrator.MachineID, host orchestrator.Host) error {
-	return v.pb.Route(v.machines[id].network.ip, host)
+func (v *Virt) route(m *machine, host orchestrator.Host) error {
+	return v.pb.Route(m.network.network, host)
 }
