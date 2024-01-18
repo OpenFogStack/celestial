@@ -42,7 +42,7 @@ def get_id(gateway: str) -> typing.Tuple[str, str]:
             else (data["Identifier"]["Shell"], data["Identifier"]["ID"])
         )
     except Exception as e:
-        print(f"got error when trying to get self info {e}", file=sys.stderr)
+        print(f"got error when trying to get self info {e}")
         return "", ""
 
 
@@ -63,7 +63,7 @@ def get_shell_num(gateway: str) -> int:
             return len(data["Shells"])
 
     except Exception as e:
-        print(f"got error when trying to get shell info {e}", file=sys.stderr)
+        print(f"got error when trying to get shell info {e}")
         return 0
 
 
@@ -88,10 +88,7 @@ def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, i
                     )
 
         except Exception as e:
-            print(
-                f"got error when trying to get active sats in {s} info {e}",
-                file=sys.stderr,
-            )
+            print(f"got error when trying to get active sats in {s} info {e}")
 
     return active
 
@@ -119,8 +116,7 @@ def get_expected_latency(
 
     except Exception as e:
         print(
-            f"got error when trying to get expected latency for sat {sat} shell {shell} {e}",
-            file=sys.stderr,
+            f"got error when trying to get expected latency for sat {sat} shell {shell} {e}"
         )
         return False
 
@@ -134,8 +130,7 @@ def get_real_latency(sat: int, shell: int) -> typing.Union[float, bool]:
 
         except Exception as e:
             print(
-                f"got error when trying to get real latency for sat {sat} shell {shell} {e}",
-                file=sys.stderr,
+                f"got error when trying to get real latency for sat {sat} shell {shell} {e}"
             )
             return False
 
@@ -165,8 +160,8 @@ if __name__ == "__main__":
     print(f"shell is {shell}, id is {id}")
 
     try:
-        if int(id) % 8 != 0:
-            exit("id is not a multiple of 8")
+        if int(id) % 7 != 0:
+            exit("id is not a multiple of 7")
 
     except Exception:
         # id is not a number, probably a ground station
@@ -185,7 +180,7 @@ if __name__ == "__main__":
         if DEBUG:
             print(f"found {len(active)} active sats")
 
-        targets = [x for x in active if x["sat"] % 8 == 0]
+        targets = [x for x in active if x["sat"] % 7 == 0]
 
         for sat in targets:
             expBef = get_expected_latency(shell, id, sat["sat"], sat["shell"], gateway)

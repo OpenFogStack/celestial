@@ -2,7 +2,6 @@ package virt
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -75,49 +74,31 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 	return nil
 }
 
-func (v *Virt) register(id orchestrator.MachineID, name string, config orchestrator.MachineConfig) (*machine, error) {
+func (v *Virt) register(id orchestrator.MachineID, m *machine, config orchestrator.MachineConfig) error {
 
-	if name != "" {
-		name = fmt.Sprintf("gst-%s", name)
-	}
-
-	if name == "" {
-		name = fmt.Sprintf("%d-%d", id.Group, id.Id)
-	}
-
-	m := &machine{
-		name:       name,
-		state:      REGISTERED,
-		vcpucount:  config.VCPUCount,
-		ram:        config.RAM,
-		disksize:   config.DiskSize,
-		diskimage:  config.DiskImage,
-		kernel:     config.Kernel,
-		bootparams: config.BootParams,
-	}
+	m.state = REGISTERED
+	m.vcpucount = config.VCPUCount
+	m.ram = config.RAM
+	m.disksize = config.DiskSize
+	m.diskimage = config.DiskImage
+	m.kernel = config.Kernel
+	m.bootparams = config.BootParams
 
 	// create the network
-	n, err := getNet(id)
+
+	err := m.createNetwork()
 
 	if err != nil {
-		return nil, err
-	}
-
-	m.network = n
-
-	err = m.createNetwork()
-
-	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = v.neb.Register(id, m.network.tap)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return m, nil
+	return nil
 }
 
 func (v *Virt) killMachine(m *machine) error {

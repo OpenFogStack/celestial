@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
@@ -153,6 +154,31 @@ func (d *DNSServer) Start(port uint64) error {
 
 	if string(out) != "active\n" {
 		return errors.Errorf("systemd-resolved is not active: %s", string(out))
+	}
+
+	// check that systemd is version >= 247
+	cmd = exec.Command("systemctl", "--version")
+
+	out, err = cmd.CombinedOutput()
+
+	if err != nil {
+		return errors.Errorf("could not get systemd version: %s", string(out))
+	}
+
+	split := strings.SplitN(string(out), " ", 3)
+
+	if len(split) < 2 {
+		return errors.Errorf("could not get systemd version: %s", string(out))
+	}
+
+	version, err := strconv.Atoi(split[1])
+
+	if err != nil {
+		return errors.Errorf("could not get systemd version: %s", string(out))
+	}
+
+	if version < 247 {
+		return errors.Errorf("systemd version is too old: %s. DNS server requires at least systemd 247", string(out))
 	}
 
 	// configure systemd-resolved

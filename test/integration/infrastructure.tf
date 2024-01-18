@@ -23,10 +23,6 @@ output "zone" {
   value = local.zone
 }
 
-output "host_ip" {
-  value = google_compute_instance.celestial-test-host.network_interface.0.access_config.0.nat_ip
-}
-
 output "host_name" {
   value = format("%s.%s.%s", google_compute_instance.celestial-test-host.name, local.zone, var.gcp_project)
 }

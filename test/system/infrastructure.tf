@@ -7,6 +7,10 @@ variable "gcp_project" {
   # default = YOUR_GCP_PROJECT_ID
 }
 
+variable "hosts" {
+  default = 1
+}
+
 variable "gcp_region" {
   default = "europe-west3"
 }
@@ -24,15 +28,15 @@ output "zone" {
 }
 
 output "host_ip" {
-  value = google_compute_instance.celestial-test-host.network_interface.0.access_config.0.nat_ip
+  value = google_compute_instance.celestial-test-host.*.network_interface.0.network_ip
 }
 
 output "host_name" {
-  value = format("%s.%s.%s", google_compute_instance.celestial-test-host.name, local.zone, var.gcp_project)
+  value = formatlist("%s.%s.%s", google_compute_instance.celestial-test-host.*.name, local.zone, var.gcp_project)
 }
 
 output "host_id" {
-  value = google_compute_instance.celestial-test-host.name
+  value = google_compute_instance.celestial-test-host.*.name
 }
 
 output "project" {
@@ -60,6 +64,20 @@ resource "google_compute_network" "celestial-test-network" {
   auto_create_subnetworks = true
 }
 
+# we need to explicitly enable communication between instances in that network
+# as google cloud doesn't add any rules by default
+resource "google_compute_firewall" "celestial-test-net-firewall-internal" {
+  name        = "celestial-test-net-firewall-internal"
+  description = "This firewall allows internal communication in the network."
+  direction   = "INGRESS"
+  network     = google_compute_network.celestial-test-network.id
+  source_tags = ["celestial-test-host"]
+
+  allow {
+    protocol = "all"
+  }
+}
+
 # we also need to enable ingress to our machines
 resource "google_compute_firewall" "celestial-test-net-firewall-external" {
   name          = "celestial-test-net-firewall-external"
@@ -76,7 +94,8 @@ resource "google_compute_firewall" "celestial-test-net-firewall-external" {
 
 # reserve a static external IP address
 resource "google_compute_address" "celestial-test-host-ip" {
-  name = "celestial-test-host-ip"
+  name  = "celestial-test-host-ip-${count.index}"
+  count = var.hosts
 }
 
 # we need to create an image for our hosts
@@ -90,7 +109,8 @@ resource "google_compute_image" "celestial-test-host-image" {
 
 # the host instance runs Ubuntu 22.04
 resource "google_compute_instance" "celestial-test-host" {
-  name         = "celestial-test-host"
+  name         = "celestial-test-host-${count.index}"
+  count        = var.hosts
   machine_type = var.host_type
   zone         = local.zone
 
@@ -105,11 +125,13 @@ resource "google_compute_instance" "celestial-test-host" {
     network = google_compute_network.celestial-test-network.id
     # use the static IP address
     access_config {
-      nat_ip = google_compute_address.celestial-test-host-ip.address
+      nat_ip = google_compute_address.celestial-test-host-ip[count.index].address
     }
   }
 
   service_account {
     scopes = ["cloud-platform"]
   }
+
+  tags = ["celestial-test-host"]
 }

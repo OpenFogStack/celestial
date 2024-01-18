@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -92,14 +93,15 @@ func New(mask string, keypath string, wginterface string, port uint16) (*Peering
 		keyPath:     keypath,
 		port:        port,
 		publicKey:   pubkey,
+		peers:       make(map[orchestrator.Host]*peer),
 	}, nil
 }
 
-func (p *PeeringService) Register(host orchestrator.Host) (publickey string, err error) {
+func (p *PeeringService) Register(host orchestrator.Host) (publickey string, listenaddr string, err error) {
 	wgaddr, err := getWGAddr(host)
 
 	if err != nil {
-		return "", errors.WithStack(err)
+		return "", "", errors.WithStack(err)
 	}
 
 	p.wgAddr = wgaddr
@@ -109,31 +111,31 @@ func (p *PeeringService) Register(host orchestrator.Host) (publickey string, err
 	cmd := exec.Command("ip", "link", "add", p.wgInterface, "type", "wireguard")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+		return "", "", errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
 	// ip addr add [OWN_WG_ADDRESS] dev [WGINTERFACE]
 	cmd = exec.Command("ip", "addr", "add", p.wgAddr.String()+p.mask, "dev", p.wgInterface)
 
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+		return "", "", errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
 	// wg set [WGINTERFACE] private-key [PRIVATE_KEY_FILE] listen-port [WG_PORT]
 	cmd = exec.Command("wg", "set", p.wgInterface, "private-key", p.keyPath, "listen-port", strconv.Itoa(int(p.port)))
 
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+		return "", "", errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
 	// ip link set [WGINTERFACE] up
 	cmd = exec.Command("ip", "link", "set", p.wgInterface, "up")
 
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+		return "", "", errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
-	return p.publicKey, nil
+	return p.publicKey, fmt.Sprintf(":%d", p.port), nil
 }
 
 func (p *PeeringService) GetHostID() (uint8, error) {
@@ -170,6 +172,18 @@ func (p *PeeringService) Route(network net.IPNet, host orchestrator.Host) error 
 		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
 	}
 
+	// ip route del [MACHINE_NETWORK]
+	// make sure there is no old route here: this can fail
+	cmd = exec.Command("ip", "route", "del", network.String())
+
+	_, _ = cmd.CombinedOutput()
+
+	// ip route add [MACHINE_NETWORK] via [REMOTE_WG_ADDR] dev [WGINTERFACE]
+	cmd = exec.Command("ip", "route", "add", network.String(), "via", h.wgAddr.String(), "dev", p.wgInterface)
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "%#v: output: %s", cmd.Args, out)
+	}
 	return nil
 }
 
@@ -235,9 +249,9 @@ func (p *PeeringService) InitPeering(remotes map[orchestrator.Host]HostInfo) err
 
 		stats := pinger.Statistics() // get send/receive/duplicate/rtt stats
 
-		// AvgRtt in Nanoseconds / 1e9 -> yields average rtt in microseconds
+		// AvgRtt in Nanoseconds / 1e3 -> yields average rtt in microseconds
 		// average rtt / 2.0 -> yields one way latency
-		r.latency = uint64((stats.AvgRtt.Nanoseconds() / 1e9) / 2.0)
+		r.latency = uint64((stats.AvgRtt.Nanoseconds() / 1e3) / 2.0)
 
 		log.Debugf("Latency %dus", r.latency)
 

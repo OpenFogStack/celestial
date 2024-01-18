@@ -48,15 +48,15 @@ message RegisterRequest {
 message RegisterResponse {
     uint32 available_cpus = 1;
     uint64 available_ram = 2;
-    string public_key = 3;
+    string peer_public_key = 3;
+    string peer_listen_addr = 4;
 }
-
 
 message InitRequest {
     message Host {
         uint32 id = 1;
-        string addr = 2;
-        string publickey = 3;
+        string peer_public_key = 2;
+        string peer_listen_addr = 3;
     }
 
     repeated Host hosts = 1;

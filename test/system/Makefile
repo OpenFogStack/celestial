@@ -17,7 +17,10 @@
 
 .PHONY: all
 
-all: validator.img
+all: app/validator.img satgen.zip
 
-validator.img: validator.sh validator-base.sh validator.py
-	@docker run --platform=linux/amd64 --rm -v $(PWD)/validator.py:/files/validator.py -v $(PWD)/validator.sh:/app.sh -v $(PWD)/validator-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
+app/validator.img: app/validator.sh app/validator-base.sh app/validator.py
+	@docker run --platform=linux/amd64 --rm -v $(PWD)/app/validator.py:/files/validator.py -v $(PWD)/app/validator.sh:/app.sh -v $(PWD)/app/validator-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
+
+satgen.zip: config.toml
+	cd ../.. && source .venv/bin/activate && python3 satgen.py test/system/$< test/system/satgen.zip && deactivate
