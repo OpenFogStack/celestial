@@ -15,6 +15,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""Serialization of Celestial initialization and updates to a custom .zip format file."""
+
 import os
 import pickle
 import shutil
@@ -25,17 +27,31 @@ import typing
 import celestial.types
 import celestial.config
 
-CONFIG_FILE = "c"
-INIT_FILE = "i"
-DIFF_LINK_FILE_PREFIX = "l"
-DIFF_MACHINE_FILE_PREFIX = "m"
+_CONFIG_FILE = "c"
+_INIT_FILE = "i"
+_DIFF_LINK_FILE_PREFIX = "l"
+_DIFF_MACHINE_FILE_PREFIX = "m"
 
 
-def config_to_bytes(config: celestial.config.Config) -> bytes:
+def _config_to_bytes(config: celestial.config.Config) -> bytes:
+    """
+    Serialize a Celestial configuration to bytes.
+
+    :param config: The configuration to serialize.
+    :returns: The serialized configuration.
+    """
     return pickle.dumps(config)
 
 
-def config_from_bytes(b: bytes) -> celestial.config.Config:
+def _config_from_bytes(b: bytes) -> celestial.config.Config:
+    """
+    Restore a Celestial configuration from bytes.
+
+    :param b: The serialized configuration.
+    :returns: The restored configuration.
+    :raises TypeError: If the serialized configuration is not a valid
+        configuration.
+    """
     c = pickle.loads(b)
 
     if not isinstance(c, celestial.config.Config):
@@ -45,21 +61,41 @@ def config_from_bytes(b: bytes) -> celestial.config.Config:
 
 
 # INIT commands include too many strings, hence we use CSV
-INIT_HEAD = "machine_id_group,machine_id_id,machine_id_name,config_vcpu_count,config_mem_size_mib,config_disk_size,config_kernel,config_rootfs,config_boot_parameters"
-LIST_SEP = "|"
+_INIT_HEAD = "machine_id_group,machine_id_id,machine_id_name,config_vcpu_count,config_mem_size_mib,config_disk_size,config_kernel,config_rootfs,config_boot_parameters"
+_LIST_SEP = "|"
 
 
-def init_to_str(
+def _init_to_str(
     machine: celestial.types.MachineID_dtype, config: celestial.config.MachineConfig
 ) -> str:
-    b = LIST_SEP.join(config.boot_parameters)
+    """
+    Serialize the initialization of a Celestial emulation VM to a string.
+    We serialize to CSV instead of a binary format as we may have to deal
+    with strings (mostly for VM parameters such as boot parameters, kernel
+    path, and image path). This is not optimal but good enough, as we only
+    have to read the initialization file once.
+
+    :param machine: The machine ID of the machine to initialize.
+    :param config: The configuration of the machine to initialize.
+    :returns: The serialized initialization.
+    """
+    b = _LIST_SEP.join(config.boot_parameters)
 
     return f"{machine[0]},{machine[1]},{machine[2]},{config.vcpu_count},{config.mem_size_mib},{config.disk_size},{config.kernel},{config.rootfs},{b}"
 
 
-def init_from_str(
+def _init_from_str(
     s: str,
 ) -> typing.Tuple[celestial.types.MachineID_dtype, celestial.config.MachineConfig]:
+    """
+    Restore the machine initialization parameters from a CSV line.
+
+    :param s: The serialized initialization.
+    :returns: The machine ID and its configuration.
+    :raises ValueError: If the serialized initialization is not a valid
+        initialization.
+    """
+
     (
         group,
         id,
@@ -80,7 +116,7 @@ def init_from_str(
                 int(disk_size),
                 kernel,
                 rootfs,
-                boot_parameters.split(LIST_SEP),
+                boot_parameters.split(_LIST_SEP),
             ),
         )
     except ValueError as e:
@@ -92,19 +128,27 @@ def init_from_str(
 #  we always force little-endian byte order
 # diff_link
 # (source_machine_id_group:uint8/B,source_machine_id_id:uint16/H,target_machine_id_group:uint8/B,target_machine_id_id:uint16/H,link_latency:uint32/I,link_bandwidth:uint32/I,link_blocked:bool/?,link_next_hop_machine_id_group:uint8/B,link_next_hop_machine_id_id:uint16/H)
-DIFF_LINK_FMT = "<BHBHII?BH"
+_DIFF_LINK_FMT = "<BHBHII?BH"
 # diff_machine
 # (machine_id_group:uint8/B,machine_id_id:uint16/H,vm_state:uint8/B)
-DIFF_MACHINE_FMT = "<BHB"
+_DIFF_MACHINE_FMT = "<BHB"
 
 
-def diff_link_to_bytes(
+def _diff_link_to_bytes(
     source: celestial.types.MachineID_dtype,
     target: celestial.types.MachineID_dtype,
     link: celestial.types.Link_dtype,
 ) -> bytes:
+    """
+    Serialize a link diff to bytes using the struct format string.
+
+    :param source: The source machine ID of the link.
+    :param target: The target machine ID of the link.
+    :param link: The link to serialize.
+    :returns: The serialized link as bytes.
+    """
     return struct.pack(
-        DIFF_LINK_FMT,
+        _DIFF_LINK_FMT,
         celestial.types.MachineID_group(source),
         celestial.types.MachineID_id(source),
         celestial.types.MachineID_group(target),
@@ -117,7 +161,7 @@ def diff_link_to_bytes(
     )
 
 
-def diff_link_from_bytes(
+def _diff_link_from_bytes(
     b: bytes,
 ) -> typing.List[
     typing.Tuple[
@@ -126,6 +170,12 @@ def diff_link_from_bytes(
         celestial.types.Link_dtype,
     ]
 ]:
+    """
+    Restore link diffs from bytes using the struct format string.
+
+    :param b: Bytes of all serialized links in a timestep.
+    :returns: The restored links.
+    """
     return [
         (
             celestial.types.MachineID(source_machine_id_group, source_machine_id_id),
@@ -149,41 +199,77 @@ def diff_link_from_bytes(
             link_blocked,
             link_next_hop_machine_id_group,
             link_next_hop_machine_id_id,
-        ) in struct.iter_unpack(DIFF_LINK_FMT, b)
+        ) in struct.iter_unpack(_DIFF_LINK_FMT, b)
     ]
 
 
-def diff_machine_to_bytes(
+def _diff_machine_to_bytes(
     machine: celestial.types.MachineID_dtype, s: celestial.types.VMState
 ) -> bytes:
+    """
+    Serialize a machine diff to bytes using the struct format string.
+
+    :param machine: The machine ID of the machine to serialize.
+    :param s: The VM state of the machine to serialize.
+    :returns: The serialized machine diff as bytes.
+    """
     return struct.pack(
-        DIFF_MACHINE_FMT,
+        _DIFF_MACHINE_FMT,
         celestial.types.MachineID_group(machine),
         celestial.types.MachineID_id(machine),
         s.value,
     )
 
 
-def diff_machine_from_bytes(
+def _diff_machine_from_bytes(
     b: bytes,
 ) -> typing.List[
     typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
 ]:
+    """
+    Restore machine diffs from bytes using the struct format string.
+
+    :param b: Bytes of all serialized machines in a timestep.
+    :returns: The restored machines.
+    """
     return [
         (
             celestial.types.MachineID(machine_id_group, machine_id_id),
             celestial.types.VMState(vm_state),
         )
         for (machine_id_group, machine_id_id, vm_state) in struct.iter_unpack(
-            DIFF_MACHINE_FMT, b
+            _DIFF_MACHINE_FMT, b
         )
     ]
 
 
 class ZipSerializer:
+    """
+    The ZipSerializer implements the Serializer interface and serializes
+    Celestial initialization and updates to a custom .zip format file.
+    We use mostly bytes for serialization, except for the initialization
+    file, which is serialized to CSV.
+    This combination allows us efficient compression and fast serialization
+    for updates without being too hairy to implement for initialization.
+
+    Note that the resulting .zip file is not meant for manual inspection
+    but should be used with the ZipDeserializer to restore the initialization
+    and updates.
+    """
+
     def __init__(
         self, config: celestial.config.Config, output_file: typing.Optional[str] = None
     ):
+        """
+        Initialize the serializer.
+
+        :param config: The Celestial configuration.
+        :param output_file: The output file to write to. If None, a filename
+            will be generated based on a hash of the configuration.
+
+        :raises FileExistsError: If `mktemp` fails and the temporary directory
+            `./tmp` already exists.
+        """
         if output_file is None:
             self.filename = "{:08x}".format(abs(hash(config)))
         else:
@@ -212,16 +298,22 @@ class ZipSerializer:
         os.makedirs(self.write_dir, exist_ok=False)
 
         # write the config
-        with open(os.path.join(self.write_dir, CONFIG_FILE), "wb") as f:
-            f.write(config_to_bytes(config))
+        with open(os.path.join(self.write_dir, _CONFIG_FILE), "wb") as f:
+            f.write(_config_to_bytes(config))
 
     def init_machine(
         self,
         machine: celestial.types.MachineID_dtype,
         config: celestial.config.MachineConfig,
     ) -> None:
-        with open(os.path.join(self.write_dir, INIT_FILE), "a") as f:
-            f.write(f"{init_to_str(machine, config)}\n")
+        """
+        Write an initialization for a machine to the initialization file.
+
+        :param machine: The machine ID of the machine to initialize.
+        :param config: The configuration of the machine to initialize.
+        """
+        with open(os.path.join(self.write_dir, _INIT_FILE), "a") as f:
+            f.write(f"{_init_to_str(machine, config)}\n")
 
     def diff_link(
         self,
@@ -230,10 +322,18 @@ class ZipSerializer:
         target: celestial.types.MachineID_dtype,
         link: celestial.types.Link_dtype,
     ) -> None:
+        """
+        Write a link diff to the link diff file.
+
+        :param t: The timestamp of the link diff.
+        :param source: The source machine ID of the link.
+        :param target: The target machine ID of the link.
+        :param link: The link to serialize.
+        """
         with open(
-            os.path.join(self.write_dir, f"{DIFF_LINK_FILE_PREFIX}{t}"), "ab"
+            os.path.join(self.write_dir, f"{_DIFF_LINK_FILE_PREFIX}{t}"), "ab"
         ) as f:
-            f.write(diff_link_to_bytes(source, target, link))
+            f.write(_diff_link_to_bytes(source, target, link))
 
     def diff_machine(
         self,
@@ -241,30 +341,48 @@ class ZipSerializer:
         machine: celestial.types.MachineID_dtype,
         s: celestial.types.VMState,
     ) -> None:
-        # print(f"diff_machine: {t} {machine} {s}")
+        """
+        Write a machine diff to the machine diff file.
+
+        :param t: The timestamp of the machine diff.
+        :param machine: The machine ID of the machine to serialize.
+        :param s: The VM state of the machine to serialize.
+        """
         with open(
-            os.path.join(self.write_dir, f"{DIFF_MACHINE_FILE_PREFIX}{t}"), "ab"
+            os.path.join(self.write_dir, f"{_DIFF_MACHINE_FILE_PREFIX}{t}"), "ab"
         ) as f:
-            f.write(diff_machine_to_bytes(machine, s))
+            f.write(_diff_machine_to_bytes(machine, s))
 
     def persist(self) -> None:
+        """
+        Persist the serialized initialization and updates to a .zip file.
+
+        :raises FileExistsError: If the output file already exists.
+        """
         # zip the temporary directory
         # filename = os.path.join(self.tmp_dir, self.filename)
         shutil.make_archive(self.filename, "zip", self.write_dir)
-
-        # change the file extension to .celestial
-        # os.rename(self.filename + ".zip", self.filename + ".celestial")
-
-        # move the filename to the current directory
-        # shutil.move(filename + ".celestial", ".")
-        # self.filename = self.filename + ".celestial"
 
         # remove the temporary directory
         shutil.rmtree(self.tmp_dir)
 
 
 class ZipDeserializer:
+    """
+    The ZipDeserializer implements the Deserializer interface and deserializes
+    Celestial initialization and updates from a custom .zip format file created
+    by the ZipSerializer.
+    """
+
     def __init__(self, filename: str):
+        """
+        Initialize the deserializer.
+
+        :param filename: The filename of the .zip file to deserialize from.
+
+        :raises FileExistsError: If `mktemp` fails and the temporary directory
+            `./tmp` already exists.
+        """
         self.filename = filename
 
         # create a temporary directory
@@ -288,18 +406,30 @@ class ZipDeserializer:
         shutil.unpack_archive(self.filename, self.tmp_dir)
 
     def config(self) -> celestial.config.Config:
-        with open(os.path.join(self.tmp_dir, CONFIG_FILE), "rb") as f:
-            return config_from_bytes(f.read())
+        """
+        Restore the Celestial configuration from the configuration file
+        copied to the .zip file.
+
+        :returns: The restored configuration.
+        """
+        with open(os.path.join(self.tmp_dir, _CONFIG_FILE), "rb") as f:
+            return _config_from_bytes(f.read())
 
     def init_machines(
         self,
     ) -> typing.List[
         typing.Tuple[celestial.types.MachineID_dtype, celestial.config.MachineConfig]
     ]:
-        if not os.path.exists(os.path.join(self.tmp_dir, INIT_FILE)):
+        """
+        Restore the machine initializations from the initialization file
+        copied to the .zip file.
+
+        :returns: A list of the restored machine initializations.
+        """
+        if not os.path.exists(os.path.join(self.tmp_dir, _INIT_FILE)):
             return []
-        with open(os.path.join(self.tmp_dir, INIT_FILE), "r") as f:
-            return [init_from_str(line) for line in f.readlines()]
+        with open(os.path.join(self.tmp_dir, _INIT_FILE), "r") as f:
+            return [_init_from_str(line) for line in f.readlines()]
 
     def diff_links(
         self, t: celestial.types.timestamp_s
@@ -310,25 +440,41 @@ class ZipDeserializer:
             celestial.types.Link_dtype,
         ]
     ]:
+        """
+        Restore the link diffs from the link diff file copied to the .zip file
+        for a given timestep.
+
+        :param t: The timestep to restore the link diffs for.
+        :returns: A list of the restored link diffs.
+        """
         if not os.path.exists(
-            os.path.join(self.tmp_dir, f"{DIFF_LINK_FILE_PREFIX}{t}")
+            os.path.join(self.tmp_dir, f"{_DIFF_LINK_FILE_PREFIX}{t}")
         ):
             return []
 
-        with open(os.path.join(self.tmp_dir, f"{DIFF_LINK_FILE_PREFIX}{t}"), "rb") as f:
-            return diff_link_from_bytes(f.read())
+        with open(
+            os.path.join(self.tmp_dir, f"{_DIFF_LINK_FILE_PREFIX}{t}"), "rb"
+        ) as f:
+            return _diff_link_from_bytes(f.read())
 
     def diff_machines(
         self, t: celestial.types.timestamp_s
     ) -> typing.List[
         typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
     ]:
+        """
+        Restore the machine diffs from the machine diff file copied to the .zip
+        file for a given timestep.
+
+        :param t: The timestep to restore the machine diffs for.
+        :returns: A list of the restored machine diffs.
+        """
         if not os.path.exists(
-            os.path.join(self.tmp_dir, f"{DIFF_MACHINE_FILE_PREFIX}{t}")
+            os.path.join(self.tmp_dir, f"{_DIFF_MACHINE_FILE_PREFIX}{t}")
         ):
             return []
 
         with open(
-            os.path.join(self.tmp_dir, f"{DIFF_MACHINE_FILE_PREFIX}{t}"), "rb"
+            os.path.join(self.tmp_dir, f"{_DIFF_MACHINE_FILE_PREFIX}{t}"), "rb"
         ) as f:
-            return diff_machine_from_bytes(f.read())
+            return _diff_machine_from_bytes(f.read())

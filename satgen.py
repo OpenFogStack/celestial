@@ -15,6 +15,37 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""
+Satgen generates satellite trajectories and network configurationfs for a
+Celestial emulation run. It takes a TOML configuration file as an input
+and generates a custom .zip format file as an output that contains changes
+in network topologies at each time step.
+
+To use satgen.py, you will need a full Celestial configuration file. Satgen
+will check that the configuration file matches its expectations and will
+exit with an error if it does not.
+
+Prerequisites
+-------------
+
+Make sure you have all the necessary dependencies installed. You can install
+them using pip in a virtual environment:
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+
+
+
+Usage
+-----
+
+    python3 satgen.py [config.toml] [output-file (optional)]
+
+The output will be in the specified path or in a generated file based on a hash
+of the configuration file if no output path is specified.
+"""
+
 import sys
 
 import toml

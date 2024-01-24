@@ -15,6 +15,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""
+A constellation of satellite shells that takes updates and sends them to
+the serializer
+"""
+
 import typing
 
 import celestial.serializer
@@ -26,11 +31,22 @@ DELAY_UPDATE_THRESHOLD_US = 500
 
 
 class Constellation:
+    """
+    A constellation of satellite shells that takes updates and sends them to
+    the serializer
+    """
+
     def __init__(
         self,
         config: celestial.config.Config,
         writer: celestial.serializer.Serializer,
     ):
+        """
+        Initialize the constellation.
+
+        :param config: The configuration of the constellation.
+        :param writer: The serializer to use for writing updates.
+        """
         self.current_time = 0
         self.shells: typing.List[celestial.shell.Shell] = []
         self.ground_stations: typing.List[celestial.types.MachineID_dtype] = []
@@ -98,6 +114,11 @@ class Constellation:
             self.writer.init_machine(machine, machine_config)
 
     def step(self, t: celestial.types.timestamp_s) -> None:
+        """
+        Step the constellation forward in time to a given timestamp.
+
+        :param t: The timestamp to step to.
+        """
         self.current_time = t
 
         for s in self.shells:

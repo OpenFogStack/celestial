@@ -15,6 +15,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""Custom types used in Celestial"""
+
 from enum import Enum
 import typing
 
@@ -24,6 +26,10 @@ timestamp_s = int
 
 
 class VMState(Enum):
+    """
+    An enum for the state of a virtual machine, can be either stopped or active.
+    """
+
     STOPPED = 0
     ACTIVE = 1
 
@@ -32,18 +38,45 @@ MachineID_dtype = typing.Tuple[np.uint8, np.uint16, str]
 
 
 def MachineID(group: int, id: int, name: str = "") -> MachineID_dtype:
+    """
+    Generate a machine ID from a group, an ID and an optional name.
+
+    :param group: The group of the machine.
+    :param id: The ID of the machine.
+    :param name: The name of the machine.
+
+    :return: A machine ID.
+    """
     return (np.uint8(group), np.uint16(id), name)
 
 
 def MachineID_group(machine_id: MachineID_dtype) -> np.uint8:
+    """
+    Get the group of a machine ID.
+
+    :param machine_id: The machine ID.
+    :return: The group of the machine ID.
+    """
     return machine_id[0]
 
 
 def MachineID_id(machine_id: MachineID_dtype) -> np.uint16:
+    """
+    Get the ID of a machine ID.
+
+    :param machine_id: The machine ID.
+    :return: The ID of the machine ID.
+    """
     return machine_id[1]
 
 
 def MachineID_name(machine_id: MachineID_dtype) -> str:
+    """
+    Get the name of a machine ID.
+
+    :param machine_id: The machine ID.
+    :return: The name of the machine ID.
+    """
     return machine_id[2]
 
 
@@ -56,6 +89,14 @@ def Link(
     blocked: bool,
     next_hop: MachineID_dtype,
 ) -> Link_dtype:
+    """
+    Generate a link from a latency, a bandwidth, a blocked flag and a next hop.
+
+    :param latency_us: The latency of the link in microseconds.
+    :param bandwidth_kbits: The bandwidth of the link in kilobits per second.
+    :param blocked: Whether the link is blocked.
+    :param next_hop: The next hop of the link.
+    """
     return (
         np.uint32(latency_us),
         np.uint32(bandwidth_kbits),
@@ -65,18 +106,42 @@ def Link(
 
 
 def Link_latency_us(link: Link_dtype) -> np.uint32:
+    """
+    Get the latency of a link.
+
+    :param link: The link.
+    :return: The latency of the link in microseconds.
+    """
     return link[0]
 
 
 def Link_bandwidth_kbits(link: Link_dtype) -> np.uint32:
+    """
+    Get the bandwidth of a link.
+
+    :param link: The link.
+    :return: The bandwidth of the link in kilobits per second.
+    """
     return link[1]
 
 
 def Link_blocked(link: Link_dtype) -> np.bool_:
+    """
+    Get the blocked flag of a link.
+
+    :param link: The link.
+    :return: Whether the link is blocked.
+    """
     return link[2]
 
 
 def Link_next_hop(link: Link_dtype) -> MachineID_dtype:
+    """
+    Get the next hop of a link.
+
+    :param link: The link.
+    :return: The next hop of the link.
+    """
     return link[3]
 
 

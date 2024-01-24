@@ -15,6 +15,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""Animation of the constellation"""
+
 import vtk
 import threading as td
 import seaborn as sns
@@ -63,11 +65,21 @@ SECONDS_PER_DAY = 86400  # number of seconds per earth rotation (day)
 
 
 class AnimationConstellation:
+    """
+    Animation constellation that advances shells and updates VTK animation
+    """
+
     def __init__(
         self,
         config: celestial.config.Config,
         conn: MultiprocessingConnection,
     ):
+        """
+        Animation constellation initialization
+
+        :param config: The configuration of the constellation.
+        :param conn: The connection to the animation process.
+        """
         self.conn = conn
         self.config = config
 
@@ -106,6 +118,11 @@ class AnimationConstellation:
         )
 
     def step(self, t: celestial.types.timestamp_s) -> None:
+        """
+        Advance the constellation to the given time.
+
+        :param t: The time to advance to.
+        """
         self.current_time = t
 
         for s in self.shells:
@@ -132,13 +149,43 @@ class AnimationConstellation:
 
 
 class Animation:
+    """
+    VTK animation of the constellation
+    """
+
     def __init__(
         self,
-        config: celestial.config.Config,
         animation_conn: MultiprocessingConnection,
         draw_links: bool = True,
         frequency: int = 7,
     ):
+        """
+        Initialize the animation
+
+        Like me, you might wonder what the numerous vkt calls are for.
+        Answer: you need to manually configure a render pipeline for
+        each object (vtk actor) in the scene.
+        A typical VTK render pipeline:
+
+        point data array   <-- set/update position data
+            |
+        poly data array
+            |
+        poly data mapper
+            |
+        object actor   <-- edit color/size/opacity, apply rotations/translations
+            |
+        vtk renderer
+            |
+        vkt render window
+        vkt render interactor   <-- trigger events, animate
+            |
+        Your computer screen
+
+        :param animation_conn: The connection to the animation process.
+        :param draw_links: Whether to draw links in the animation.
+        :param frequency: The frequency of the animation.
+        """
         self.initialized = False
         self.conn = animation_conn
         init = self.conn.recv()
@@ -220,39 +267,15 @@ class Animation:
     ###############################################################################
 
     """
-    Like me, you might wonder what the numerous vkt calls are for.
-    Answer: you need to manually configure a render pipeline for
-    each object (vtk actor) in the scene.
-    A typical VTK render pipeline:
-
-    point data array   <-- set/update position data
-        |
-    poly data array
-        |
-    poly data mapper
-        |
-    object actor   <-- edit color/size/opacity, apply rotations/translations
-        |
-    vtk renderer
-        |
-    vkt render window
-    vkt render interactor   <-- trigger events, animate
-        |
-    Your computer screen
-    exported png files
-
+ 
     """
 
     def updateAnimation(self, obj: typing.Any, event: typing.Any) -> None:
         """
         This function takes in new position data and updates the render window
 
-        Parameters
-        ----------
-        obj : ?
-            The object that generated the event, probably vtk render window
-        event : event
-            The event that triggered this function
+        :param obj: The object that generated the event, probably vtk render window.
+        :param event: The event that triggered this function.
         """
 
         # rotate earth and land
@@ -387,7 +410,6 @@ class Animation:
         Makes a render window object using vtk.
 
         This should not be called until all the actors are created.
-
         """
 
         # create a renderer object
@@ -444,12 +466,8 @@ class Animation:
         """
         generate the point cloud to represent satellites
 
-        Parameters
-        ----------
-        shell_no : int
-            index of this shell
-        shell_total_satellites : int
-            number of satellties in the shell
+        :param shell_no: index of this shell
+        :param shell_total_satellites: number of satellites in the shell
         """
 
         # declare a points & cell array to hold position data
@@ -508,12 +526,8 @@ class Animation:
         """
         generate the point cloud to represent inactive satellites
 
-        Parameters
-        ----------
-        shell_no : int
-            index of this shell
-        shell_total_satellites : int
-            number of satellties in the shell
+        :param shell_no: index of this shell
+        :param shell_total_satellites: number of satellites in the shell
         """
 
         # declare a points & cell array to hold position data
@@ -575,12 +589,8 @@ class Animation:
         source:
         https://vtk.org/Wiki/VTK/Examples/Python/GeometricObjects/Display/PolyLine
 
-        Parameters
-        ----------
-        shell_no : int
-            index of this shell
-        shell_total_satellites : int
-            number of satellties in the shell
+        :param shell_no: index of this shell
+        :param shell_total_satellites: number of satellites in the shell
         """
 
         # build a vtkPoints object from array
@@ -647,10 +657,7 @@ class Animation:
         """
         generate the point cloud to represent ground stations
 
-        Parameters
-        ----------
-        gst_num : int
-            number of ground stations
+        :param gst_num: number of ground stations
         """
 
         # declare a points & cell array to hold position data
@@ -698,10 +705,7 @@ class Animation:
         """
         generate the links to represent ground stations links
 
-        Parameters
-        ----------
-        gst_num : int
-            number of ground stations
+        :param gst_num: number of ground stations
         """
 
         # build a vtkPoints object from array
@@ -776,11 +780,7 @@ class Animation:
         """
         generate the earth sphere, and the landmass outline
 
-        Parameters
-        ----------
-        earth_radius : int
-            radius of the Earth in meters
-
+        :param earth_radius: radius of the earth in meters
         """
 
         self.earthRadius = earth_radius
@@ -855,7 +855,6 @@ class Animation:
     def controlThreadHandler(self) -> None:
         """
         Start a thread to deal with inter-process communications
-
         """
         while not self.initialized:
             pass
