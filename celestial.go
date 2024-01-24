@@ -1,6 +1,6 @@
 /*
 * This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-* Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+* Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,8 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/OpenFogStack/celestial/pkg/dns"
+	"github.com/OpenFogStack/celestial/pkg/ebpfem"
 	"github.com/OpenFogStack/celestial/pkg/info"
-	"github.com/OpenFogStack/celestial/pkg/netem"
 	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 	"github.com/OpenFogStack/celestial/pkg/peer"
 	"github.com/OpenFogStack/celestial/pkg/server"
@@ -82,7 +82,8 @@ func main() {
 		panic(err)
 	}
 
-	neb := netem.New()
+	//neb := netem.New()
+	neb := ebpfem.New()
 
 	if err != nil {
 		panic(err)

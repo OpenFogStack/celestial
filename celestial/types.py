@@ -1,3 +1,20 @@
+#
+# This file is part of Celestial (https://github.com/OpenFogStack/celestial).
+# Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
 from enum import Enum
 import typing
 
@@ -10,33 +27,6 @@ class VMState(Enum):
     STOPPED = 0
     ACTIVE = 1
 
-
-# class MachineID:
-#     def __init__(
-#         self,
-#         group: int,
-#         id: int,
-#         name: typing.Optional[str] = None,
-#     ):
-#         self.group = group
-#         self.id = id
-#         self.name = name
-
-#     def __repr__(self) -> str:
-#         return f"MachineID(group={self.group}, id={self.id}, name={self.name})"
-
-#     def __eq__(self, __value: object) -> bool:
-#         if not isinstance(__value, MachineID):
-#             return False
-
-#         return (
-#             self.group == __value.group
-#             and self.id == __value.id
-#             and self.name == __value.name
-#         )
-
-#     def __hash__(self) -> int:
-#         return hash((self.group, self.id))
 
 MachineID_dtype = typing.Tuple[np.uint8, np.uint16, str]
 

@@ -114,7 +114,7 @@ Build this image with:
 
 ```sh
 cd ~/celestial
-docker build -f compile.Dockerfile -t celestial-make .
+docker build -f compile.build.Dockerfile -t celestial-make .
 ```
 
 Then build `celestial.bin` with:
@@ -249,7 +249,7 @@ COORDINATOR_INSTANCE="celestial-coordinator"
 
 # the first copy command can take a while because gcloud copies access keys
 # to the instance
-gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" ~/celestial/Dockerfile $COORDINATOR_INSTANCE:.
+gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" ~/celestial/build.Dockerfile $COORDINATOR_INSTANCE:.
 gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" ~/celestial/*.py $COORDINATOR_INSTANCE:.
 gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" ~/celestial/requirements.txt $COORDINATOR_INSTANCE:.
 gcloud compute scp --zone="$GCP_REGION-$GCP_ZONE" --recurse \
