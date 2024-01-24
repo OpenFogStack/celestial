@@ -15,6 +15,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""Behavior of a shell of a constellation"""
+
 import math
 import numpy as np
 import numpy.typing as npt
@@ -107,6 +109,13 @@ PATH_LINK_DTYPE = np.dtype(
 
 
 class Shell:
+    """
+    A shell is a group of satellites of a constellation that share orbital
+    parameters. This class represents the behavior of a shell and can be used
+    to calculate positions of satellites in that shell as well as the network
+    topology of the shell.
+    """
+
     def __init__(
         self,
         shell_identifier: int,
@@ -120,6 +129,23 @@ class Shell:
         bbox: celestial.config.BoundingBox,
         ground_stations: typing.List[celestial.config.GroundStation],
     ):
+        """
+        Initialize a shell.
+
+        :param shell_identifier: The identifier of the shell.
+        :param planes: The number of planes in the shell.
+        :param sats: The number of satellites per plane.
+        :param altitude_km: The altitude of the satellites in kilometers.
+        :param inclination: The inclination of the satellites in degrees.
+        :param arc_of_ascending_nodes: The arc of ascending nodes of the
+            satellites in degrees.
+        :param eccentricity: The eccentricity of the satellites.
+        :param isl_bandwidth_kbits: The bandwidth of the inter-satellite links
+            in kilobits per second.
+        :param bbox: The bounding box of the constellation.
+        :param ground_stations: The ground stations of the constellations.
+        """
+
         self.shell_identifier = shell_identifier
 
         self.current_timestep: celestial.types.timestamp_s = 0
@@ -192,11 +218,11 @@ class Shell:
         for sat in self.satellites_array:
             sat["in_bbox"] = False
 
-        self.init_ground_stations(ground_stations)
+        self._init_ground_stations(ground_stations)
 
-        self.init_plus_grid_links()
+        self._init_plus_grid_links()
 
-        self.max_isl_range = self.calculate_max_ISL_distance()
+        self.max_isl_range = self._calculate_max_ISL_distance()
 
     def step(
         self,
@@ -204,6 +230,17 @@ class Shell:
         calculate_diffs: bool = False,
         delay_update_threshold_us: int = 0,
     ) -> None:
+        """
+        Advance the simulation to a given timestep, trigger the calculation of
+        the network topology and calculate the differences to the previous
+        timestep.
+
+        :param time: The timestep to advance the simulation to.
+        :param calculate_diffs: Whether to calculate the differences to the
+            previous timestep (disable this, e.g., if you just need to animate
+            the constellation).
+        :param delay_update_threshold_us: The threshold for the delay in microseconds. Link differences will only be calculated if the delay is above this threshold.
+        """
         self.current_time = int(time)
 
         self.old_machines = self.satellites_array.copy()
@@ -212,11 +249,11 @@ class Shell:
 
         degrees_to_rotate = 360.0 * (self.current_time / SECONDS_PER_DAY)
 
-        rotation_matrix = self.get_rotation_matrix(degrees_to_rotate)
-        neg_rotation_matrix = self.get_rotation_matrix(-degrees_to_rotate)
+        rotation_matrix = self._get_rotation_matrix(degrees_to_rotate)
+        neg_rotation_matrix = self._get_rotation_matrix(-degrees_to_rotate)
 
         for sat_id in range(len(self.satellites_array)):
-            sat_is_in_bbox = self.is_in_bbox(
+            sat_is_in_bbox = self._is_in_bbox(
                 (
                     self.satellites_array[sat_id]["x"],
                     self.satellites_array[sat_id]["y"],
@@ -235,7 +272,7 @@ class Shell:
             gst["y"] = new_pos[1]
             gst["z"] = new_pos[2]
 
-        self.update_plus_grid_links()
+        self._update_plus_grid_links()
 
         if not calculate_diffs:
             return
@@ -254,7 +291,7 @@ class Shell:
                     else celestial.types.VMState.STOPPED
                 )
 
-        self.update_paths()
+        self._update_paths()
 
         self.link_diff = {}
 
@@ -262,7 +299,7 @@ class Shell:
             (self.total_sats + self.total_gst) ** 2, dtype=PATH_LINK_DTYPE
         )
 
-        total_link_diff = self.numba_get_link_diff(
+        total_link_diff = self._numba_get_link_diff(
             delay_update_threshold_us=delay_update_threshold_us,
             total_sats=self.total_sats,
             total_gst=self.total_gst,
@@ -304,12 +341,28 @@ class Shell:
             self.curr_paths[link["node_1"]][link["node_2"]] = link["path"]
 
     def get_sat_node_diffs(self) -> celestial.types.MachineDiff:
+        """
+        Get all differences in satellite state since the last timestep.
+
+        :return: A dictionary of machine IDs to their new state.
+        """
         return self.nodes_diff
 
     def get_link_diff(self) -> celestial.types.LinkDiff:
+        """
+        Get all differences in links since the last timestep.
+
+        :return: A dictionary of machine IDs to a dictionary of machine IDs to
+            the link between them.
+        """
         return self.link_diff
 
     def get_sat_positions(self) -> np.ndarray:  # type: ignore
+        """
+        Get the positions of all satellites at the current timestep.
+
+        :return: An array of satellite positions.
+        """
         sat_positions: np.ndarray = np.copy(  # type: ignore
             self.satellites_array[["ID", "x", "y", "z", "in_bbox"]]
         )  # type: ignore
@@ -317,21 +370,39 @@ class Shell:
         return sat_positions
 
     def get_gst_positions(self) -> np.ndarray:  # type: ignore
+        """
+        Get the positions of all ground stations at the current timestep.
+
+        :return: An array of ground station positions.
+        """
         ground_positions: np.ndarray = np.copy(self.gst_array[["x", "y", "z"]])  # type: ignore
 
         return ground_positions
 
     def get_links(self) -> np.ndarray:  # type: ignore
+        """
+        Get the inter-satellite links at the current timestep.
+
+        :return: An array of inter-satellite links.
+        """
         links: np.ndarray = np.copy(self.link_array[: self.total_isl_links])  # type: ignore
 
         return links
 
     def get_gst_links(self) -> np.ndarray:  # type: ignore
+        """
+        Get the ground station links at the current timestep, i.e., links
+        between satellites and ground stations.
+
+        :return: An array of ground station links.
+        """
         gst_links: np.ndarray = np.copy(self.gst_links_array[: self.total_gst_links])  # type: ignore
 
         return gst_links
 
-    def get_rotation_matrix(self, degrees: float) -> npt.NDArray[np.float64]:
+    def _get_rotation_matrix(self, degrees: float) -> npt.NDArray[np.float64]:
+        """A rotation matrix by which to rotate along the Earth's axis"""
+
         theta = math.radians(degrees)
         # earth's z axis (eg a vector in the positive z direction)
         # EARTH_ROTATION_AXIS = [0, 0, 1]
@@ -349,11 +420,13 @@ class Shell:
             ],
         )
 
-    def is_in_bbox(
+    def _is_in_bbox(
         self,
         pos: typing.Tuple[np.int32, np.int32, np.int32],
         rotation_matrix: npt.NDArray[np.float64],
     ) -> np.bool_:
+        """Find out whether a given position is in the bounding box of the constellation."""
+
         # take cartesian coordinates and convert to lat long
         xyz_pos = np.dot(rotation_matrix, np.array(pos))
 
@@ -380,9 +453,10 @@ class Shell:
 
         return np.bool_(lat >= self.bbox.lat1 and lat <= self.bbox.lat2)
 
-    def init_ground_stations(
+    def _init_ground_stations(
         self, groundstations: typing.List[celestial.config.GroundStation]
     ) -> None:
+        """Initialize the ground stations of the constellation."""
         for i in range(len(groundstations)):
             g = groundstations[i]
 
@@ -405,7 +479,7 @@ class Shell:
 
             temp[0]["conn_type"] = g.connection_type.value
 
-            temp[0]["max_stg_range"] = self.calculate_max_space_to_gst_distance(
+            temp[0]["max_stg_range"] = self._calculate_max_space_to_gst_distance(
                 g.min_elevation
             )
 
@@ -421,7 +495,12 @@ class Shell:
 
             self.gst_array[i] = temp[0]
 
-    def calculate_max_ISL_distance(self) -> int:
+    def _calculate_max_ISL_distance(self) -> int:
+        """
+        Get the maximum distance of an inter-satellite link. Makes it easier
+        later to check if a link is valid.
+        """
+
         c = EARTH_RADIUS_M + MIN_COMMS_ALTITUDE_M
         b = self.semi_major_axis
         B = math.radians(90)
@@ -430,12 +509,15 @@ class Shell:
         a = (b * math.sin(A)) / math.sin(B)
         return int(a * 2)
 
-    def calculate_max_space_to_gst_distance(self, min_elevation: float) -> int:
+    def _calculate_max_space_to_gst_distance(self, min_elevation: float) -> int:
+        """
+        Get the maximum distance of a ground station link. Makes it easier to
+          check later if a link is valid.
+        """
         # we're just going to assume a spherical earth
 
         if min_elevation < 0 or min_elevation > 90:
-            print("ERROR! min_elevation must be between 0 and 90 degrees")
-            return 0
+            raise ValueError("min_elevation must be between 0 and 90 degrees")
 
         # calculate triangle using law of sines
         a = self.semi_major_axis
@@ -448,8 +530,12 @@ class Shell:
         c = math.sin(math.radians(180) - alpha - beta) * a / math.sin(alpha)
         return int(c)
 
-    def init_plus_grid_links(self) -> None:
-        temp = self.numba_init_plus_grid_links(
+    def _init_plus_grid_links(self) -> None:
+        """
+        Initialize the inter-satellite links of the constellation. We assume
+        a +GRID topology here. Just calls the numba-optimized code.
+        """
+        temp = self._numba_init_plus_grid_links(
             link_array=self.link_array,
             number_of_planes=self.number_of_planes,
             nodes_per_plane=self.nodes_per_plane,
@@ -459,11 +545,16 @@ class Shell:
 
     @staticmethod
     @numba.njit  # type: ignore
-    def numba_init_plus_grid_links(
+    def _numba_init_plus_grid_links(
         link_array: np.ndarray,  # type: ignore
         number_of_planes: int,
         nodes_per_plane: int,
     ) -> typing.Tuple[int]:
+        """
+        Actual implementation of _init_plus_grid_links optimized with
+        numba.
+        """
+
         link_idx = 0
 
         # add the intra-plane links
@@ -498,8 +589,13 @@ class Shell:
 
         return (number_of_isl_links,)
 
-    def update_plus_grid_links(self) -> None:
-        temp = self.numba_update_plus_grid_links(
+    def _update_plus_grid_links(self) -> None:
+        """
+        Update distances and validity of inter-satellite links assuming a +GRID
+        topology. Just calls the numba-optimized code.
+        """
+
+        temp = self._numba_update_plus_grid_links(
             total_sats=self.total_sats,
             satellites_array=self.satellites_array,
             link_array=self.link_array,
@@ -513,7 +609,7 @@ class Shell:
 
     @staticmethod
     @numba.njit  # type: ignore
-    def numba_update_plus_grid_links(
+    def _numba_update_plus_grid_links(
         total_sats: int,
         satellites_array: np.ndarray,  # type: ignore
         link_array: np.ndarray,  # type: ignore
@@ -522,6 +618,11 @@ class Shell:
         gst_links_array: np.ndarray,  # type: ignore
         max_isl_range: int = (2**31) - 1,
     ) -> typing.Tuple[int]:
+        """
+        Actual implementation of _update_plus_grid_links optimized with
+        numba.
+        """
+
         for isl_idx in range(total_isl_links):
             sat_1 = link_array[isl_idx]["node_1"]
             sat_2 = link_array[isl_idx]["node_2"]
@@ -586,8 +687,12 @@ class Shell:
 
         return (total_gst_links,)
 
-    def update_paths(self) -> None:
-        self.numba_update_paths(
+    def _update_paths(self) -> None:
+        """
+        Update the network topology of the constellation and re-calculate
+        all paths between nodes. Just calls the numba-optimized code.
+        """
+        self._numba_update_paths(
             sat_link_array=self.link_array,
             total_isl_links=self.total_isl_links,
             total_sats=self.total_sats,
@@ -601,7 +706,7 @@ class Shell:
 
     @staticmethod
     @numba.njit  # type: ignore
-    def numba_update_paths(
+    def _numba_update_paths(
         sat_link_array: np.ndarray,  # type: ignore
         total_isl_links: int,
         total_sats: int,
@@ -612,6 +717,9 @@ class Shell:
         total_gst_links: int,
         isl_bandwidth_kbits: int,
     ) -> None:
+        """
+        Actual implementation of _update_paths optimized with numba.
+        """
         dist_matrix = np.zeros((total_sats, total_sats), dtype=np.float64)
         next_hops = np.zeros((total_sats, total_sats), dtype=np.int16)
 
@@ -755,7 +863,7 @@ class Shell:
 
     @staticmethod
     @numba.njit  # type: ignore
-    def numba_get_link_diff(
+    def _numba_get_link_diff(
         delay_update_threshold_us: int,
         total_sats: int,
         total_gst: int,
@@ -763,6 +871,10 @@ class Shell:
         path_matrix: np.ndarray,  # type: ignore
         path_diff: np.ndarray,  # type: ignore
     ) -> typing.Tuple[int]:
+        """
+        Get the differences between links at the current timestep and the
+        previous timestep. Optimized with numba.
+        """
         total_link_diff = 0
 
         # path diff for satellites

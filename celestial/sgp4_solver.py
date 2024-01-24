@@ -15,6 +15,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""Solve satellite positions using SGP4"""
+
 import datetime
 import numpy as np
 import math
@@ -27,6 +29,7 @@ if not sgp4.accelerated:
         "SGP4 C++ API not available on your system, falling back to slower Python implementation..."
     )
 
+import celestial.types
 
 ### CONSTANTS ###
 EARTH_RADIUS = 6371000
@@ -42,6 +45,10 @@ SGP4_ARGPO = 0.0
 
 
 class SGP4Solver:
+    """
+    Implements routines to solve satellite positions using SGP4.
+    """
+
     def __init__(
         self,
         planes: int,
@@ -51,6 +58,16 @@ class SGP4Solver:
         arc_of_ascending_nodes: float = 360.0,
         eccentricity: float = 0.0,
     ):
+        """
+        Initialize the SGP4 solver.
+
+        :param planes: The number of planes in the constellation.
+        :param sats: The number of satellites per plane.
+        :param altitude_km: The altitude of the satellites in km.
+        :param inclination: The inclination of the satellites in degrees.
+        :param arc_of_ascending_nodes: The arc of ascending nodes in degrees.
+        :param eccentricity: The eccentricity of the orbits.
+        """
         # constellation options
         self.number_of_planes = planes
         self.nodes_per_plane = sats
@@ -74,6 +91,12 @@ class SGP4Solver:
         )
 
     def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray:  # type: ignore
+        """
+        Initialize the satellite array with the initial positions.
+
+        :param satellites_array: The satellite array to initialize.
+        :return: The initialized satellite array.
+        """
         raan_offsets = [
             (self.arc_of_ascending_nodes / self.number_of_planes) * i
             for i in range(0, self.number_of_planes)
@@ -151,7 +174,18 @@ class SGP4Solver:
 
         return satellites_array
 
-    def set_time(self, time: int, satellites_array: np.ndarray) -> np.ndarray:  # type: ignore
+    def set_time(
+        self,
+        time: celestial.types.timestamp_s,
+        satellites_array: np.ndarray,  # type: ignore
+    ) -> np.ndarray:  # type: ignore
+        """
+        Calculate the satellite positions at a given time.
+
+        :param time: The time in seconds since the start of the simulation.
+        :param satellites_array: The satellite array to update.
+        :return: The updated satellite array.
+        """
         fr = self.start_fr + (time / SECONDS_PER_DAY)
 
         for sat_id in range(len(satellites_array)):

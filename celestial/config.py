@@ -15,20 +15,36 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""Celestial configuration format and validation"""
+
 import cerberus
 import typing
 from enum import Enum
 
 
 class GroundStationConnectionType(Enum):
+    """
+    Ground station connection type, can be to `ALL` (all satellites in reach)
+    or `ONE` (one closest satellite per shell).
+    """
+
     ALL = 0
     ONE = 1
 
     def int(self) -> int:
+        """
+        Get the integer representation of the connection type.
+
+        :return: The integer representation of the connection type.
+        """
         return self.value
 
 
 class MachineConfig:
+    """
+    Configuration of a Firecracker VM.
+    """
+
     def __init__(
         self,
         vcpu_count: int,
@@ -38,6 +54,16 @@ class MachineConfig:
         rootfs: str,
         boot_parameters: typing.List[str],
     ):
+        """
+        Configuration.
+
+        :param vcpu_count: The number of vCPUs.
+        :param mem_size_mib: The size of the memory in MiB.
+        :param disk_size: The size of the disk in MiB.
+        :param kernel: Host path to the kernel.
+        :param rootfs: Host path to the rootfs.
+        :param boot_parameters: The boot parameters to use.
+        """
         self.vcpu_count = vcpu_count
         self.mem_size_mib = mem_size_mib
         self.disk_size = disk_size
@@ -47,6 +73,10 @@ class MachineConfig:
 
 
 class Shell:
+    """
+    Shell configuration
+    """
+
     def __init__(
         self,
         planes: int,
@@ -58,6 +88,18 @@ class Shell:
         isl_bandwidth_kbits: int,
         machine_config: MachineConfig,
     ):
+        """
+        Shell configuration.
+
+        :param planes: The number of planes in the constellation.
+        :param sats: The number of satellites per plane.
+        :param altitude_km: The altitude of the satellites in km.
+        :param inclination: The inclination of the satellites in degrees.
+        :param arc_of_ascending_nodes: The arc of ascending nodes in degrees.
+        :param eccentricity: The eccentricity of the orbits.
+        :param isl_bandwidth_kbits: The bandwidth of the inter-satellite links in kbit/s.
+        :param machine_config: The machine configuration to use for the satellites.
+        """
         self.planes = planes
         self.sats = sats
         self.altitude_km = altitude_km
@@ -72,6 +114,10 @@ class Shell:
 
 
 class GroundStation:
+    """
+    Ground station configuration
+    """
+
     def __init__(
         self,
         name: str,
@@ -82,6 +128,18 @@ class GroundStation:
         connection_type: GroundStationConnectionType,
         machine_config: MachineConfig,
     ):
+        """
+        Ground station configuration.
+
+        :param name: The name of the ground station.
+        :param lat: The latitude of the ground station.
+        :param lng: The longitude of the ground station.
+        :param gts_bandwidth_kbits: The bandwidth of the ground station in kbit/s.
+        :param min_elevation: The minimum elevation of the ground station in degrees.
+        :param connection_type: The connection type of the ground station.
+        :param machine_config: The machine configuration to use for the ground station.
+        """
+
         self.name = name
         self.lat = lat
         self.lng = lng
@@ -92,6 +150,10 @@ class GroundStation:
 
 
 class BoundingBox:
+    """
+    Bounding box of the simulation area.
+    """
+
     def __init__(
         self,
         lat1: float,
@@ -99,6 +161,15 @@ class BoundingBox:
         lat2: float,
         lon2: float,
     ):
+        """
+        Bounding box.
+
+        :param lat1: The latitude of the first point.
+        :param lon1: The longitude of the first point.
+        :param lat2: The latitude of the second point.
+        :param lon2: The longitude of the second point.
+        """
+
         self.lat1 = lat1
         self.lon1 = lon1
         self.lat2 = lat2
@@ -240,9 +311,14 @@ CONFIG_SCHEMA = {
 
 
 class CelestialValidator(cerberus.Validator):  # type: ignore
+    """
+    Validator for the Celestial configuration.
+    """
+
     def _check_with_max_satellites(
         self, field: str, value: typing.Dict[str, typing.Any]
     ) -> bool:
+        """Check that we have less than 16384 satellites per shell."""
         if "planes" not in value or "sats" not in value:
             return False
 
@@ -255,6 +331,7 @@ class CelestialValidator(cerberus.Validator):  # type: ignore
     def _check_with_gst_name_unique(
         self, field: str, value: typing.List[typing.Dict[str, str]]
     ) -> None:
+        """Check that all ground station names are unique."""
         names: typing.Set[str] = set()
         without_names: typing.Set[str] = set()
         duplicates: typing.Set[str] = set()
@@ -287,29 +364,9 @@ class CelestialValidator(cerberus.Validator):  # type: ignore
         if err != "":
             self._error(field, err)
 
-    def _validate_match_length(
-        self, other: str, field: str, value: typing.List[str]
-    ) -> None:
-        "{'type': 'string'}"
-
-        if len(value) != len(self.document[other]):
-            self._error(
-                field,
-                "Length %d is not %d (length of field %s)"
-                % (len(value), len(self.document[other]), other),
-            )
-
-    def _validate_allowed_max(
-        self, other: str, field: str, value: typing.List[int]
-    ) -> None:
-        "{'type': 'string'}"
-
-        for i in value:
-            if i >= len(self.root_document[other]):
-                self._error(field, "Host %d is not in %s" % (i, other))
-
 
 def _validate_configuration(config: typing.MutableMapping[str, typing.Any]) -> None:
+    """Validate the configuration."""
     v = CelestialValidator(CONFIG_SCHEMA)
     if not v.validate(config):
         raise ValueError(v.errors)
@@ -318,6 +375,8 @@ def _validate_configuration(config: typing.MutableMapping[str, typing.Any]) -> N
 def _fill_configuration(
     config: typing.MutableMapping[str, typing.Any],
 ) -> typing.MutableMapping[str, typing.Any]:
+    """Fill the configuration with default values."""
+
     if "boot_parameters" not in config["compute_params"]:
         config["compute_params"]["boot_parameters"] = []
 
@@ -380,10 +439,19 @@ def _fill_configuration(
 
 
 class Config:
+    """
+    Celestial configuration
+    """
+
     def __init__(
         self,
         text_config: typing.MutableMapping[str, typing.Any],
     ):
+        """
+        Initialize the configuration from a text-based configuration
+
+        :param text_config: The text-based configuration.
+        """
         _validate_configuration(text_config)
 
         config = _fill_configuration(text_config)
@@ -442,6 +510,9 @@ class Config:
         ]
 
     def __hash__(self) -> int:
+        """
+        Return a hash of the configuration.
+        """
         return hash(
             (
                 self.bbox,

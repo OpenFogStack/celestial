@@ -15,6 +15,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""Adapter for communication with the Celestial hosts over gRPC"""
+
 import grpc
 import typing
 
@@ -25,7 +27,17 @@ import proto.celestial.celestial_pb2_grpc
 
 
 class Host:
+    """
+    Communication link for a Celestial host.
+    """
+
     def __init__(self, num: int, addr: str):
+        """
+        Initialize host communication.
+
+        :param num: The host number.
+        :param addr: The address of the host.
+        """
         self.num = num
         self.addr = addr
 
@@ -35,6 +47,11 @@ class Host:
         self.public_key = ""
 
     def register(self) -> proto.celestial.celestial_pb2.RegisterResponse:
+        """
+        Send a `register` request to the host.
+
+        :return: The response from the host.
+        """
         request = proto.celestial.celestial_pb2.RegisterRequest(host=self.num)
 
         response = self.stub.Register(request)
@@ -64,6 +81,12 @@ class Host:
             ],
         ],
     ) -> None:
+        """
+        Send an `init` request to the host.
+
+        :param hosts: A list of all hosts in the constellation.
+        :param machines: A dictionary mapping host numbers to a list of machine ID and machine configuration tuples.
+        """
         init_request = proto.celestial.celestial_pb2.InitRequest()
 
         for h in hosts:
@@ -101,6 +124,9 @@ class Host:
         return
 
     def stop(self) -> None:
+        """
+        Send a `stop` request to the host.
+        """
         self.stub.Stop(proto.celestial.celestial_pb2.Empty())
 
     def update(
@@ -116,6 +142,12 @@ class Host:
             ]
         ],
     ) -> None:
+        """
+        Send a `update` request to the host.
+
+        :param machine_diff: A list of machine ID and machine state tuples.
+        :param link_diff: A list of link tuples.
+        """
         update_request = proto.celestial.celestial_pb2.UpdateRequest()
 
         for m_id, m_state in machine_diff:
