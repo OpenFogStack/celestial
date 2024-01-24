@@ -18,21 +18,29 @@
 ARCH=amd64
 OS=linux
 
-.PHONY: build container celestial-make rootfsbuilder
+PROJECT_NAME := "celestial"
+PKG := "github.com/OpenFogStack/$(PROJECT_NAME)"
+GO_FILES := $(shell find . -name '*.go' | grep -v _test.go)
 
-build: proto/ celestial.bin
+.PHONY: build proto ebpf celestial-make rootfsbuilder
 
-container: proto Dockerfile celestial.py celestial ## build client docker container
-	docker build -t celestial .
+build: celestial.bin
 
-celestial.bin: go.mod go.sum celestial.go pkg/ proto/ ## build go binary
+proto: proto/celestial/celestial.pb.go proto/celestial/celestial_grpc.pb.go proto/celestial/celestial_pb2.py proto/celestial/celestial_pb2.pyi proto/celestial/celestial_pb2_grpc.py proto/celestial/celestial_pb2_grpc.pyi
+proto/celestial/celestial.pb.go proto/celestial/celestial_grpc.pb.go proto/celestial/celestial_pb2.py proto/celestial/celestial_pb2.pyi proto/celestial/celestial_pb2_grpc.py proto/celestial/celestial_pb2_grpc.pyi: proto/celestial/celestial.proto proto/celestial/__init__.py ## build proto files
+	@protoc -I proto/celestial/ celestial.proto --go_out=proto/celestial --go_opt=paths=source_relative --go-grpc_out=proto/celestial --go-grpc_opt=require_unimplemented_servers=false,paths=source_relative
+	@python3 -m grpc_tools.protoc -I proto/celestial/ --python_out=proto/celestial --grpc_python_out=proto/celestial --mypy_out=proto/celestial celestial.proto --mypy_grpc_out=proto/celestial
+
+ebpf: pkg/ebpfem/edt_bpfel_x86.go pkg/ebpfem/edt_bpfel_x86.o ## build ebpf files
+pkg/ebpfem/edt_bpfel_x86.go pkg/ebpfem/edt_bpfel_x86.o: pkg/ebpfem/ebpfem.go pkg/ebpfem/ebpf/net.c pkg/ebpfem/ebpf/headers/helpers.h pkg/ebpfem/ebpf/headers/maps.h ## build ebpf files
+    ## apt-get install -y clang gcc-multilib libbpf-dev llvm
+	go generate ./pkg/ebpfem
+
+celestial.bin: go.mod go.sum celestial.go ${GO_FILES} ## build go binary
 	GOOS=${OS} GOARCH=${ARCH} go build -o celestial.bin .
 
-proto/: ## build proto files
-	cd ./proto ; make ; cd ..
-
-celestial-make: ## build the compile container
-	docker build --platform ${OS}/${ARCH} -f compile.Dockerfile -t celestial-make .
+celestial-make: compile.Dockerfile ## build the compile container
+	docker build --platform ${OS}/${ARCH} -f $< -t $@ .
 
 rootfsbuilder: ## build the rootfs builder container
 	cd ./builder ; make rootfsbuilder ; cd ..

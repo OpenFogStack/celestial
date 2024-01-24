@@ -1,4 +1,35 @@
 #!/bin/bash
+#
+# This file is part of Celestial (https://github.com/OpenFogStack/celestial).
+# Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+# the -no-reboot flag is used to prevent the instance from rebooting
+REBOOT=1
+for i in "$@"
+do
+case $i in
+    -no-reboot)
+    REBOOT=0
+    shift # past argument=value
+    ;;
+    *)
+          # unknown option
+    ;;
+esac
+done
 
 set -xe
 
@@ -31,11 +62,13 @@ TEST_HOST_ID="$(tofu output -json | jq -r '.host_id.value')"
 
 gcloud config set project "$GCP_PROJECT"
 
-# restart the machines
-gcloud compute instances stop --zone="$GCP_ZONE" "$TEST_HOST_ID"
-sleep 5
-gcloud compute instances start --zone="$GCP_ZONE" "$TEST_HOST_ID"
-sleep 5
+# restart the machines unless the -no-reboot flag is set
+if [ "$REBOOT" -eq 1 ]; then
+    gcloud compute instances stop --zone="$GCP_ZONE" "$TEST_HOST_ID"
+    sleep 5
+    gcloud compute instances start --zone="$GCP_ZONE" "$TEST_HOST_ID"
+    sleep 5
+fi
 
 TEST_HOST_NAME="$(tofu output -json | jq -r '.host_name.value')"
 

@@ -1,3 +1,20 @@
+/*
+* This file is part of Celestial (https://github.com/OpenFogStack/celestial).
+* Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, version 3.
+*
+* This program is distributed in the hope that it will be useful, but
+* WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+* General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program. If not, see <http://www.gnu.org/licenses/>.
+**/
+
 package netem
 
 import (
@@ -22,6 +39,9 @@ type link struct {
 
 type vm struct {
 	netIf string
+
+	// no concurrent modifications allowed
+	sync.Mutex
 
 	// ipset specific configuration
 	chainName  string
@@ -65,14 +85,15 @@ type Netem struct {
 	vms map[orchestrator.MachineID]*vm
 }
 
-func New() *Netem {
-
+func init() {
 	err := checkCommands()
 
 	if err != nil {
 		panic(err)
 	}
+}
 
+func New() *Netem {
 	return &Netem{
 		vms: make(map[orchestrator.MachineID]*vm),
 	}
@@ -122,10 +143,15 @@ func (n *Netem) Register(id orchestrator.MachineID, netIf string) error {
 		return errors.Errorf("machine %d-%d already exists", id.Group, id.Id)
 	}
 
+	log.Debugf("registering machine %d-%d", id.Group, id.Id)
+
 	v := &vm{
 		netIf: netIf,
 		links: make(map[ipnet]*link),
 	}
+
+	v.Lock()
+	defer v.Unlock()
 
 	// create ipset for this machine
 	err := v.configureIPSet(id)
@@ -166,12 +192,14 @@ func (n *Netem) checkLink(source orchestrator.MachineID, target net.IPNet) error
 }
 
 func (n *Netem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, bandwidth uint64) error {
-
 	v, ok := n.vms[source]
 
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
 	}
+
+	v.Lock()
+	defer v.Unlock()
 
 	err := n.checkLink(source, target)
 
@@ -197,6 +225,9 @@ func (n *Netem) SetLatency(source orchestrator.MachineID, target net.IPNet, late
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
 	}
 
+	v.Lock()
+	defer v.Unlock()
+
 	err := n.checkLink(source, target)
 
 	if err != nil {
@@ -221,6 +252,9 @@ func (n *Netem) UnblockLink(source orchestrator.MachineID, target net.IPNet) err
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
 	}
 
+	v.Lock()
+	defer v.Unlock()
+
 	err := n.checkLink(source, target)
 
 	if err != nil {
@@ -244,6 +278,9 @@ func (n *Netem) BlockLink(source orchestrator.MachineID, target net.IPNet) error
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
 	}
+
+	v.Lock()
+	defer v.Unlock()
 
 	err := n.checkLink(source, target)
 

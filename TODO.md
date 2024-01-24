@@ -8,6 +8,7 @@
 - [] Battery emulation
 - [] Different topologies
 - [] Support for OCI images
-- [] Add NetEm stuff
+- [x] Add NetEm stuff
 - [] Add fault injection
 - [] Update documentation
+- [] git cloning in rootfs builder not working as git has no access to dev/urandom (needs symlink into chroot)

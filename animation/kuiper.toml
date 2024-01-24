@@ -1,57 +1,61 @@
-model = "SGP4"
+#
+# This file is part of Celestial (https://github.com/OpenFogStack/celestial).
+# Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
 
-bbox = [-6.8596, -11.0020, 19.7872, 22.2767]
-interval = 1
-animation = true
-hosts = ["192.168.0.11:1969", "192.168.0.12:1969", "192.168.0.13:1969", "192.168.0.14:1969"]
-peeringhosts = ["192.168.0.11:1970", "192.168.0.12:1970", "192.168.0.13:1970", "192.168.0.14:1970"]
-database = false
+bbox = [-90.0, -180.0, 90.0, 180.0]
+resolution = 1
+duration = 86400
 
-[sgp4params]
-starttime = 2021-05-01T12:00:00+00:00
+[network_params]
+bandwidth_kbits = 10_000_000
+min_elevation = 40
+ground_station_connection_type = "all"
 
-[networkparams]
-islpropagation = 3.336e-6
-bandwidth = 10_000_000
-mincommsaltitude = 80_000
-minelevation = 40
-gstpropagation = 3.336e-6
-groundstationconnectiontype = "all"
-
-[computeparams]
-vcpu_count = 2
+[compute_params]
+vcpu_count = 1
 mem_size_mib = 512
-ht_enabled = false
-bootparams = ""
-kernel = "x"
-rootfs = "x"
-disk_size_mib =  20_000
+disk_size_mib = 10
+kernel = "x.bin"
+rootfs = "x.img"
 
 [[shell]]
 planes = 34
 sats = 34
-altitude = 630
+altitude_km = 630
 inclination = 51.9
-arcofascendingnodes = 360.0
+arc_of_ascending_nodes = 360.0
 eccentricity = 0.0
 
 [[shell]]
 planes = 36
 sats = 36
-altitude = 610
+altitude_km = 610
 inclination = 42.0
-arcofascendingnodes = 360.0
+arc_of_ascending_nodes = 360.0
 eccentricity = 0.0
 
 [[shell]]
 planes = 28
 sats = 28
-altitude = 590
+altitude_km = 590
 inclination = 33.0
-arcofascendingnodes = 360.0
+arc_of_ascending_nodes = 360.0
 eccentricity = 0.0
 
-[[groundstation]]
-name = "Rome"
-lat = 41.747222
-long = 12.650556
+[[ground_station]]
+name = "TU Berlin"
+lat = 52.51499
+long = 13.32674

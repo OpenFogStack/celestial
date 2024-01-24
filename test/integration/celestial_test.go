@@ -2,7 +2,7 @@
 
 /*
 * This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-* Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+* Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/OpenFogStack/celestial/pkg/dns"
-	"github.com/OpenFogStack/celestial/pkg/netem"
+	"github.com/OpenFogStack/celestial/pkg/ebpfem"
 	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 	"github.com/OpenFogStack/celestial/pkg/peer"
 	"github.com/OpenFogStack/celestial/pkg/server"
@@ -88,7 +88,8 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	neb := netem.New()
+	//neb := netem.New()
+	neb := ebpfem.New()
 
 	vb, err := virt.New(TEST_IF, TEST_INIT_DELAY, pb, neb)
 
@@ -164,12 +165,14 @@ func TestMain(m *testing.M) {
 
 	status := m.Run()
 
-	//uncomment this to wait for interrupt
-	//s := make(chan os.Signal, 1)
-	//signal.Notify(s, os.Interrupt)
-	//
-	//log.Info("waiting for interrupt")
-	//<-s
+	//uncomment this to wait for interrupt by keyboard press
+	//print("Press 'Enter' to continue...")
+	//_, err = bufio.NewReader(os.Stdin).ReadBytes('\n')
+	//if err != nil && !errors.Is(err, io.EOF) {
+	//	panic(err)
+	//}
+
+	//<-time.After(120 * time.Second)
 
 	// run cleanup
 	log.Debug("cleaning up")
