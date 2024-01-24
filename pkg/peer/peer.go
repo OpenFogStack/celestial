@@ -47,6 +47,7 @@ type peer struct {
 	latency uint64
 }
 
+// PeeringService uses Wireguard to connect to other machines and route traffic to them.
 type PeeringService struct {
 	wgAddr      net.IP
 	id          orchestrator.Host
@@ -60,6 +61,7 @@ type PeeringService struct {
 	peers map[orchestrator.Host]*peer
 }
 
+// New creates a new PeeringService.
 func New(mask string, keypath string, wginterface string, port uint16) (*PeeringService, error) {
 	// set up wireguard
 	if _, err := exec.LookPath("wg"); err != nil {

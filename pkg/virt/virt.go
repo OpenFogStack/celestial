@@ -60,6 +60,7 @@ func checkCommands() (err error) {
 	return nil
 }
 
+// New creates a new virt backend.
 func New(hostInterface string, initDelay uint64, pb PeeringBackend, neb NetworkEmulationBackend) (*Virt, error) {
 
 	err := checkCommands()
@@ -85,6 +86,7 @@ func New(hostInterface string, initDelay uint64, pb PeeringBackend, neb NetworkE
 	return v, nil
 }
 
+// RegisterMachine registers a machine with the virt backend. If the machine is on a remote host, it will be routed there.
 func (v *Virt) RegisterMachine(id orchestrator.MachineID, name string, host orchestrator.Host, config orchestrator.MachineConfig) error {
 
 	if name != "" {
@@ -128,6 +130,7 @@ func (v *Virt) RegisterMachine(id orchestrator.MachineID, name string, host orch
 	return nil
 }
 
+// BlockLink blocks the link between two machines using the network emulation backend.
 func (v *Virt) BlockLink(source orchestrator.MachineID, target orchestrator.MachineID) error {
 	// check that the source machine is on this host, otherwise discard
 	if _, ok := v.machines[source]; !ok {
@@ -137,6 +140,7 @@ func (v *Virt) BlockLink(source orchestrator.MachineID, target orchestrator.Mach
 	return v.blocklink(source, target)
 }
 
+// UnblockLink unblocks the link between two machines using the network emulation backend.
 func (v *Virt) UnblockLink(source orchestrator.MachineID, target orchestrator.MachineID) error {
 	// check that the source machine is on this host, otherwise discard
 	if _, ok := v.machines[source]; !ok {
@@ -146,6 +150,7 @@ func (v *Virt) UnblockLink(source orchestrator.MachineID, target orchestrator.Ma
 	return v.unblocklink(source, target)
 }
 
+// SetLatency sets the latency between two machines using the network emulation backend.
 func (v *Virt) SetLatency(source orchestrator.MachineID, target orchestrator.MachineID, latency uint32) error {
 	// check that the source machine is on this host, otherwise discard
 	if _, ok := v.machines[source]; !ok {
@@ -155,6 +160,7 @@ func (v *Virt) SetLatency(source orchestrator.MachineID, target orchestrator.Mac
 	return v.setlatency(source, target, latency)
 }
 
+// SetBandwidth sets the bandwidth between two machines using the network emulation backend.
 func (v *Virt) SetBandwidth(source orchestrator.MachineID, target orchestrator.MachineID, bandwidth uint64) error {
 	// check that the source machine is on this host, otherwise discard
 	if _, ok := v.machines[source]; !ok {
