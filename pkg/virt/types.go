@@ -72,6 +72,7 @@ type machine struct {
 	vm *firecracker.Machine
 }
 
+// Virt provides virtualization functionality using firecracker.
 type Virt struct {
 	hostInterface string
 	initDelay     uint64 // ignored
@@ -81,12 +82,14 @@ type Virt struct {
 	machines map[orchestrator.MachineID]*machine
 }
 
+// PeeringBackend is the interface for the peering backend.
 type PeeringBackend interface {
 	GetHostID() (uint8, error)
 	Route(network net.IPNet, host orchestrator.Host) error
 	Stop() error
 }
 
+// NetworkEmulationBackend is the interface for the network emulation backend.
 type NetworkEmulationBackend interface {
 	Register(id orchestrator.MachineID, tap string) error
 	SetBandwidth(source orchestrator.MachineID, target net.IPNet, bandwidth uint64) error
