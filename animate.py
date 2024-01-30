@@ -51,7 +51,6 @@ import sys
 import multiprocessing as mp
 
 import celestial.config
-import celestial.constellation
 import celestial.animation
 
 if __name__ == "__main__":

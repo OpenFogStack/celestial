@@ -37,6 +37,50 @@ func Test_path(t *testing.T) {
 		{
 			name: "test1",
 			args: args{
+				a: MachineID{Id: 1},
+				b: MachineID{Id: 0},
+				n: NetworkState{
+					MachineID{Id: 0}: {
+						MachineID{Id: 1}: &Link{
+							Blocked:   false,
+							Latency:   1,
+							Bandwidth: 1,
+							Next: MachineID{
+								Id: 1,
+							},
+						},
+					},
+					MachineID{Id: 1}: {
+						MachineID{Id: 0}: &Link{
+							Blocked:   false,
+							Latency:   1,
+							Bandwidth: 1,
+							Next: MachineID{
+								Id: 0,
+							},
+						},
+					},
+				},
+			},
+			want: PathInfo{
+				Source:    MachineID{Id: 1},
+				Target:    MachineID{Id: 0},
+				Latency:   1,
+				Bandwidth: 1,
+				Segments: []SegmentInfo{
+					{
+						Source:    MachineID{Id: 0},
+						Target:    MachineID{Id: 1},
+						Latency:   1,
+						Bandwidth: 1,
+					},
+				},
+				Blocked: false,
+			},
+			wantErr: false,
+		}, {
+			name: "test1",
+			args: args{
 				a: MachineID{Id: 0},
 				b: MachineID{Id: 1},
 				n: NetworkState{
@@ -71,6 +115,89 @@ func Test_path(t *testing.T) {
 					{
 						Source:    MachineID{Id: 0},
 						Target:    MachineID{Id: 1},
+						Latency:   1,
+						Bandwidth: 1,
+					},
+				},
+				Blocked: false,
+			},
+			wantErr: false,
+		}, {
+			name: "test2",
+			args: args{
+				a: MachineID{Id: 1},
+				b: MachineID{Id: 0},
+				n: NetworkState{
+					MachineID{Id: 0}: {
+						MachineID{Id: 1}: &Link{
+							Blocked:   false,
+							Latency:   2,
+							Bandwidth: 1,
+							Next: MachineID{
+								Id: 2,
+							},
+						},
+						MachineID{Id: 2}: &Link{
+							Blocked:   false,
+							Latency:   1,
+							Bandwidth: 1,
+							Next: MachineID{
+								Id: 2,
+							},
+						},
+					},
+					MachineID{Id: 1}: {
+						MachineID{Id: 0}: &Link{
+							Blocked:   false,
+							Latency:   2,
+							Bandwidth: 1,
+							Next: MachineID{
+								Id: 2,
+							},
+						},
+						MachineID{Id: 2}: &Link{
+							Blocked:   false,
+							Latency:   1,
+							Bandwidth: 1,
+							Next: MachineID{
+								Id: 2,
+							},
+						},
+					},
+					MachineID{Id: 2}: {
+						MachineID{Id: 0}: &Link{
+							Blocked:   false,
+							Latency:   1,
+							Bandwidth: 1,
+							Next: MachineID{
+								Id: 0,
+							},
+						},
+						MachineID{Id: 1}: &Link{
+							Blocked:   false,
+							Latency:   1,
+							Bandwidth: 1,
+							Next: MachineID{
+								Id: 1,
+							},
+						},
+					},
+				},
+			},
+			want: PathInfo{
+				Source:    MachineID{Id: 1},
+				Target:    MachineID{Id: 0},
+				Latency:   2,
+				Bandwidth: 1,
+				Segments: []SegmentInfo{
+					{
+						Source:    MachineID{Id: 1},
+						Target:    MachineID{Id: 2},
+						Latency:   1,
+						Bandwidth: 1,
+					}, {
+						Source:    MachineID{Id: 2},
+						Target:    MachineID{Id: 0},
 						Latency:   1,
 						Bandwidth: 1,
 					},

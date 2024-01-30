@@ -1,8 +1,7 @@
 ---
 layout: default
-title: Time
-parent: Runtime
-nav_order: 2
+title: Time API
+nav_order: 12
 ---
 
 ## Time
@@ -15,11 +14,7 @@ wall clock in your VMs, e.g. to measure network delays.
 There are two ways to configure clock synchronization in your VMs: NTP and PTP.
 You can read a bit more about that in [the Firecracker documentation](https://github.com/firecracker-microvm/firecracker/blob/main/FAQ.md#my-guest-wall-clock-is-drifting-how-can-i-fix-it).
 
-### NTP
-
-NTP is relatively simple to set up, the operating system on your root filesystem
-is probably set up for it to some extent.
-Choose a time-server to synchronize with and off you go.
+By default, root file systems built with the builder toolchain are set up for PTP.
 
 ### PTP
 
@@ -33,8 +28,8 @@ multiple serves, make sure to synchronize those too, and expect some inaccuracie
 
 The downside here is that both hour host and guest must support it.
 
-On a host side, we have seen that it works with `Amazon Linux 2` and
-`Ubuntu 18.04 LTS`, but we weren't able to get it to work with Debian.
+On a host side, we have seen that it works with Amazon Linux 2 and
+Ubuntu 22.04 LTS, but we weren't able to get it to work with Debian.
 There is probably a way to find out if your host supports it, but maybe you just
 need to try it out.
 
@@ -45,6 +40,8 @@ PTP support enabled in your kernel with these lines in your kernel config:
 CONFIG_PTP_1588_CLOCK=y
 CONFIG_PTP_1588_CLOCK_KVM=y
 ```
+
+These configuration flags are set accordingly in our [default Linux guest kernel](./kernel.html).
 
 Once you boot, you should see a `/dev/ptp0` device (if you don't your host probably
 doesn't support it).
@@ -82,3 +79,6 @@ Root dispersion : 0.000010668 seconds
 Update interval : 7.9 seconds
 Leap status     : Normal
 ```
+
+This happens before your application script runs in guest root file systems built
+with our builder toolchain.

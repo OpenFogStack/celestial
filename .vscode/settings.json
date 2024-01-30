@@ -1,0 +1,9 @@
+{
+    "ltex.enabled": [
+        "markdown"
+    ],
+    "go.toolsEnvVars": {
+        "GOOS": "linux",
+        "GOARCH": "amd64"
+    }
+}

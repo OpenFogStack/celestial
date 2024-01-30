@@ -47,9 +47,20 @@ arc_of_ascending_nodes = 360.0
 eccentricity = 0.0
 
 [[ground_station]]
-name = "validator"
+name = "Berlin"
 lat = 52.514182
 long = 13.328285
+
+[ground_station.compute_params]
+vcpu_count = 2
+mem_size_mib = 2048
+disk_size_mib = 100
+rootfs = "validator.img"
+
+[[ground_station]]
+name = "NewYork"
+lat = 40.76140
+long = -73.97165
 
 [ground_station.compute_params]
 vcpu_count = 2

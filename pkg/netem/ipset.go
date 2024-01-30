@@ -85,7 +85,7 @@ func (v *vm) configureIPSet(id orchestrator.MachineID) error {
 }
 
 func (v *vm) removeIPSet() error {
-	log.Debugf("Removing ipset for %s", v.netIf)
+	log.Tracef("Removing ipset for %s", v.netIf)
 	// iptables -D FORWARD -i [TAP_NAME] -j [CHAIN_NAME]
 	cmd := exec.Command(IPTABLES_BIN, "-D", "FORWARD", "-i", v.netIf, "-j", v.chainName)
 
@@ -117,7 +117,7 @@ func (v *vm) removeIPSet() error {
 }
 
 func (v *vm) blockNet(target net.IPNet) error {
-	log.Debug("blocking ", target.String(), " in ", v.ipBlockSet)
+	log.Trace("blocking ", target.String(), " in ", v.ipBlockSet)
 
 	// ipset add [IP_BLOCK_SET] [TARGET_NETWORK] -exist
 	cmd := exec.Command(IPSET_BIN, "add", v.ipBlockSet, target.String(), "-exist")
@@ -131,7 +131,7 @@ func (v *vm) blockNet(target net.IPNet) error {
 
 func (v *vm) unblockNet(target net.IPNet) error {
 
-	log.Debug("unblocking ", target.String(), " in ", v.ipBlockSet)
+	log.Trace("unblocking ", target.String(), " in ", v.ipBlockSet)
 	// ipset del [IP_BLOCK_SET] [TARGET_NETWORK]
 	cmd := exec.Command(IPSET_BIN, "del", v.ipBlockSet, target.String())
 
@@ -198,7 +198,7 @@ func (v *vm) unblockNet(target net.IPNet) error {
 //
 //func (v *vm) blockNet(target net.IPNet) error {
 //
-//	log.Debug("blocking ", target.String(), " in ", v.ipBlockSet)
+//	log.Trace("blocking ", target.String(), " in ", v.ipBlockSet)
 //	// ipset add [IP_BLOCK_SET] [TARGET_NETWORK]
 //	cmd := exec.Command(IPSET_BIN, "add", v.ipBlockSet, target.String())
 //
@@ -211,7 +211,7 @@ func (v *vm) unblockNet(target net.IPNet) error {
 //
 //func (v *vm) unblockNet(target net.IPNet) error {
 //
-//	log.Debug("unblocking ", target.String(), " in ", v.ipBlockSet)
+//	log.Trace("unblocking ", target.String(), " in ", v.ipBlockSet)
 //	// ipset del [IP_BLOCK_SET] [TARGET_NETWORK]
 //	cmd := exec.Command(IPSET_BIN, "del", v.ipBlockSet, target.String())
 //

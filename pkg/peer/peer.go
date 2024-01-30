@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/go-ping/ping"
 	"github.com/pkg/errors"
@@ -259,6 +260,7 @@ func (p *PeeringService) InitPeering(remotes map[orchestrator.Host]HostInfo) err
 
 		pinger.SetPrivileged(true)
 		pinger.Count = 5
+		pinger.Timeout = 5 * time.Second
 
 		err = pinger.Run() // Blocks until finished.
 

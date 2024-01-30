@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
 # Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
@@ -15,12 +17,5 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-.PHONY: all
-
-all: validator.img server.img
-
-validator.img: validator.sh validator-base.sh validator.py
-	@docker run --rm -v $(PWD)/validator.py:/files/validator.py -v $(PWD)/validator.sh:/app.sh -v $(PWD)/validator-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
-
-server.img: server.sh
-	@docker run --rm -v $(PWD)/server.sh:/app.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
+make celestial-make
+docker run --platform=linux/amd64 --rm -v $(pwd):/celestial celestial-make $@

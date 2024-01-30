@@ -143,7 +143,7 @@ func (n *Netem) Register(id orchestrator.MachineID, netIf string) error {
 		return errors.Errorf("machine %d-%d already exists", id.Group, id.Id)
 	}
 
-	log.Debugf("registering machine %d-%d", id.Group, id.Id)
+	log.Tracef("registering machine %d-%d", id.Group, id.Id)
 
 	v := &vm{
 		netIf: netIf,

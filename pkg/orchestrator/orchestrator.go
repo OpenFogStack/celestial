@@ -121,7 +121,7 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 		wg.Add(1)
 		go func(source MachineID, links map[MachineID]*Link) {
 			defer wg.Done()
-			//log.Debugf("blocking all links from %s", source)
+			//log.Tracef("blocking all links from %s", source)
 
 			for otherMachine := range o.machines {
 				// exclude self
@@ -129,7 +129,7 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 					continue
 				}
 
-				//log.Debugf("blocking link %s -> %s", source, otherMachine)
+				//log.Tracef("blocking link %s -> %s", source, otherMachine)
 				err := o.virt.BlockLink(source, otherMachine)
 				if err != nil {
 					e = errors.WithStack(err)
@@ -143,7 +143,7 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 				// progress
 				progressLinks.Add(1)
 			}
-			//log.Debugf("done blocking all links from %s", source)
+			//log.Tracef("done blocking all links from %s", source)
 
 		}(m, o.State.NetworkState[m])
 	}
@@ -166,6 +166,8 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 
 	o.initialized = true
 
+	log.Info("orchestrator initialized")
+
 	return nil
 }
 
@@ -184,7 +186,7 @@ func (o *Orchestrator) Update(s *State) error {
 	// run the update procedure and apply changes
 
 	// 1. update all the links
-
+	linkUpdateStart := time.Now()
 	var wg sync.WaitGroup
 	var e error
 
@@ -194,7 +196,7 @@ func (o *Orchestrator) Update(s *State) error {
 			defer wg.Done()
 			for target, l := range links {
 				if l.Blocked && !o.State.NetworkState[source][target].Blocked {
-					log.Debugf("blocking link %s -> %s", source, target)
+					log.Tracef("blocking link %s -> %s", source, target)
 					err := o.virt.BlockLink(source, target)
 					if err != nil {
 						e = errors.WithStack(err)
@@ -203,7 +205,7 @@ func (o *Orchestrator) Update(s *State) error {
 				}
 
 				if !l.Blocked && o.State.NetworkState[source][target].Blocked {
-					log.Debugf("unblocking link %s -> %s", source, target)
+					log.Tracef("unblocking link %s -> %s", source, target)
 					err := o.virt.UnblockLink(source, target)
 					if err != nil {
 						e = errors.WithStack(err)
@@ -215,14 +217,14 @@ func (o *Orchestrator) Update(s *State) error {
 					continue
 				}
 
-				log.Debugf("updating link %s -> %s", source, target)
+				log.Tracef("updating link %s -> %s", source, target)
 				if l.Next != o.State.NetworkState[source][target].Next {
-					log.Debugf("setting next hop %s -> %s to %s ", source, target, l.Next)
+					log.Tracef("setting next hop %s -> %s to %s ", source, target, l.Next)
 					o.State.NetworkState[source][target].Next = l.Next
 				}
 
 				if l.Latency != o.State.NetworkState[source][target].Latency {
-					log.Debugf("changing latency %s -> %s from %d to %d", source, target, l.Latency, o.State.NetworkState[source][target].Latency)
+					log.Tracef("changing latency %s -> %s from %d to %d", source, target, l.Latency, o.State.NetworkState[source][target].Latency)
 					err := o.virt.SetLatency(source, target, l.Latency)
 					if err != nil {
 						e = errors.WithStack(err)
@@ -231,7 +233,7 @@ func (o *Orchestrator) Update(s *State) error {
 				}
 
 				if l.Bandwidth != o.State.NetworkState[source][target].Bandwidth {
-					log.Debugf("setting bandwidth %s -> %s to %d", source, target, l.Bandwidth)
+					log.Tracef("setting bandwidth %s -> %s to %d", source, target, l.Bandwidth)
 					err := o.virt.SetBandwidth(source, target, l.Bandwidth)
 					if err != nil {
 						e = errors.WithStack(err)
@@ -247,7 +249,10 @@ func (o *Orchestrator) Update(s *State) error {
 		return errors.WithStack(e)
 	}
 
+	log.Debugf("link update took %s", time.Since(linkUpdateStart))
+
 	// 2. update all the machines
+	machineUpdateStart := time.Now()
 	wg = sync.WaitGroup{}
 	e = nil
 
@@ -285,6 +290,9 @@ func (o *Orchestrator) Update(s *State) error {
 	if e != nil {
 		return errors.WithStack(e)
 	}
+	log.Debugf("machine update took %s", time.Since(machineUpdateStart))
+
+	log.Info("orchestrator updated")
 
 	return nil
 }

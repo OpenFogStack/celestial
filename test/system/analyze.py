@@ -47,7 +47,7 @@ if __name__ == "__main__":
         .astype(float)
     ) * 2
 
-    results["expected_avg"] = results["expected_before"] + results["expected_after"]
+    results["expected_avg"] = results["expected_before"] + results["expected_after"] / 2
 
     results["actual"] = (
         results["actual"]
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     )
 
     # throw away pings that took longer than 10 seconds
-    results = results[results["actual"] < 10_000]
+    # results = results[results["actual"] < 10_000]
 
     # make time relative
     results["t"] = results["t"] - results["t"].min()
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     # make an ecdf plot
     g = sns.ecdfplot(data=results, x="diff_approx")
-    g.set(xlim=(0, 10))
+    g.set(xlim=(0, 2))
     plt.savefig(f"{OUTPUT_DIR}/ecdf.png", bbox_inches="tight")
     plt.clf()
 

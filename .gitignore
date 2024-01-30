@@ -6,7 +6,6 @@ test.toml
 *.pem
 *.pem.PyBuilder
 *.pem.pub
-.vscode
 .idea/
 .mypy_cache/
 *.bin

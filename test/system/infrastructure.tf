@@ -118,8 +118,7 @@ resource "google_compute_address" "celestial-test-host-ip" {
 # we need to create an image for our hosts
 # this needs a custom license to use nested virtualization
 resource "google_compute_image" "celestial-test-host-image" {
-  name = "celestial-test-host-image"
-  #   source_disk = google_compute_disk.celestial-host-disk.self_link
+  name         = "celestial-test-host-image"
   source_image = data.google_compute_image.ubuntu2204image.self_link
   licenses     = ["https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/licenses/ubuntu-2204-lts", "https://www.googleapis.com/compute/v1/projects/vm-options/global/licenses/enable-vmx"]
 }

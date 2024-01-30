@@ -17,11 +17,18 @@
 #
 
 # clock synchronization
-chronyc -a makestep
+chronyc makestep
+sleep 1
+chronyc makestep
+# chronyc tracking
 
-echo "Starting user script..."
+# network setup
+IP=$(/sbin/ip route | awk '/default/ { print $3 }')
+echo "$IP   info.celestial" >> /etc/hosts
+
+echo "Celestial: Starting user script..."
 
 /bin/sh app.sh
 
-echo "User script finished, shutting down..."
-reboot
+echo "Celestial: User script finished, shutting down..."
+reboot # reboot actually shuts down the microVM in Firecracker

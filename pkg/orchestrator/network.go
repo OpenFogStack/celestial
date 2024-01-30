@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 func (n NetworkState) String() string {
@@ -53,11 +54,7 @@ func path(a, b MachineID, n NetworkState) (PathInfo, error) {
 		return PathInfo{}, errors.Errorf("cannot give path from %s to itself", a)
 	}
 
-	//log.Debugf("path from %s to %s", a.String(), b.String())
-
-	if b.lt(a) {
-		return path(b, a, n)
-	}
+	log.Tracef("path from %s to %s", a.String(), b.String())
 
 	p := PathInfo{
 		Source: a,
@@ -65,7 +62,7 @@ func path(a, b MachineID, n NetworkState) (PathInfo, error) {
 	}
 
 	if n[a][b].Blocked {
-		//log.Debugf("path from %s to %s is blocked", a.String(), b.String())
+		log.Tracef("path from %s to %s is blocked", a.String(), b.String())
 		p.Blocked = true
 		return p, nil
 	}
@@ -75,27 +72,23 @@ func path(a, b MachineID, n NetworkState) (PathInfo, error) {
 	p.Segments = make([]SegmentInfo, 0)
 
 	for a != b {
-		x, y := a, b
-		if y.lt(x) {
-			x, y = y, x
+		hop := n[a][b]
+		log.Tracef("next hop from %s to %s: %s", a.String(), b.String(), hop.String())
+
+		if _, ok := n[a][hop.Next]; !ok {
+			return PathInfo{}, errors.Errorf("could not find next hop %s for %s", hop.Next.String(), a.String())
 		}
 
-		hop := n[x][y]
-
-		//log.Debugf("path from %s to %s: %s", a.String(), b.String(), hop.String())
 		s := SegmentInfo{
-			Source:    x,
+			Source:    a,
 			Target:    hop.Next,
-			Latency:   n[x][hop.Next].Latency,
-			Bandwidth: n[x][hop.Next].Bandwidth,
+			Latency:   n[a][hop.Next].Latency,
+			Bandwidth: n[a][hop.Next].Bandwidth,
 		}
 
-		// weird prepend action
-		//p.Segments = append([]SegmentInfo{s}, p.Segments...)
 		p.Segments = append(p.Segments, s)
 
 		a = hop.Next
-		b = y
 	}
 
 	return p, nil

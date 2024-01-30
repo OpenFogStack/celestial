@@ -18,12 +18,194 @@
 """Adapter for communication with the Celestial hosts over gRPC"""
 
 import grpc
+import logging
 import typing
 
 import celestial.types
 import celestial.config
 import proto.celestial.celestial_pb2
 import proto.celestial.celestial_pb2_grpc
+
+MAX_DIFF_UPDATE_SIZE = 10_000
+
+
+def make_init_request(
+    hosts: typing.List["Host"],
+    machines: typing.Dict[
+        int,
+        typing.List[
+            typing.Tuple[
+                celestial.types.MachineID_dtype, celestial.config.MachineConfig
+            ]
+        ],
+    ],
+) -> proto.celestial.celestial_pb2.InitRequest:
+    init_request = proto.celestial.celestial_pb2.InitRequest()
+
+    for h in hosts:
+        k = proto.celestial.celestial_pb2.InitRequest.Host(
+            id=h.num,
+            peer_public_key=h.peer_public_key,
+            peer_listen_addr=h.peer_listen_addr,
+        )
+        init_request.hosts.append(k)
+
+        for m in machines[h.num]:
+            mid = proto.celestial.celestial_pb2.MachineID(
+                group=celestial.types.MachineID_group(m[0]),
+                id=celestial.types.MachineID_id(m[0]),
+            )
+
+            mc = proto.celestial.celestial_pb2.InitRequest.Machine.MachineConfig(
+                vcpu_count=m[1].vcpu_count,
+                ram=m[1].mem_size_mib,
+                disk_size=m[1].disk_size,
+                root_image=m[1].rootfs,
+                kernel=m[1].kernel,
+                boot_parameters=m[1].boot_parameters,
+            )
+
+            m = proto.celestial.celestial_pb2.InitRequest.Machine(
+                id=mid,
+                config=mc,
+                host=h.num,
+                name=celestial.types.MachineID_name(m[0]),
+            )
+
+            init_request.machines.append(m)
+
+    return init_request
+
+
+def make_update_request_iters(
+    machine_diff_iter: typing.Iterator[
+        typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
+    ],
+    link_diff_iter: typing.Iterator[
+        typing.Tuple[
+            celestial.types.MachineID_dtype,
+            celestial.types.MachineID_dtype,
+            celestial.types.Link_dtype,
+        ]
+    ],
+) -> typing.Iterator[proto.celestial.celestial_pb2.StateUpdateRequest]:
+    """
+    A function that returns a combined iterator of StateUpdateRequests based on
+    iterating over machine_diff_iter and link_diff_iter.
+    """
+    count = 0
+
+    update_request = proto.celestial.celestial_pb2.StateUpdateRequest()
+
+    # iterate over all the machine diffs
+    for m_id, m_state in machine_diff_iter:
+        m_diff_id = proto.celestial.celestial_pb2.MachineID(
+            group=celestial.types.MachineID_group(m_id),
+            id=celestial.types.MachineID_id(m_id),
+        )
+
+        m_diff_state = proto.celestial.celestial_pb2.VM_STATE_STOPPED
+        if m_state == celestial.types.VMState.ACTIVE:
+            m_diff_state = proto.celestial.celestial_pb2.VM_STATE_ACTIVE
+
+        m_diff = proto.celestial.celestial_pb2.StateUpdateRequest.MachineDiff(
+            id=m_diff_id, active=m_diff_state
+        )
+
+        # append the machine diff to the update request and increase the count
+        update_request.machine_diffs.append(m_diff)
+        count += 1
+
+        # if we have reached max diff size, yield the update request and reset it
+        if count >= MAX_DIFF_UPDATE_SIZE:
+            yield update_request
+            update_request = proto.celestial.celestial_pb2.StateUpdateRequest()
+
+            count = 0
+
+    # when loop ends, we move on to the link diffs
+    network_diffs: typing.Dict[
+        celestial.types.MachineID_dtype,
+        proto.celestial.celestial_pb2.StateUpdateRequest.NetworkDiff.Link,
+    ] = {}
+
+    # iterate over all the link diffs
+    for source, target, link in link_diff_iter:
+        # append the link diff and increase counter
+        network_diffs.setdefault(source, []).append(
+            proto.celestial.celestial_pb2.StateUpdateRequest.NetworkDiff.Link(
+                target=proto.celestial.celestial_pb2.MachineID(
+                    group=celestial.types.MachineID_group(target),
+                    id=celestial.types.MachineID_id(target),
+                ),
+                latency=celestial.types.Link_latency_us(link),
+                bandwidth=celestial.types.Link_bandwidth_kbits(link),
+                blocked=bool(celestial.types.Link_blocked(link)),
+                next=proto.celestial.celestial_pb2.MachineID(
+                    group=celestial.types.MachineID_group(
+                        celestial.types.Link_next_hop(link)
+                    ),
+                    id=celestial.types.MachineID_id(
+                        celestial.types.Link_next_hop(link)
+                    ),
+                ),
+                prev=proto.celestial.celestial_pb2.MachineID(
+                    group=celestial.types.MachineID_group(
+                        celestial.types.Link_prev_hop(link)
+                    ),
+                    id=celestial.types.MachineID_id(
+                        celestial.types.Link_prev_hop(link)
+                    ),
+                ),
+            )
+        )
+
+        # print("adding link")
+
+        count += 1
+
+        # once again, yield the update request and reset it if we reached max diff size
+        if count >= MAX_DIFF_UPDATE_SIZE:
+            # yielding requires translation of our dict into the protobuf format
+            for source, links in network_diffs.items():
+                n_diff_source = proto.celestial.celestial_pb2.MachineID(
+                    group=celestial.types.MachineID_group(source),
+                    id=celestial.types.MachineID_id(source),
+                )
+
+                n_diff = proto.celestial.celestial_pb2.StateUpdateRequest.NetworkDiff(
+                    id=n_diff_source,
+                    links=links,
+                )
+
+                # can't append to links directly as protobufs don't have maps
+                update_request.network_diffs.append(n_diff)
+
+            # yield the update request and reset it
+            yield update_request
+            update_request = proto.celestial.celestial_pb2.StateUpdateRequest()
+            # also reset our diff
+            network_diffs = {}
+            count = 0
+
+    # loop ended, yield the last update request
+    # yielding requires translation of our dict into the protobuf format again
+    for source, links in network_diffs.items():
+        n_diff_source = proto.celestial.celestial_pb2.MachineID(
+            group=celestial.types.MachineID_group(source),
+            id=celestial.types.MachineID_id(source),
+        )
+
+        n_diff = proto.celestial.celestial_pb2.StateUpdateRequest.NetworkDiff(
+            id=n_diff_source,
+            links=links,
+        )
+
+        update_request.network_diffs.append(n_diff)
+
+    yield update_request
+
+    # done
 
 
 class Host:
@@ -63,23 +245,15 @@ class Host:
             self.addr.split(":")[0] + ":" + response.peer_listen_addr.split(":")[1]
         )
 
-        print(f"host {self.num} registered")
-        print(f"memory: {response.available_ram}")
-        print(f"cpu: {response.available_cpus}")
+        logging.debug(f"host {self.num} registered")
+        logging.debug(f"memory: {response.available_ram}")
+        logging.debug(f"cpu: {response.available_cpus}")
 
         return response
 
     def init(
         self,
-        hosts: typing.List["Host"],
-        machines: typing.Dict[
-            int,
-            typing.List[
-                typing.Tuple[
-                    celestial.types.MachineID_dtype, celestial.config.MachineConfig
-                ]
-            ],
-        ],
+        init_request: proto.celestial.celestial_pb2.InitRequest,
     ) -> None:
         """
         Send an `init` request to the host.
@@ -87,37 +261,6 @@ class Host:
         :param hosts: A list of all hosts in the constellation.
         :param machines: A dictionary mapping host numbers to a list of machine ID and machine configuration tuples.
         """
-        init_request = proto.celestial.celestial_pb2.InitRequest()
-
-        for h in hosts:
-            k = proto.celestial.celestial_pb2.InitRequest.Host(
-                id=h.num,
-                peer_public_key=h.peer_public_key,
-                peer_listen_addr=h.peer_listen_addr,
-            )
-            init_request.hosts.append(k)
-
-            for m in machines[h.num]:
-                mid = proto.celestial.celestial_pb2.MachineID(
-                    group=celestial.types.MachineID_group(m[0]),
-                    id=celestial.types.MachineID_id(m[0]),
-                    name=celestial.types.MachineID_name(m[0]),
-                )
-
-                mc = proto.celestial.celestial_pb2.InitRequest.Machine.MachineConfig(
-                    vcpu_count=m[1].vcpu_count,
-                    ram=m[1].mem_size_mib,
-                    disk_size=m[1].disk_size,
-                    root_image=m[1].rootfs,
-                    kernel=m[1].kernel,
-                    boot_parameters=m[1].boot_parameters,
-                )
-
-                m = proto.celestial.celestial_pb2.InitRequest.Machine(
-                    id=mid, config=mc, host=h.num
-                )
-
-                init_request.machines.append(m)
 
         self.stub.Init(init_request)
 
@@ -131,10 +274,10 @@ class Host:
 
     def update(
         self,
-        machine_diff: typing.List[
+        machine_diff_iter: typing.Iterator[
             typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
         ],
-        link_diff: typing.List[
+        link_diff_iter: typing.Iterator[
             typing.Tuple[
                 celestial.types.MachineID_dtype,
                 celestial.types.MachineID_dtype,
@@ -145,94 +288,14 @@ class Host:
         """
         Send a `update` request to the host.
 
-        :param machine_diff: A list of machine ID and machine state tuples.
-        :param link_diff: A list of link tuples.
+        :param machine_diff: An iterator of machine ID and machine state tuples.
+        :param link_diff: An iterator of link tuples.
         """
-        update_request = proto.celestial.celestial_pb2.UpdateRequest()
 
-        for m_id, m_state in machine_diff:
-            m_diff_id = proto.celestial.celestial_pb2.MachineID(
-                group=celestial.types.MachineID_group(m_id),
-                id=celestial.types.MachineID_id(m_id),
-                name=celestial.types.MachineID_name(m_id),
-            )
+        update_iterator = make_update_request_iters(machine_diff_iter, link_diff_iter)
 
-            m_diff_state = proto.celestial.celestial_pb2.VM_STATE_STOPPED
-            if m_state == celestial.types.VMState.ACTIVE:
-                m_diff_state = proto.celestial.celestial_pb2.VM_STATE_ACTIVE
+        # logging.debug(f"have {len(list(update_iterator))} updates")
 
-            m_diff = proto.celestial.celestial_pb2.UpdateRequest.MachineDiff(
-                id=m_diff_id, active=m_diff_state
-            )
-
-            update_request.machine_diffs.append(m_diff)
-
-        network_diffs: typing.Dict[
-            celestial.types.MachineID_dtype,
-            proto.celestial.celestial_pb2.UpdateRequest.NetworkDiff.Link,
-        ] = {}
-
-        for source, target, link in link_diff:
-            l_diff_source = proto.celestial.celestial_pb2.MachineID(
-                group=celestial.types.MachineID_group(source),
-                id=celestial.types.MachineID_id(source),
-                name=celestial.types.MachineID_name(source),
-            )
-
-            l_diff_target = proto.celestial.celestial_pb2.MachineID(
-                group=celestial.types.MachineID_group(target),
-                id=celestial.types.MachineID_id(target),
-                name=celestial.types.MachineID_name(target),
-            )
-
-            l_diff_next = proto.celestial.celestial_pb2.MachineID(
-                group=celestial.types.MachineID_group(
-                    celestial.types.Link_next_hop(link)
-                ),
-                id=celestial.types.MachineID_id(celestial.types.Link_next_hop(link)),
-                name=celestial.types.MachineID_name(
-                    celestial.types.Link_next_hop(link)
-                ),
-            )
-
-            source_l_diff = (
-                proto.celestial.celestial_pb2.UpdateRequest.NetworkDiff.Link(
-                    target=l_diff_target,
-                    latency=celestial.types.Link_latency_us(link),
-                    bandwidth=celestial.types.Link_bandwidth_kbits(link),
-                    blocked=bool(celestial.types.Link_blocked(link)),
-                    next=l_diff_next,
-                )
-            )
-
-            # do the other direction as well...
-            target_l_diff = (
-                proto.celestial.celestial_pb2.UpdateRequest.NetworkDiff.Link(
-                    target=l_diff_source,
-                    latency=celestial.types.Link_latency_us(link),
-                    bandwidth=celestial.types.Link_bandwidth_kbits(link),
-                    blocked=bool(celestial.types.Link_blocked(link)),
-                    next=l_diff_next,
-                )
-            )
-
-            network_diffs.setdefault(source, []).append(source_l_diff)
-            network_diffs.setdefault(target, []).append(target_l_diff)
-
-        for source, links in network_diffs.items():
-            n_diff_source = proto.celestial.celestial_pb2.MachineID(
-                group=celestial.types.MachineID_group(source),
-                id=celestial.types.MachineID_id(source),
-                name=celestial.types.MachineID_name(source),
-            )
-
-            n_diff = proto.celestial.celestial_pb2.UpdateRequest.NetworkDiff(
-                id=n_diff_source,
-                links=links,
-            )
-
-            update_request.network_diffs.append(n_diff)
-
-        self.stub.Update(update_request)
+        self.stub.Update(update_iterator)
 
         return

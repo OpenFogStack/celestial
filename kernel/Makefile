@@ -17,7 +17,7 @@
 
 PWD=$(shell pwd)
 
-.PHONY: all container
+.PHONY: all container-%
 
 all: container-%
 

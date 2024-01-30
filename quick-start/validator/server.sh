@@ -17,9 +17,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# the app script runs when a microVM boots
-# this server just needs to answer to pings
+# The app script runs when a microVM boots.
+# This server just needs to answer to pings, so to prevent it from shutting
+# down, we just run an infinite loop.
 while true; do
-    echo "$(date): satellite server running"
-    sleep 60
+    echo "$(date): satellite server running!"
+    sleep 300
 done

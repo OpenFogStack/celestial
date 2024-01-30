@@ -24,9 +24,9 @@ class CelestialStub(object):
                 request_serializer=celestial__pb2.InitRequest.SerializeToString,
                 response_deserializer=celestial__pb2.Empty.FromString,
                 )
-        self.Update = channel.unary_unary(
+        self.Update = channel.stream_unary(
                 '/openfogstack.celestial.celestial.Celestial/Update',
-                request_serializer=celestial__pb2.UpdateRequest.SerializeToString,
+                request_serializer=celestial__pb2.StateUpdateRequest.SerializeToString,
                 response_deserializer=celestial__pb2.Empty.FromString,
                 )
         self.Stop = channel.unary_unary(
@@ -51,7 +51,7 @@ class CelestialServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Update(self, request, context):
+    def Update(self, request_iterator, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -76,9 +76,9 @@ def add_CelestialServicer_to_server(servicer, server):
                     request_deserializer=celestial__pb2.InitRequest.FromString,
                     response_serializer=celestial__pb2.Empty.SerializeToString,
             ),
-            'Update': grpc.unary_unary_rpc_method_handler(
+            'Update': grpc.stream_unary_rpc_method_handler(
                     servicer.Update,
-                    request_deserializer=celestial__pb2.UpdateRequest.FromString,
+                    request_deserializer=celestial__pb2.StateUpdateRequest.FromString,
                     response_serializer=celestial__pb2.Empty.SerializeToString,
             ),
             'Stop': grpc.unary_unary_rpc_method_handler(
@@ -131,7 +131,7 @@ class Celestial(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def Update(request,
+    def Update(request_iterator,
             target,
             options=(),
             channel_credentials=None,
@@ -141,8 +141,8 @@ class Celestial(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.celestial.celestial.Celestial/Update',
-            celestial__pb2.UpdateRequest.SerializeToString,
+        return grpc.experimental.stream_unary(request_iterator, target, '/openfogstack.celestial.celestial.Celestial/Update',
+            celestial__pb2.StateUpdateRequest.SerializeToString,
             celestial__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

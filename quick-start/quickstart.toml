@@ -1,0 +1,77 @@
+#
+# This file is part of Celestial (https://github.com/OpenFogStack/celestial).
+# Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+# This is a simple configuration file for Celestial that is used in our
+# quick-start guide.
+
+# Our bounding box determines which satellites will be emulated. We only
+# want satellites that are roughly above Europe.
+bbox = [35.000000, -15.000000, 65.000000, 35.000000]
+
+# We want an update to the topology every five second.
+resolution = 5
+
+# Our entire experiment should run for 15 minutes.
+duration = 900
+
+# These are the network parameters. We want a bandwidth of 10 Mbit/s, a
+# mininum elevation for radio links of about 25 degrees (common for Starlink),
+# and our ground station should connect to all satellites in reach (instead of
+# only the closest one).
+[network_params]
+bandwidth_kbits = 10_000_000
+min_elevation = 25
+ground_station_connection_type = "all"
+
+# This configures the compute parameters for our satellites. We want 1 vCPU,
+# 256 MiB of RAM, 1 GiB of disk space, and we want to boot the v5.12 kernel
+# we downloaded with the server.img root file system. We will override some
+# of these parameters for our ground station below.
+[compute_params]
+vcpu_count = 1
+mem_size_mib = 256
+disk_size_mib = 1
+kernel = "vmlinux.bin"
+rootfs = "server.img"
+
+# This is the satellite constellation configuration. We follow an older
+# Starlink configuration with 72 planes and 22 satellites per plane. The
+# satellites are at an altitude of 550 km, have an inclination of 53 degrees,
+# and their ascending nodes are evenly distributed over 360 degrees (Walker
+# Delta). The eccentricity is 0, so the orbits are circular.
+[[shell]]
+planes = 72
+sats = 22
+altitude_km = 550
+inclination = 53.0
+arc_of_ascending_nodes = 360.0
+eccentricity = 0.0
+
+# This is our validator ground station located in Berlin.
+[[ground_station]]
+name = "validator"
+lat = 52.51492067
+long = 13.32666938
+
+# We change some of the compute parameters for our ground station. We want
+# 4 vCPUs, 4 GiB of RAM, 10 GiB of disk space, and we want to boot with the
+# validator.img root file system.
+[ground_station.compute_params]
+vcpu_count = 4
+mem_size_mib = 4096
+disk_size_mib = 10
+rootfs = "validator.img"

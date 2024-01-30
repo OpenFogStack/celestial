@@ -296,7 +296,12 @@ CONFIG_SCHEMA = {
         "schema": {
             "type": "dict",
             "schema": {
-                "name": {"type": "string", "empty": False, "required": True},
+                "name": {
+                    "type": "string",
+                    "empty": False,
+                    "required": True,
+                    "regex": "^[a-zA-Z0-9-]+$",
+                },
                 "lat": LAT,
                 "long": LON,
                 "network_params": {"type": "dict", "schema": NETWORK_PARAMS_SCHEMA},

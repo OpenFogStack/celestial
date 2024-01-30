@@ -53,7 +53,7 @@ import tqdm
 
 import celestial.config
 import celestial.zip_serializer
-import celestial.constellation
+import celestial.satgen
 
 if __name__ == "__main__":
     if len(sys.argv) > 3 or len(sys.argv) < 2:
@@ -77,15 +77,15 @@ if __name__ == "__main__":
     serializer = celestial.zip_serializer.ZipSerializer(config, output_file)
 
     # init the constellation
-    constellation = celestial.constellation.Constellation(config, serializer)
+    constellation = celestial.satgen.SatgenConstellation(config, serializer)
 
     # run the simulation
     i = 0
-    pbar = tqdm.tqdm(total=config.duration)
+    pbar = tqdm.tqdm(total=int(config.duration / config.resolution))
     while i < config.duration:
         constellation.step(i)
         i += config.resolution
-        pbar.update(config.resolution)
+        pbar.update(1)
 
     # serialize the state
     serializer.persist()

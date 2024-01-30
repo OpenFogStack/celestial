@@ -18,7 +18,7 @@ Celestial...
 
 - ...creates Firecracker microVMs with your custom kernel and filesystem
 - ...modifies network connections for a realistic network condition
-- ...let's you define a bounding box on earth, so you only need to emulate
+- ...lets you define a bounding box on earth, so you only need to emulate
   satellites that you're actually interested in
 - ...creates/suspends microVMs as they move in to/out of your bounding box
 - ...has APIs for your satellites to retrieve some meta-information
@@ -27,7 +27,6 @@ Check out [`celestial-videoconferencing-evaluation`](https://github.com/OpenFogS
 for an example application on Celestial!
 Also check out the [`celestial-buoy-evaluation`](https://github.com/OpenFogStack/celestial-buoy-evaluation)
 and the [`celestial-twissandra-evaluation`](https://github.com/OpenFogStack/celestial-twissandra-evaluation).
-Even more examples can be found in [the `examples` directory](https://github.com/OpenFogStack/celestial/tree/main/examples).
 
 **A word of caution**: you can technically run the server-side software on any
 computer you want, but it requires root access to fiddle with your network settings.
@@ -47,10 +46,18 @@ for the LEO Edge**, 23rd ACM/IFIP International Middleware Conference
 </div>
 ```bibtex
 @inproceedings{pfandzelter2022celestial,
-    title = "Celestial: Virtual Software System Testbeds for the LEO Edge",
-    booktitle = "23rd ACM/IFIP International Middleware Conference (Middleware '22)",
     author = "Pfandzelter, Tobias and Bermbach, David",
-    year = 2022
+    title = "Celestial: Virtual Software System Testbeds for the LEO Edge",
+    booktitle = "Proceedings of the 23rd ACM/IFIP International Middleware Conference",
+    pages = "69--81",
+    month = nov,
+    year = 2022,
+    publisher = "Association for Computing Machinery",
+    address = "New York, NY, USA",
+    series = "Middleware '22",
+    location = "Quebec, QC, Canada",
+    url = "https://doi.org/10.1145/3528535.3531517",
+    doi = "10.1145/3528535.3531517"
 }
 ```
 

@@ -80,7 +80,9 @@ def MachineID_name(machine_id: MachineID_dtype) -> str:
     return machine_id[2]
 
 
-Link_dtype = typing.Tuple[np.uint32, np.uint32, np.bool_, MachineID_dtype]
+Link_dtype = typing.Tuple[
+    np.uint32, np.uint32, np.bool_, MachineID_dtype, MachineID_dtype
+]
 
 
 def Link(
@@ -88,6 +90,7 @@ def Link(
     bandwidth_kbits: int,
     blocked: bool,
     next_hop: MachineID_dtype,
+    prev_hop: MachineID_dtype,
 ) -> Link_dtype:
     """
     Generate a link from a latency, a bandwidth, a blocked flag and a next hop.
@@ -102,6 +105,7 @@ def Link(
         np.uint32(bandwidth_kbits),
         np.bool_(blocked),
         next_hop,
+        prev_hop,
     )
 
 
@@ -143,6 +147,16 @@ def Link_next_hop(link: Link_dtype) -> MachineID_dtype:
     :return: The next hop of the link.
     """
     return link[3]
+
+
+def Link_prev_hop(link: Link_dtype) -> MachineID_dtype:
+    """
+    Get the previous hop of a link.
+
+    :param link: The link.
+    :return: The previous hop of the link.
+    """
+    return link[4]
 
 
 MachineState = typing.Dict[

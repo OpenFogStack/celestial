@@ -25,12 +25,9 @@ chronyc tracking
 # everything that is sent to stdout will be sent to our file
 echo "STARTING VALIDATOR"
 
-# let's get the gateway IP by parsing "/sbin/ip route"
-IP=$(/sbin/ip route | awk '/default/ { print $3 }')
-
 # the validation script should know where it can find the HTTP server
 # (at our gateway)
-python3 validator.py "$IP"
+python3 validator.py info.celestial
 
 while true; do
     echo "$(date): satellite server running"

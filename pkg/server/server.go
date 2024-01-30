@@ -19,9 +19,11 @@ package server
 
 import (
 	"context"
+	"io"
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/OpenFogStack/celestial/pkg/peer"
@@ -51,6 +53,8 @@ func New(o *orchestrator.Orchestrator, pb PeeringBackend) *Server {
 }
 
 func (s *Server) Stop(_ context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
+	log.Debug("server: received stop request")
+
 	err := s.o.Stop()
 	if err != nil {
 		return nil, err
@@ -69,6 +73,8 @@ func (s *Server) Stop(_ context.Context, _ *celestial.Empty) (*celestial.Empty, 
 }
 
 func (s *Server) Register(_ context.Context, request *celestial.RegisterRequest) (*celestial.RegisterResponse, error) {
+	log.Debugf("server: received register request for host %d", request.Host)
+
 	cpus, ram, err := s.o.GetResources()
 
 	if err != nil {
@@ -90,6 +96,8 @@ func (s *Server) Register(_ context.Context, request *celestial.RegisterRequest)
 }
 
 func (s *Server) Init(_ context.Context, request *celestial.InitRequest) (*celestial.Empty, error) {
+	log.Debug("server: received init request")
+
 	machineList := make(map[orchestrator.MachineID]orchestrator.MachineConfig)
 	machineHosts := make(map[orchestrator.MachineID]orchestrator.Host)
 
@@ -114,11 +122,11 @@ func (s *Server) Init(_ context.Context, request *celestial.InitRequest) (*celes
 	machineNames := make(map[orchestrator.MachineID]string)
 
 	for _, machine := range request.Machines {
-		if machine.Id.Name != nil {
+		if machine.Name != nil {
 			machineNames[orchestrator.MachineID{
 				Group: uint8(machine.Id.Group),
 				Id:    machine.Id.Id,
-			}] = *machine.Id.Name
+			}] = *machine.Name
 		}
 	}
 
@@ -131,75 +139,118 @@ func (s *Server) Init(_ context.Context, request *celestial.InitRequest) (*celes
 		}
 	}
 
+	log.Debug("initializing peering backend")
 	err := s.pb.InitPeering(hostList)
 
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("peering backend initialized")
 
+	log.Debug("initializing orchestrator")
 	err = s.o.Initialize(machineList, machineHosts, machineNames)
 
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("orchestrator initialized")
 
 	return &celestial.Empty{}, nil
 }
 
-func (s *Server) Update(_ context.Context, request *celestial.UpdateRequest) (*celestial.Empty, error) {
+func (s *Server) Update(stream celestial.Celestial_UpdateServer) error {
+
+	log.Debug("server: received update stream")
+
+	parseStart := time.Now()
 
 	ns := make(orchestrator.NetworkState)
-
-	for _, n := range request.NetworkDiffs {
-		id := orchestrator.MachineID{
-			Group: uint8(n.Id.Group),
-			Id:    n.Id.Id,
-		}
-
-		ns[id] = make(map[orchestrator.MachineID]*orchestrator.Link)
-
-		for _, l := range n.Links {
-			target := orchestrator.MachineID{
-				Group: uint8(l.Target.Group),
-				Id:    l.Target.Id,
-			}
-
-			//log.Debugf("link from %s to %s: %v", id.String(), target.String(), l)
-
-			if l.Blocked {
-				ns[id][target] = &orchestrator.Link{
-					Blocked: true,
-				}
-				continue
-			}
-
-			ns[id][target] = &orchestrator.Link{
-				Latency:   l.Latency,
-				Bandwidth: l.Bandwidth,
-				Blocked:   false,
-				Next: orchestrator.MachineID{
-					Group: uint8(l.Next.Group),
-					Id:    l.Next.Id,
-				},
-			}
-		}
-	}
-
 	ms := make(map[orchestrator.MachineID]orchestrator.MachineState)
 
-	for _, m := range request.MachineDiffs {
-		id := orchestrator.MachineID{
-			Group: uint8(m.Id.Group),
-			Id:    m.Id.Id,
+	// updates are streamed to us, we need to iterate until the stream ends
+	for update, err := stream.Recv(); err != io.EOF; update, err = stream.Recv() {
+
+		if err != nil {
+			return errors.WithStack(err)
 		}
 
-		switch m.Active {
-		case celestial.VMState_VM_STATE_ACTIVE:
-			ms[id] = orchestrator.ACTIVE
-		case celestial.VMState_VM_STATE_STOPPED:
-			ms[id] = orchestrator.STOPPED
+		// not a fan of the indentation but we need to check
+		// for nil here...
+		if update.NetworkDiffs != nil {
+			for _, n := range update.NetworkDiffs {
+				a := orchestrator.MachineID{
+					Group: uint8(n.Id.Group),
+					Id:    n.Id.Id,
+				}
+
+				if _, ok := ns[a]; !ok {
+					ns[a] = make(map[orchestrator.MachineID]*orchestrator.Link)
+				}
+
+				for _, l := range n.Links {
+					b := orchestrator.MachineID{
+						Group: uint8(l.Target.Group),
+						Id:    l.Target.Id,
+					}
+
+					if _, ok := ns[b]; !ok {
+						ns[b] = make(map[orchestrator.MachineID]*orchestrator.Link)
+					}
+
+					if l.Blocked {
+						ns[a][b] = &orchestrator.Link{
+							Blocked: true,
+						}
+						ns[b][a] = &orchestrator.Link{
+							Blocked: true,
+						}
+
+						continue
+					}
+
+					ns[a][b] = &orchestrator.Link{
+						Latency:   l.Latency,
+						Bandwidth: l.Bandwidth,
+						Blocked:   false,
+						Next: orchestrator.MachineID{
+							Group: uint8(l.Next.Group),
+							Id:    l.Next.Id,
+						},
+					}
+					ns[b][a] = &orchestrator.Link{
+						Latency:   l.Latency,
+						Bandwidth: l.Bandwidth,
+						Blocked:   false,
+						Next: orchestrator.MachineID{
+							Group: uint8(l.Prev.Group),
+							Id:    l.Prev.Id,
+						},
+					}
+
+				}
+			}
+		}
+
+		if update.MachineDiffs == nil {
+			continue
+		}
+
+		for _, m := range update.MachineDiffs {
+			id := orchestrator.MachineID{
+				Group: uint8(m.Id.Group),
+				Id:    m.Id.Id,
+			}
+
+			switch m.Active {
+			case celestial.VMState_VM_STATE_ACTIVE:
+				ms[id] = orchestrator.ACTIVE
+			case celestial.VMState_VM_STATE_STOPPED:
+				ms[id] = orchestrator.STOPPED
+			}
 		}
 	}
+
+	log.Debugf("parse time: %v", time.Now().Sub(parseStart))
 
 	err := s.o.Update(&orchestrator.State{
 		NetworkState:  ns,
@@ -207,8 +258,8 @@ func (s *Server) Update(_ context.Context, request *celestial.UpdateRequest) (*c
 	})
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &celestial.Empty{}, nil
+	return stream.SendAndClose(&celestial.Empty{})
 }
