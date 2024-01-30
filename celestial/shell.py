@@ -94,6 +94,7 @@ PATH_DTYPE = np.dtype(
     [
         ("active", np.bool_),  # can this link be active?
         ("next_hop", np.int16),  # the next node in the path
+        ("prev_hop", np.int16),  # the previous node in the path
         ("bandwidth_kbits", np.uint32),  # distance of the link in meters
         ("delay_us", np.uint32),  # delay of this link in microseconds
     ]
@@ -176,6 +177,8 @@ class Shell:
 
         self.total_gst = len(ground_stations)
 
+        self.machine_ids: typing.List[celestial.types.MachineID_dtype] = []
+
         self.gst_array = np.zeros(self.total_gst, dtype=GROUNDPOINT_DTYPE)
 
         self.gst_names: typing.List[str] = [""] * self.total_gst
@@ -203,6 +206,10 @@ class Shell:
                 self.satellites_array[unique_id]["ID"] = np.int16(unique_id)
                 self.satellites_array[unique_id]["plane_number"] = np.int16(plane)
                 self.satellites_array[unique_id]["offset_number"] = np.int16(node)
+
+                self.machine_ids.append(
+                    celestial.types.MachineID(group=self.shell_identifier, id=unique_id)
+                )
 
         self.solver = celestial.sgp4_solver.SGP4Solver(
             planes=self.number_of_planes,
@@ -309,36 +316,37 @@ class Shell:
         )[0]
 
         for link in path_diff[:total_link_diff]:
-            n1 = (
-                celestial.types.MachineID(self.shell_identifier, link["node_1"])
-                if link["node_1"] < self.total_sats
-                else celestial.types.MachineID(
-                    group=0,
-                    id=link["node_1"] - self.total_sats,
-                    name=self.gst_names[link["node_1"] - self.total_sats],
-                )
-            )
+            n1 = self._get_machine_id(link["node_1"])
 
-            n2 = (
-                celestial.types.MachineID(self.shell_identifier, link["node_2"])
-                if link["node_2"] < self.total_sats
-                else celestial.types.MachineID(
-                    group=0,  # leaky abstraction but it works
-                    id=link["node_2"] - self.total_sats,
-                    name=self.gst_names[link["node_2"] - self.total_sats],
-                )
-            )
+            n2 = self._get_machine_id(link["node_2"])
 
             self.link_diff.setdefault(n1, {})[n2] = celestial.types.Link(
                 latency_us=link["path"]["delay_us"],
                 bandwidth_kbits=link["path"]["bandwidth_kbits"],
                 blocked=not link["path"]["active"],
-                next_hop=celestial.types.MachineID(
-                    group=self.shell_identifier, id=link["path"]["next_hop"]
-                ),
+                next_hop=self._get_machine_id(link["path"]["next_hop"]),
+                prev_hop=self._get_machine_id(link["path"]["prev_hop"]),
             )
 
             self.curr_paths[link["node_1"]][link["node_2"]] = link["path"]
+
+    def _get_machine_id(self, node: int) -> celestial.types.MachineID_dtype:
+        """
+        Get the machine ID of a node.
+
+        :param node: The node.
+        :return: The machine ID of the node.
+        """
+        # return (
+        #     celestial.types.MachineID(group=self.shell_identifier, id=node)
+        #     if node < self.total_sats
+        #     else celestial.types.MachineID(
+        #         group=0,  # leaky abstraction but it works
+        #         id=node - self.total_sats,
+        #         name=self.gst_names[node - self.total_sats],
+        #     )
+        # )
+        return self.machine_ids[node]
 
     def get_sat_node_diffs(self) -> celestial.types.MachineDiff:
         """
@@ -493,6 +501,10 @@ class Shell:
 
             self.gst_names[i] = g.name
 
+            self.machine_ids.append(
+                celestial.types.MachineID(group=0, id=i, name=g.name)
+            )
+
             self.gst_array[i] = temp[0]
 
     def _calculate_max_ISL_distance(self) -> int:
@@ -626,7 +638,7 @@ class Shell:
         for isl_idx in range(total_isl_links):
             sat_1 = link_array[isl_idx]["node_1"]
             sat_2 = link_array[isl_idx]["node_2"]
-            d = int(
+            d = np.uint32(
                 math.sqrt(
                     math.pow(
                         satellites_array[sat_1]["x"] - satellites_array[sat_2]["x"], 2
@@ -644,11 +656,11 @@ class Shell:
 
         gst_link_id = 0
         for gst in gst_array:
-            shortest_d = np.inf
+            shortest_d = np.uint32(np.inf)
 
             for sat_idx in range(total_sats):
                 # calculate distance
-                d = int(
+                d = np.uint32(
                     math.sqrt(
                         math.pow(satellites_array[sat_idx]["x"] - gst["x"], 2)
                         + math.pow(satellites_array[sat_idx]["y"] - gst["y"], 2)
@@ -669,7 +681,7 @@ class Shell:
                         continue
 
                     # but can't overwrite if we're haven't written anything yet
-                    if shortest_d != np.inf:
+                    if shortest_d != np.uint32(np.inf):
                         gst_link_id -= 1
 
                     shortest_d = d
@@ -720,8 +732,8 @@ class Shell:
         """
         Actual implementation of _update_paths optimized with numba.
         """
-        dist_matrix = np.zeros((total_sats, total_sats), dtype=np.float64)
-        next_hops = np.zeros((total_sats, total_sats), dtype=np.int16)
+        dist_matrix = np.empty((total_sats, total_sats), dtype=np.float32)
+        next_hops = np.empty((total_sats, total_sats), dtype=np.int16)
 
         for i in range(total_sats):
             for j in range(total_sats):
@@ -732,47 +744,87 @@ class Shell:
             if not link["active"]:
                 continue
 
-            dist_matrix[link["node_1"], link["node_2"]] = link["distance_m"]
+            dist_matrix[link["node_1"], link["node_2"]] = np.float32(link["distance_m"])
+            dist_matrix[link["node_2"], link["node_1"]] = np.float32(link["distance_m"])
             next_hops[link["node_1"], link["node_2"]] = link["node_2"]
+            next_hops[link["node_2"], link["node_1"]] = link["node_1"]
 
         for i in range(total_sats):
             dist_matrix[i, i] = 0
             next_hops[i, i] = i
 
         # Floyd-Warshall algorithm
+        # Note that with numba, this is slightly faster than scipy for large
+        # matrices. But it's only half a second or so for 1584 nodes.
         for k in range(total_sats):
             for i in range(total_sats):
-                # it should be possible to optimize this for symmetric graphs
+                # we can optimize this for symmetrics matrices
+                # see fw_test.py for some tests on this
                 for j in range(i + 1, total_sats):
-                    if dist_matrix[i, j] > dist_matrix[i, k] + dist_matrix[k, j]:
-                        dist_matrix[i, j] = dist_matrix[i, k] + dist_matrix[k, j]
+                    d_ik = dist_matrix[i, k]
+                    d_kj = dist_matrix[k, j]
+
+                    if dist_matrix[i, j] > d_ik + d_kj:
+                        dist_matrix[i, j] = d_ik + d_kj
+                        dist_matrix[j, i] = d_ik + d_kj
                         next_hops[i, j] = next_hops[i, k]
+                        next_hops[j, i] = next_hops[j, k]
 
         for i in range(total_sats):
             for j in range(i + 1, total_sats):
-                path_matrix[i, j]["active"] = dist_matrix[i, j] != np.inf
-                path_matrix[i, j]["next_hop"] = np.int16(next_hops[i, j])
-                path_matrix[i, j]["delay_us"] = np.uint32(
-                    dist_matrix[i, j] * (LINK_PROPAGATION_S_M * 1e6)
-                )
-                # print(path_matrix[i, j]["delay_us"])
-                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(isl_bandwidth_kbits)
+                # if i == j:
+                # continue
+
+                active = dist_matrix[i, j] != np.inf
+                path_matrix[i, j]["active"] = active
+                # path_matrix[j, i]["active"] = active
+
+                path_matrix[i, j]["next_hop"] = np.int16(
+                    next_hops[i, j]
+                )  # will be -1 if inactive
+                path_matrix[i, j]["prev_hop"] = np.int16(
+                    next_hops[j, i]
+                )  # will be -1 if inactive
+
+                d = np.uint32(dist_matrix[i, j] * (LINK_PROPAGATION_S_M * 1e6))
+                path_matrix[i, j]["delay_us"] = d  # will be inf if inactive
+                # path_matrix[j, i]["delay_us"] = d  # will be inf if inactive
+
+                b = np.uint32(isl_bandwidth_kbits)
+                path_matrix[i, j]["bandwidth_kbits"] = b
+                # path_matrix[j, i]["bandwidth_kbits"] = b
+
+        g_valid_link_lens = np.zeros(total_gst, dtype=np.uint16)
+        g_valid_links = np.zeros((total_gst, total_gst_links), dtype=np.uint16)
 
         for g in range(total_gst):
+            for x in range(total_gst_links):
+                if gst_links_array[x]["gst"] != gst_array[g]["ID"]:
+                    continue
+
+                g_valid_links[g][g_valid_link_lens[g]] = x
+                g_valid_link_lens[g] += 1
+
+        for g in range(total_gst):
+            # I think this part could easily be parallelized, but numba does not
+            # want it!
             for s1 in range(total_sats):
-                _min_dist = np.inf
+                _min_dist = np.float32(np.inf)
                 _min_x = -1
 
-                for x in range(total_gst_links):
-                    if gst_links_array[x]["gst"] != gst_array[g]["ID"]:
-                        # print(
-                        # f"path from gst {gst_links_array[x]['gst']} not relevant for {g}"
-                        # )
-                        continue
-
+                for x in g_valid_links[g, : g_valid_link_lens[g]]:
                     _s2 = gst_links_array[x]["sat"]
 
-                    d = dist_matrix[s1, _s2] if s1 < _s2 else dist_matrix[_s2, s1]
+                    # there is a direct uplink between gst and sat! use that
+                    if s1 == _s2:
+                        _min_dist = np.float32(gst_links_array[x]["distance_m"])
+                        _min_x = x
+                        break
+
+                    d = dist_matrix[s1, _s2]
+
+                    if d == np.float32(np.inf):
+                        continue
 
                     _path_dist = d + gst_links_array[x]["distance_m"]
 
@@ -785,61 +837,75 @@ class Shell:
                     # print("new min dist", _min_dist)
                     _min_x = x
 
-                    if _s2 == s1:
-                        break
-
                 i = g + total_sats
                 j = s1
 
+                # set both directions, sat->gs and gs->sat
                 path_matrix[i, j]["active"] = _min_x != -1
-                path_matrix[j, i]["active"] = _min_x != -1
+                # path_matrix[j, i]["active"] = _min_x != -1
 
+                # actually not active, can ignore the rest
                 if _min_x == -1:
                     continue
 
+                # from gs, next hop is simply the selected uplink sat
                 path_matrix[i, j]["next_hop"] = np.int16(gst_links_array[_min_x]["sat"])
+                # from sat, next hop is the next hop from sat to uplink sat
+                # unless it's the uplink sat itself, then it's the gs
+                if gst_links_array[_min_x]["sat"] == s1:
+                    path_matrix[i, j]["prev_hop"] = np.int16(i)
+                else:
+                    path_matrix[i, j]["prev_hop"] = np.int16(
+                        next_hops[s1, gst_links_array[_min_x]["sat"]]
+                    )  # will be -1 if inactive
 
-                path_matrix[i, j]["delay_us"] = np.uint32(
-                    _min_dist * (LINK_PROPAGATION_S_M * 1e6)
-                )
+                d = np.uint32(_min_dist * (LINK_PROPAGATION_S_M * 1e6))
+                path_matrix[i, j]["delay_us"] = d
+                # path_matrix[j, i]["delay_us"] = d
 
-                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(
+                b = np.uint32(
                     min(gst_array[g]["bandwidth_kbits"], isl_bandwidth_kbits)  # type: ignore
                 )
+                path_matrix[i, j]["bandwidth_kbits"] = b
+                # path_matrix[j, i]["bandwidth_kbits"] = b
 
         for g1 in range(total_gst):
             for g2 in range(g1 + 1, total_gst):
-                _min_dist = np.inf
+                _min_dist = np.float32(np.inf)
                 _min_x1 = -1
+                _min_x2 = -1
 
-                for x1 in range(total_gst_links):
-                    if gst_links_array[x1]["gst"] != g1:
-                        continue
-                    for x2 in range(total_gst_links):
+                for x1 in g_valid_links[g1, : g_valid_link_lens[g1]]:
+                    for x2 in g_valid_links[g2, : g_valid_link_lens[g2]]:
                         if gst_links_array[x2]["gst"] != g2:
                             continue
 
-                    _s1 = gst_links_array[x1]["sat"]
-                    _s2 = gst_links_array[x2]["sat"]
+                        _s1 = gst_links_array[x1]["sat"]
+                        _s2 = gst_links_array[x2]["sat"]
 
-                    d = dist_matrix[_s1, _s2] if _s1 < _s2 else dist_matrix[_s2, _s1]
+                        d = dist_matrix[_s1, _s2]
 
-                    path_dist = (
-                        d
-                        + gst_links_array[x1]["distance_m"]
-                        + gst_links_array[x2]["distance_m"]
-                    )
+                        if d == np.float32(np.inf):
+                            continue
 
-                    if path_dist >= _min_dist:
-                        continue
+                        path_dist = np.float32(
+                            d
+                            + gst_links_array[x1]["distance_m"]
+                            + gst_links_array[x2]["distance_m"]
+                        )
 
-                    _min_dist = path_dist
-                    _min_x1 = x1
+                        if path_dist >= _min_dist:
+                            continue
+
+                        _min_dist = path_dist
+                        _min_x1 = x1
+                        _min_x2 = x2
 
                 i = g1 + total_sats
                 j = g2 + total_sats
 
                 path_matrix[i, j]["active"] = _min_x1 != -1
+                # path_matrix[j, i]["active"] = _min_x1 != -1
 
                 if _min_x1 == -1:
                     continue
@@ -847,19 +913,24 @@ class Shell:
                 path_matrix[i, j]["next_hop"] = np.int16(
                     gst_links_array[_min_x1]["sat"]
                 )
-
-                path_matrix[i, j]["delay_us"] = np.uint32(
-                    _min_dist * (LINK_PROPAGATION_S_M * 1e6)
+                path_matrix[i, j]["prev_hop"] = np.int16(
+                    gst_links_array[_min_x2]["sat"]
                 )
-                print(path_matrix[i, j]["delay_us"])
 
-                path_matrix[i, j]["bandwidth_kbits"] = np.uint32(
+                d = np.uint32(_min_dist * (LINK_PROPAGATION_S_M * 1e6))
+                path_matrix[i, j]["delay_us"] = d
+                # path_matrix[j, i]["delay_us"] = d
+
+                b = np.uint32(
                     min(
                         gst_array[g1]["bandwidth_kbits"],
-                        isl_bandwidth_kbits,
                         gst_array[g2]["bandwidth_kbits"],
+                        isl_bandwidth_kbits,
                     )  # type: ignore
                 )
+
+                path_matrix[i, j]["bandwidth_kbits"] = d
+                # path_matrix[j, i]["bandwidth_kbits"] = d
 
     @staticmethod
     @numba.njit  # type: ignore
@@ -900,6 +971,11 @@ class Shell:
         for n1 in range(total_sats, total_sats + total_gst):
             for n2 in range(total_sats + total_gst):
                 if n1 == n2:
+                    continue
+
+                # don't add a path between two ground stations
+                # if b is smaller than b
+                if n2 >= total_sats and n1 > n2:
                     continue
 
                 p1 = curr_paths[n1][n2]

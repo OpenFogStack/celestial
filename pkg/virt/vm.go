@@ -46,7 +46,7 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 			// but keep it as registered only, so that it can be started if it ever transitions to STARTED
 			return nil
 		default:
-			log.Debugf("cannot transition %s from %d to %d", id, v.machines[id].state, state)
+			log.Tracef("cannot transition %s from %d to %d", id, v.machines[id].state, state)
 		}
 	case STARTED:
 		switch v.machines[id].state {
@@ -66,7 +66,7 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 			v.machines[id].state = STARTED
 			return nil
 		default:
-			log.Debugf("cannot transition %s from %d to %d", id, v.machines[id].state, state)
+			log.Tracef("cannot transition %s from %d to %d", id, v.machines[id].state, state)
 		}
 	case REGISTERED:
 		return errors.Errorf("cannot transition to REGISTERED")
@@ -85,7 +85,7 @@ func (v *Virt) transition(id orchestrator.MachineID, state state) error {
 			}
 			return nil
 		default:
-			log.Debugf("cannot transition %s from %d to %d", id, v.machines[id].state, state)
+			log.Tracef("cannot transition %s from %d to %d", id, v.machines[id].state, state)
 		}
 	}
 	return nil
@@ -119,7 +119,7 @@ func (v *Virt) register(id orchestrator.MachineID, m *machine, config orchestrat
 }
 
 func (v *Virt) killMachine(m *machine) error {
-	log.Debug("Killing machine ", m.name)
+	log.Trace("Killing machine ", m.name)
 
 	err := m.vm.StopVMM()
 
@@ -131,17 +131,17 @@ func (v *Virt) killMachine(m *machine) error {
 }
 
 func (v *Virt) suspendMachine(m *machine) error {
-	log.Debug("Suspending machine ", m.name)
+	log.Trace("Suspending machine ", m.name)
 	return m.vm.PauseVM(context.Background())
 }
 
 func (v *Virt) resumeMachine(m *machine) error {
-	log.Debug("Resuming machine ", m.name)
+	log.Trace("Resuming machine ", m.name)
 	return m.vm.ResumeVM(context.Background())
 }
 
 func (v *Virt) startMachine(m *machine) error {
-	log.Debug("Starting machine ", m.name)
+	log.Trace("Starting machine ", m.name)
 	// perform init tasks
 	err := m.initialize()
 

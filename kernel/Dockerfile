@@ -33,7 +33,7 @@ RUN apt-get update && \
     bison -y && \
     rm -rf /var/lib/apt/lists/*
 
-ARG KERNEL_VERSION="4.19.0"
+ARG KERNEL_VERSION="5.12.0"
 
 RUN git clone https://github.com/torvalds/linux.git /linux.git --branch v${KERNEL_VERSION} --depth 1
 WORKDIR /linux.git

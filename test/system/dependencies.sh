@@ -41,12 +41,12 @@ sudo apt-get install \
 
 # and we need firecracker on the machine
 # download the current release
-curl -fsSL -o firecracker-v1.5.0-x86_64.tgz \
-    https://github.com/firecracker-microvm/firecracker/releases/download/v1.5.0/firecracker-v1.5.0-x86_64.tgz
-tar -xvf firecracker-v1.5.0-x86_64.tgz
+curl -fsSL -o firecracker-v1.6.0-x86_64.tgz \
+    https://github.com/firecracker-microvm/firecracker/releases/download/v1.6.0/firecracker-v1.6.0-x86_64.tgz
+tar -xvf firecracker-v1.6.0-x86_64.tgz
 # and add the firecracker and jailer binaries
-sudo mv release-v1.5.0-x86_64/firecracker-v1.5.0-x86_64 /usr/local/bin/firecracker
-sudo mv release-v1.5.0-x86_64/seccompiler-bin-v1.5.0-x86_64 /usr/local/bin/jailer
+sudo mv release-v1.6.0-x86_64/firecracker-v1.6.0-x86_64 /usr/local/bin/firecracker
+sudo mv release-v1.6.0-x86_64/seccompiler-bin-v1.6.0-x86_64 /usr/local/bin/jailer
 
 sudo mv vmlinux-5.12.bin /celestial/vmlinux.bin
 

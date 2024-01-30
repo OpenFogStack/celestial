@@ -18,38 +18,38 @@
 package info
 
 type Identifier struct {
-	Shell uint8
-	ID    uint32
-	Name  string
+	Shell uint8  `json:"shell"`
+	ID    uint32 `json:"id"`
+	Name  string `json:"name,omitempty"`
 }
 
 type Node struct {
-	Type       string
-	Active     bool
-	Identifier Identifier
+	Type       string     `json:"type"`
+	Active     bool       `json:"active"`
+	Identifier Identifier `json:"identifier"`
 }
 
 type Shell struct {
-	Sats []Node
+	Sats []Node `json:"sats"`
 }
 
 type Constellation struct {
-	Shells         []Shell
-	Groundstations []Node
+	Shells         []Shell `json:"shells"`
+	Groundstations []Node  `json:"groundstations"`
 }
 
 type Segment struct {
-	Source    Identifier
-	Target    Identifier
-	Delay     uint32
-	Bandwidth uint64
+	Source    Identifier `json:"source"`
+	Target    Identifier `json:"target"`
+	Delay     uint32     `json:"delay,omitempty"`
+	Bandwidth uint64     `json:"bandwidth,omitempty"`
 }
 
 type Path struct {
-	Source    Identifier
-	Target    Identifier
-	Delay     uint32
-	Bandwidth uint64
-	Segments  []Segment
-	Blocked   bool
+	Source    Identifier `json:"source"`
+	Target    Identifier `json:"target"`
+	Delay     uint32     `json:"delay,omitempty"`
+	Bandwidth uint64     `json:"bandwidth,omitempty"`
+	Blocked   bool       `json:"blocked,omitempty"`
+	Segments  []Segment  `json:"segments"`
 }

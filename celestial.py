@@ -57,6 +57,8 @@ stop the emulation run and exit gracefully, including on the hosts.
 """
 
 import concurrent.futures
+import itertools
+import logging
 import signal
 import sys
 import time
@@ -67,13 +69,18 @@ import celestial.types
 import celestial.zip_serializer
 
 DEBUG = True
-
+DEFAULT_PORT = 1969
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         exit(
             "Usage: python3 celestial.py [celestial.zip] [host1_addr] [host2_addr] ... [hostN_addr]"
         )
+
+    if DEBUG:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     celestial_zip = sys.argv[1]
 
@@ -82,15 +89,22 @@ if __name__ == "__main__":
     config = serializer.config()
 
     host_addrs = sys.argv[2:]
+
+    for i in range(len(host_addrs)):
+        if ":" not in host_addrs[i]:
+            host_addrs[i] = f"{host_addrs[i]}:{DEFAULT_PORT}"
+
     hosts: typing.List[celestial.host.Host] = [
         celestial.host.Host(num=i, addr=host_addrs[i]) for i in range(len(host_addrs))
     ]
 
     # init the constellation
     # register the hosts
+    logging.info("Registering hosts...")
     with concurrent.futures.ThreadPoolExecutor() as e:
         for h in hosts:
             e.submit(h.register)
+    logging.info("Hosts registered!")
 
     inits = serializer.init_machines()
 
@@ -116,17 +130,21 @@ if __name__ == "__main__":
         count += 1
 
     # init the hosts
+    logging.info("Initializing hosts...")
+    init_request = celestial.host.make_init_request(hosts, machines)
     with concurrent.futures.ThreadPoolExecutor() as e:
         for h in hosts:
-            e.submit(h.init, hosts, machines)
+            e.submit(h.init, init_request).result()
+
+    logging.info("Hosts initialized!")
 
     def get_diff(
         t: celestial.types.timestamp_s,
     ) -> typing.Tuple[
-        typing.List[
+        typing.Iterator[
             typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
         ],
-        typing.List[
+        typing.Iterator[
             typing.Tuple[
                 celestial.types.MachineID_dtype,
                 celestial.types.MachineID_dtype,
@@ -134,42 +152,56 @@ if __name__ == "__main__":
             ]
         ],
     ]:
-        machine_diff = serializer.diff_machines(t)
-        link_diff = serializer.diff_links(t)
+        # we get iterators of the deserialized diffs
+        machine_diff_iter = serializer.diff_machines(t)
+        link_diff_iter = serializer.diff_links(t)
 
-        return (machine_diff, link_diff)
+        return (machine_diff_iter, link_diff_iter)
 
     # start the simulation
     timestep: celestial.types.timestamp_s = 0
-    machine_diff, link_diff = get_diff(timestep)
+    machine_diff_iter, link_diff_iter = get_diff(timestep)
     start_time = time.perf_counter()
-    print("starting simulation")
+    logging.info("Starting emulation...")
 
     # install sigterm handler
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
 
     try:
         while True:
-            print(f"timestep: {timestep}")
+            logging.info(f"Updating for timestep {timestep}")
 
+            # in order to have different threads read from the same iterator
+            # at their own pace, we have to tee them
+            # each thread will get a custom view of the iterator
+            machine_diff_iters = itertools.tee(machine_diff_iter, len(hosts))
+            link_diff_iters = itertools.tee(link_diff_iter, len(hosts))
             with concurrent.futures.ThreadPoolExecutor() as e:
-                for h in hosts:
-                    e.submit(h.update, machine_diff, link_diff)
+                for h in range(len(hosts)):
+                    e.submit(
+                        hosts[h].update,
+                        machine_diff_iters[h],
+                        link_diff_iters[h],
+                    ).result()
 
             timestep += config.resolution
 
             if timestep > config.duration:
                 break
 
-            print(f"getting update for timestep {timestep}")
-            machine_diff, link_diff = get_diff(timestep)
+            logging.debug(f"getting update for timestep {timestep}")
 
-            print(f"waiting for {timestep -(time.perf_counter() - start_time)} seconds")
+            # already getting the next timestep to be faster
+            machine_diff_iter, link_diff_iter = get_diff(timestep)
+
+            logging.debug(
+                f"waiting for {timestep -(time.perf_counter() - start_time)} seconds"
+            )
             while time.perf_counter() - start_time < timestep:
                 time.sleep(0.001)
 
     finally:
-        print("got keyboard interrupt, stopping...")
+        logging.info("got keyboard interrupt, stopping...")
         for h in hosts:
             h.stop()
-        print("finished")
+        logging.info("finished")

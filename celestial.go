@@ -1,3 +1,6 @@
+//go:build linux && amd64
+// +build linux,amd64
+
 /*
 * This file is part of Celestial (https://github.com/OpenFogStack/celestial).
 * Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
@@ -39,15 +42,15 @@ import (
 )
 
 const (
-	DEFAULT_PORT       = 1969
-	DEFAULT_DNS_PORT   = 1970
-	DEFAULT_INFO_PORT  = 80
-	PEER_WGPORT        = 3000
-	PEER_WGINTERFACE   = "wg0"
-	PEER_MASK          = "/26"
-	PEER_KEYPATH       = "/celestial/privatekey"
-	DEFAULT_IF         = "ens4"
-	DEFAULT_INIT_DELAY = 15
+	DEFAULT_PORT        = 1969
+	DEFAULT_PEER_WGPORT = 1970
+	DEFAULT_DNS_PORT    = 3000
+	DEFAULT_INFO_PORT   = 80
+	PEER_WGINTERFACE    = "wg0"
+	PEER_MASK           = "/26"
+	PEER_KEYPATH        = "/celestial/privatekey"
+	DEFAULT_IF          = "ens4"
+	DEFAULT_INIT_DELAY  = 15
 )
 
 func main() {
@@ -58,13 +61,18 @@ func main() {
 	networkInterface := flag.String("network-interface", DEFAULT_IF, "Name of your main network interface")
 	initDelay := flag.Uint64("init-delay", DEFAULT_INIT_DELAY, "Maximum delay when initially booting a machine -- can help reduce load at beginning of emulation")
 	debug := flag.Bool("debug", false, "Enable debug logging")
+	trace := flag.Bool("trace", false, "Enable trace logging")
 
 	flag.Parse()
 
-	log.SetLevel(log.WarnLevel)
+	log.SetLevel(log.InfoLevel)
 
 	if *debug {
 		log.SetLevel(log.DebugLevel)
+	}
+
+	if *trace {
+		log.SetLevel(log.TraceLevel)
 	}
 
 	// check that the network interface exists
@@ -76,7 +84,7 @@ func main() {
 
 	s := grpc.NewServer()
 
-	pb, err := peer.New(PEER_MASK, PEER_KEYPATH, PEER_WGINTERFACE, PEER_WGPORT)
+	pb, err := peer.New(PEER_MASK, PEER_KEYPATH, PEER_WGINTERFACE, DEFAULT_PEER_WGPORT)
 
 	if err != nil {
 		panic(err)
@@ -127,6 +135,8 @@ func main() {
 			panic(err.Error())
 		}
 	}()
+
+	log.Info("Celestial started!")
 
 	// listen for SIGINT
 	c := make(chan os.Signal, 1)

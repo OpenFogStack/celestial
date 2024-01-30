@@ -18,79 +18,93 @@
 #
 
 import sys
-import ping3
+import ping3  # type: ignore
 import typing
 import time
-import requests
+import requests  # type: ignore
+
+MAX_DELAY = 1e7
+TERM_RED = "\033[91m"
+TERM_GREEN = "\033[92m"
+TERM_END = "\033[0m"
 
 
 def get_id(gateway: str) -> str:
     try:
-        response = requests.get("http://%s/self" % gateway)
+        response = requests.get(f"http://{gateway}/self")
         data = response.json()
 
-        return data["name"]
+        return str(data["identifier"]["name"])
     except Exception:
         return ""
 
 
 def get_shell_num(gateway: str) -> int:
-    try:
-        while True:
-            response = requests.get("http://%s/info" % gateway)
+    while True:
+        try:
+            response = requests.get(f"http://{gateway}/info")
 
             if response.status_code != 200:
                 time.sleep(1.0)
                 continue
 
             data = response.json()
-            return data["shells"]
+            return len(data["shells"])
 
-    except Exception:
-        return 0
+        except Exception:
+            pass
 
 
-def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict]:
-    try:
-        active = []
+def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, int]]:
+    active = []
 
-        for s in range(shells):
-            response = requests.get("http://%s/shell/%d" % (gateway, s))
+    for s in range(1, shells + 1):
+        try:
+            response = requests.get(f"http://{gateway}/shell/{s}")
             data = response.json()
 
-            active.extend(data["activeSats"])
+            for sat in data["sats"]:
+                if sat["active"]:
+                    active.append(
+                        {
+                            "sat": sat["identifier"]["id"],
+                            "shell": sat["identifier"]["shell"],
+                        }
+                    )
 
-        return active
-    except Exception as e:
-        print(e)
-        return []
+        except Exception as e:
+            print(f"got error when trying to get active sats in {s} info {e}")
+
+    return active
 
 
-def get_expected_latency(id: str, sat: int, shell: int, gateway: str) -> float:
+def get_expected_latency(
+    self_id: str, sat: int, shell: int, gateway: str
+) -> typing.Union[float, bool]:
     try:
-        response = requests.get(
-            "http://%s/path/gst/%s/%d/%d" % (gateway, id, shell, sat)
-        )
+        response = requests.get(f"http://{gateway}/path/gst/{self_id}/{shell}/{sat}")
 
         data = response.json()
 
-        min_delay = 1e7
+        if data["blocked"]:
+            return MAX_DELAY
 
-        for p in data["paths"]:
-            min_delay = min(p["delay"], min_delay)
+        return float(data["delay"]) / 1e3  # convert to ms
 
-        return min_delay
-    except Exception:
-        return 1e7
+    except Exception as e:
+        print(
+            f"got error when trying to get expected latency for sat {sat} shell {shell} {e}"
+        )
+        return MAX_DELAY
 
 
 def get_real_latency(sat: int, shell: int) -> float:
-    act = ping3.ping("%d.%d.celestial" % (sat, shell), unit="ms")
+    act = ping3.ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
 
-    if act is None or act == False:
-        return 1e7
+    if act is None or act is False:
+        return MAX_DELAY
 
-    return act
+    return float(act)
 
 
 if __name__ == "__main__":
@@ -100,11 +114,11 @@ if __name__ == "__main__":
     gateway = sys.argv[1]
 
     with open("validator.csv", "w") as f:
-        f.write(
-            "t,shell,sat,expected_before,expected_after,actual_med,actual_avg,actual_max,actual_min,loss\n"
+        print(
+            "t,shell,sat,expected_before,expected_after,actual",
+            file=f,
+            flush=True,
         )
-
-        f.flush()
 
         id = get_id(gateway)
 
@@ -138,13 +152,13 @@ if __name__ == "__main__":
             time.sleep(5.0)
             active = get_active_sats(shells, gateway)
 
-            print("found %d active sats" % len(active))
+            print(f"found {len(active)} active sats")
 
             targets = active.copy()
             targets.extend(control_group)
 
             for sat in targets:
-                print("trying sat %d shell %d" % (sat["sat"], sat["shell"]))
+                print("trying sat {sat['sat']} shell {sat['shell']}")
 
                 expBef = get_expected_latency(id, sat["sat"], sat["shell"], gateway)
 
@@ -153,41 +167,21 @@ if __name__ == "__main__":
                 expAft = get_expected_latency(id, sat["sat"], sat["shell"], gateway)
 
                 # act can be a bit higher than 2*exp but never lower!
-                if 0 <= act - (expAft * 2) <= 5 or (expAft == 1e7 and act == 1e7):
+                if 0 <= act - (expAft * 2) <= 5 or (
+                    expAft == MAX_DELAY and act == MAX_DELAY
+                ):
                     # good
                     print(
-                        "\033[92mexpect %f/%f for sat %d shell %d and found %f\033[0m"
-                        % (expBef, expAft, sat["sat"], sat["shell"], act)
+                        f"{TERM_GREEN}expect {expBef}/{expAft} for sat {sat['sat']} shell {sat['shell']} and found {act}{TERM_END}"
                     )
                 else:
                     # bad
                     print(
-                        "\033[91mexpect %f/%f for sat %d shell %d and found %f\033[0m"
-                        % (expBef, expAft, sat["sat"], sat["shell"], act)
+                        f"{TERM_RED}expect {expBef}/{expAft} for sat {sat['sat']} shell {sat['shell']} and found {act}{TERM_END}"
                     )
 
-                o = ""
-                o += str(time.time())
-                o += ","
-                o += str(sat["shell"])
-                o += ","
-                o += str(sat["sat"])
-                o += ","
-                o += str(expBef)
-                o += ","
-                o += str(expAft)
-                o += ","
-                o += str(act)
-                o += ","
-                o += str(act)
-                o += ","
-                o += str(act)
-                o += ","
-                o += str(act)
-                o += ","
-                o += str(act)
-                o += "\n"
-
-                f.write(o)
-
-                f.flush()
+                print(
+                    f"{time.time()},{sat['shell']},{sat['sat']},{expBef},{expAft},{act}",
+                    file=f,
+                    flush=True,
+                )

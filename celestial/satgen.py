@@ -30,7 +30,7 @@ import celestial.shell
 DELAY_UPDATE_THRESHOLD_US = 500
 
 
-class Constellation:
+class SatgenConstellation:
     """
     A constellation of satellite shells that takes updates and sends them to
     the serializer
@@ -102,7 +102,11 @@ class Constellation:
         self.links_state = {
             m1: {
                 m2: celestial.types.Link(
-                    latency_us=0, bandwidth_kbits=0, blocked=False, next_hop=m1
+                    latency_us=0,
+                    bandwidth_kbits=0,
+                    blocked=False,
+                    next_hop=m1,
+                    prev_hop=m2,
                 )
                 for m2 in self.nodes.keys()
                 if m1 != m2

@@ -1,0 +1,2 @@
+{"rule":"COMMA_PARENTHESIS_WHITESPACE","sentence":"^\\Q{: .text-yellow-300 } Disclaimer: Using Google Cloud Platform (or any other cloud service) can incur costs.\\E$"}
+{"rule":"COMMA_PARENTHESIS_WHITESPACE","sentence":"^\\Q{: .text-red-200 } Warning: We will be starting a few cloud machines in this tutorial!\\E$"}

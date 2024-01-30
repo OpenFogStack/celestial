@@ -23,7 +23,7 @@ option go_package = "./;celestial";
 service Celestial {
     rpc Register(RegisterRequest) returns (RegisterResponse);
     rpc Init(InitRequest) returns (Empty);
-    rpc Update(UpdateRequest) returns (Empty);
+    rpc Update(stream StateUpdateRequest) returns (Empty);
     rpc Stop(Empty) returns (Empty);
 }
 
@@ -35,8 +35,6 @@ enum VMState {
 message MachineID {
     uint32 group = 1;
     uint32 id = 2;
-    // ignored for non-groundstations
-    optional string name = 3;
 }
 
 message Empty {}
@@ -72,27 +70,29 @@ message InitRequest {
         }
 
         MachineID id = 1;
+        optional string name = 2;
         // should actually be 8 bit but protobuf doesn't support uint8...
-        uint32 host = 2;
-        MachineConfig config = 3;
+        uint32 host = 3;
+        MachineConfig config = 4;
     }
 
     repeated Machine machines = 2;
 }
 
-message UpdateRequest {
+message StateUpdateRequest {
     message MachineDiff {
-        MachineID id = 1;
-        VMState active = 2;
+        VMState active = 1;
+        MachineID id = 2;
     }
     message NetworkDiff {
         message Link {
-            MachineID target = 1;
+            bool blocked = 1;
             uint32 latency = 2;
             uint64 bandwidth = 3;
-            bool blocked = 4;
+            MachineID target = 4;
             // used for path reconstruction
             MachineID next = 5;
+            MachineID prev = 6;
         }
 
         MachineID id = 1;

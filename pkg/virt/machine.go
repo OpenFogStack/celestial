@@ -38,8 +38,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func init() {
+	// Thank you Firecracker for having to set this with an env variable
+	err := os.Setenv("FIRECRACKER_GO_SDK_REQUEST_TIMEOUT_MILLISECONDS", "10000")
+	if err != nil {
+		panic(err)
+	}
+
+	err = os.Setenv("FIRECRACKER_GO_SDK_INIT_TIMEOUT_SECONDS", "5")
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (m *machine) createNetwork() error {
-	log.Debugf("creating network for %s", m.network.ip.String())
+	log.Tracef("creating network for %s", m.network.ip.String())
 	// remove old network tap if exists
 	// don't care about errors here
 	_ = removeNetworkDevice(m.network.tap, HOST_INTERFACE)
@@ -136,21 +149,19 @@ func (m *machine) initialize() error {
 		return errors.WithStack(err)
 	}
 
-	loglevel := "DEBUG"
+	loglevel := "ERROR"
 
+	// unfortunately Firecracker is incredibly verbose
 	switch log.GetLevel() {
-	case log.DebugLevel:
-		loglevel = "DEBUG"
-	case log.InfoLevel:
-		loglevel = "INFO"
-	case log.ErrorLevel:
-		loglevel = "ERROR"
+	case log.TraceLevel:
+		loglevel = "TRACE"
 	default:
-		loglevel = "DEBUG"
+		loglevel = "ERROR"
 	}
 
 	// magic!
-	bootparams := "init=/sbin/ceinit ro console=ttyS0 noapic reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb"
+	// see: https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html
+	bootparams := "init=/sbin/ceinit ro console=ttyS0 noapic acpi=off reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb loglevel=3"
 
 	for _, param := range m.bootparams {
 		bootparams += " " + param
@@ -181,6 +192,15 @@ func (m *machine) initialize() error {
 		LogLevel:          loglevel,
 		NetworkInterfaces: fcNetworkConfig,
 	}, firecrackerProcessRunner)
+
+	switch log.GetLevel() {
+	case log.TraceLevel:
+	default:
+		l := log.New()
+		l.SetLevel(log.WarnLevel)
+		firecracker.WithLogger(log.NewEntry(l))(vm)
+
+	}
 
 	if err != nil {
 		return errors.WithStack(err)

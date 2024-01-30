@@ -54,7 +54,11 @@ static __always_inline int parse_iphdr(struct hdr_cursor *nh,
     struct iphdr *iph = nh->pos;
     int hdrsize;
 
-    if (iph + 1 > data_end) // ignore compare-distinct-pointer-types warning
+// ignore compare-distinct-pointer-types warning
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcompare-distinct-pointer-types"
+    if (iph + 1 > data_end)
+#pragma GCC diagnostic pop
         return TC_ACT_SHOT;
 
     hdrsize = iph->ihl * 4;

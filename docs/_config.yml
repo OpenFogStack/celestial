@@ -31,7 +31,7 @@ aux_links:
   "Celestial on GitHub":
     - "//github.com/OpenFogStack/celestial"
 
-footer_content: "Copyright &copy; 2022 Tobias Pfandzelter, The OpenFogStack Team. Licensed under the terms of the <a href=\"https://github.com/OpenFogStack/celestial/tree/main/LICENSE\">GPLv3 license</a>."
+footer_content: "Copyright &copy; 2024 Tobias Pfandzelter, The OpenFogStack Team. Licensed under the terms of the <a href=\"https://github.com/OpenFogStack/celestial/tree/main/LICENSE\">GPLv3 license</a>."
 
 gh_edit_link: true # show or hide edit this page link
 gh_edit_link_text: "Edit this page on GitHub"

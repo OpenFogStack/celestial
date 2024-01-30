@@ -310,41 +310,72 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sourceShell, err := strconv.ParseUint(v["source_shell"], 10, 32)
+	var source orchestrator.MachineID
 
-	if err != nil {
-		errRes(w, http.StatusBadRequest, errors.Wrap(err, "could not parse source_shell"))
-		return
+	if v["source_shell"] == "gst" {
+		n, err := i.Orchestrator.InfoGetNodeByName(v["source_sat"])
+		if err != nil {
+			errRes(w, http.StatusNotFound, errors.Wrap(err, "could not find gst node"))
+			return
+		}
+		source = orchestrator.MachineID{
+			Group: n.ID.ID.Group,
+			Id:    n.ID.ID.Id,
+		}
+	} else {
+		sourceShell, err := strconv.ParseUint(v["source_shell"], 10, 32)
+
+		if err != nil {
+			errRes(w, http.StatusBadRequest, errors.Wrap(err, "could not parse source_shell"))
+			return
+		}
+
+		sourceSat, err := strconv.ParseUint(v["source_sat"], 10, 32)
+
+		if err != nil {
+			errRes(w, http.StatusBadRequest, errors.Wrap(err, "could not parse source_sat"))
+			return
+		}
+
+		source = orchestrator.MachineID{
+			Group: uint8(sourceShell),
+			Id:    uint32(sourceSat),
+		}
 	}
 
-	sourceSat, err := strconv.ParseUint(v["source_sat"], 10, 32)
+	var target orchestrator.MachineID
 
-	if err != nil {
-		errRes(w, http.StatusBadRequest, errors.Wrap(err, "could not parse source_sat"))
-		return
+	if v["target_shell"] == "gst" {
+		n, err := i.Orchestrator.InfoGetNodeByName(v["target_sat"])
+		if err != nil {
+			errRes(w, http.StatusNotFound, errors.Wrap(err, "could not find gst node"))
+			return
+		}
+		target = orchestrator.MachineID{
+			Group: n.ID.ID.Group,
+			Id:    n.ID.ID.Id,
+		}
+	} else {
+		targetShell, err := strconv.ParseUint(v["target_shell"], 10, 32)
+
+		if err != nil {
+			errRes(w, http.StatusBadRequest, errors.Wrap(err, "could not parse source_shell"))
+			return
+		}
+
+		targetSat, err := strconv.ParseUint(v["target_sat"], 10, 32)
+
+		if err != nil {
+			errRes(w, http.StatusBadRequest, errors.Wrap(err, "could not parse source_sat"))
+			return
+		}
+
+		target = orchestrator.MachineID{
+			Group: uint8(targetShell),
+			Id:    uint32(targetSat),
+		}
 	}
-
-	targetShell, err := strconv.ParseUint(v["target_shell"], 10, 32)
-
-	if err != nil {
-		errRes(w, http.StatusBadRequest, errors.Wrap(err, "could not parse target_shell"))
-		return
-	}
-
-	targetSat, err := strconv.ParseUint(v["target_sat"], 10, 32)
-
-	if err != nil {
-		errRes(w, http.StatusBadRequest, errors.Wrap(err, "could not parse target_sat"))
-		return
-	}
-
-	p, err := i.Orchestrator.InfoGetPath(orchestrator.MachineID{
-		Group: uint8(sourceShell),
-		Id:    uint32(sourceSat),
-	}, orchestrator.MachineID{
-		Group: uint8(targetShell),
-		Id:    uint32(targetSat),
-	})
+	p, err := i.Orchestrator.InfoGetPath(source, target)
 
 	if err != nil {
 		errRes(
@@ -352,7 +383,7 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError,
 			errors.Wrap(
 				err,
-				fmt.Sprintf("could not find path between (%d, %d) and (%d, %d)", sourceShell, sourceSat, targetShell, targetSat),
+				fmt.Sprintf("could not find path between %s and %s", source, target),
 			),
 		)
 		return
@@ -380,8 +411,8 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 		s.Segments = make([]Segment, len(p.Segments))
 
 		for j, seg := range p.Segments {
-			sourceName, _ = i.Orchestrator.InfoGetNodeNameByID(p.Source)
-			targetName, _ = i.Orchestrator.InfoGetNodeNameByID(p.Target)
+			sourceName, _ = i.Orchestrator.InfoGetNodeNameByID(seg.Source)
+			targetName, _ = i.Orchestrator.InfoGetNodeNameByID(seg.Target)
 
 			s.Segments[j] = Segment{
 				Source: Identifier{

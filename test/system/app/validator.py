@@ -37,9 +37,9 @@ def get_id(gateway: str) -> typing.Tuple[str, str]:
             print(f"get_id {data}")
 
         return (
-            ("gst", str(data["Identifier"]["Name"]))
-            if "name" in data["Identifier"]
-            else (data["Identifier"]["Shell"], data["Identifier"]["ID"])
+            ("gst", str(data["identifier"]["name"]))
+            if "name" in data["identifier"] and data["identifier"]["name"] != ""
+            else (str(data["identifier"]["shell"]), str(data["identifier"]["id"]))
         )
     except Exception as e:
         print(f"got error when trying to get self info {e}")
@@ -60,14 +60,35 @@ def get_shell_num(gateway: str) -> int:
             if DEBUG:
                 print(f"get_shell_num {data}")
 
-            return len(data["Shells"])
+            return len(data["shells"])
 
     except Exception as e:
         print(f"got error when trying to get shell info {e}")
         return 0
 
 
-def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, int]]:
+def get_gst(gateway: str) -> typing.List[str]:
+    try:
+        while True:
+            response = requests.get(f"http://{gateway}/info")
+
+            if response.status_code != 200:
+                time.sleep(1.0)
+                continue
+
+            data = response.json()
+
+            if DEBUG:
+                print(f"get_gst {data}")
+
+            return [g["identifier"]["name"] for g in data["groundstations"]]
+
+    except Exception as e:
+        print(f"got error when trying to get shell info {e}")
+        return []
+
+
+def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, str]]:
     active = []
 
     for s in range(1, shells + 1):
@@ -78,12 +99,12 @@ def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, i
             if DEBUG:
                 print(f"get_active_sats {data}")
 
-            for sat in data["Sats"]:
-                if sat["Active"]:
+            for sat in data["sats"]:
+                if sat["active"]:
                     active.append(
                         {
-                            "sat": sat["Identifier"]["ID"],
-                            "shell": sat["Identifier"]["Shell"],
+                            "sat": str(sat["identifier"]["id"]),
+                            "shell": str(sat["identifier"]["shell"]),
                         }
                     )
 
@@ -94,9 +115,14 @@ def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, i
 
 
 def get_expected_latency(
-    self_shell: str, self_id: str, sat: int, shell: int, gateway: str
+    self_shell: str, self_id: str, shell: str, sat: str, gateway: str
 ) -> typing.Union[float, bool]:
-    if int(self_shell) == shell and int(self_id) == sat:
+    if DEBUG:
+        print(
+            f"get_expected_latency {self_shell} ({type(self_shell)}) {self_id} ({type(self_id)}) {shell} ({type(shell)}) {sat} ({type(sat)})"
+        )
+
+    if str(self_shell) == str(shell) and str(self_id) == str(sat):
         return 0.0
 
     try:
@@ -109,10 +135,10 @@ def get_expected_latency(
         if DEBUG:
             print(f"get_expected_latency {data}")
 
-        if data["Blocked"]:
+        if "blocked" in data and data["blocked"]:
             return False
 
-        return float(data["Delay"]) / 1e3
+        return float(data["delay"]) / 1e3
 
     except Exception as e:
         print(
@@ -121,12 +147,11 @@ def get_expected_latency(
         return False
 
 
-def get_real_latency(sat: int, shell: int) -> typing.Union[float, bool]:
-    if not DEBUG:
-        act = ping3.ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
-    else:
+def get_real_latency(sat: str, shell: str) -> typing.Union[float, bool]:
+    if DEBUG:
         try:
-            act = ping3.verbose_ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
+            _ = ping3.verbose_ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
+            return False
 
         except Exception as e:
             print(
@@ -134,10 +159,18 @@ def get_real_latency(sat: int, shell: int) -> typing.Union[float, bool]:
             )
             return False
 
-    if act is None or act is False:
-        return False
+    # send 4 pings and take the average
+    act = 0.0
+    n_pings = 4
+    for _ in range(n_pings):
+        p = ping3.ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
 
-    return float(act)
+        if p is None:
+            return False
+
+        act += float(p) / float(n_pings)
+
+    return act
 
 
 if __name__ == "__main__":
@@ -172,6 +205,11 @@ if __name__ == "__main__":
     if DEBUG:
         print(f"found {shells} shells")
 
+    gst = get_gst(gateway)
+
+    if DEBUG:
+        print(f"found gsts: {gst}")
+
     while True:
         time.sleep(1.0)
 
@@ -180,14 +218,16 @@ if __name__ == "__main__":
         if DEBUG:
             print(f"found {len(active)} active sats")
 
-        targets = [x for x in active if x["sat"] % 7 == 0]
+        targets = [x for x in active if int(x["sat"]) % 7 == 0] + [
+            {"sat": g, "shell": "gst"} for g in gst
+        ]
 
         for sat in targets:
-            expBef = get_expected_latency(shell, id, sat["sat"], sat["shell"], gateway)
+            expBef = get_expected_latency(shell, id, sat["shell"], sat["sat"], gateway)
 
             real_latency = get_real_latency(sat["sat"], sat["shell"])
 
-            expAft = get_expected_latency(shell, id, sat["sat"], sat["shell"], gateway)
+            expAft = get_expected_latency(shell, id, sat["shell"], sat["sat"], gateway)
 
             f.write(
                 f"{time.time()},{sat['shell']},{sat['sat']},{expBef},{expAft},{real_latency}\n"

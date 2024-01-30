@@ -1,3 +1,6 @@
+//go:build linux && amd64
+// +build linux,amd64
+
 /*
 * This file is part of Celestial (https://github.com/OpenFogStack/celestial).
 * Copyright (c) 2024 Soeren Becker, Nils Japke, Tobias Pfandzelter, The
@@ -71,7 +74,7 @@ func parseNetToLongs(target net.IPNet) ([]uint32, error) {
 			return nil, errors.Wrap(err, "cannot convert IP to uint32")
 		}
 		longs = append(longs, l)
-		//log.Debugf("Added IP %s as long %d", ip.String(), l)
+		//log.Tracef("Added IP %s as long %d", ip.String(), l)
 	}
 
 	// Add the last IP address in the subnet
@@ -81,7 +84,7 @@ func parseNetToLongs(target net.IPNet) ([]uint32, error) {
 	}
 
 	longs = append(longs, l)
-	//log.Debugf("Added IP %s as long %d", endIP.String(), l)
+	//log.Tracef("Added IP %s as long %d", endIP.String(), l)
 
 	return longs, nil
 }
@@ -111,7 +114,7 @@ func createClsactQdisc(iface netlink.Link) (*netlink.GenericQdisc, error) {
 	if err := netlink.QdiscAdd(qdisc); err != nil {
 		return nil, errors.Wrap(err, "Cannot add clsact qdisc")
 	}
-	log.Debugf("Added clsact qdisc %v", qdisc)
+	log.Tracef("Added clsact qdisc %v", qdisc)
 	return qdisc, nil
 }
 
@@ -135,7 +138,7 @@ func createFQdisc(iface netlink.Link) (*netlink.Fq, error) {
 	if err := netlink.QdiscAdd(fq); err != nil {
 		return nil, errors.Wrap(err, "Cannot add fq qdisc")
 	}
-	log.Debugf("Added fq qdisc %v", fq)
+	log.Tracef("Added fq qdisc %v", fq)
 	return fq, nil
 }
 
@@ -159,6 +162,6 @@ func createTCBpfFilter(iface netlink.Link, progFd int, parent uint32, name strin
 		return nil, errors.Wrap(err, "Cannot attach bpf object to filter")
 	}
 
-	log.Debugf("Created bpf filter: %v", filter)
+	log.Tracef("Created bpf filter: %v", filter)
 	return filter, nil
 }

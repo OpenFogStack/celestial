@@ -3,7 +3,7 @@
 isort:skip_file
 
 This file is part of Celestial (https://github.com/OpenFogStack/celestial).
-Copyright (c) 2021 Tobias Pfandzelter, The OpenFogStack Team.
+Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import abc
 import celestial_pb2
+import collections.abc
 import grpc
 
 class CelestialStub:
@@ -31,8 +32,8 @@ class CelestialStub:
         celestial_pb2.InitRequest,
         celestial_pb2.Empty,
     ]
-    Update: grpc.UnaryUnaryMultiCallable[
-        celestial_pb2.UpdateRequest,
+    Update: grpc.StreamUnaryMultiCallable[
+        celestial_pb2.StateUpdateRequest,
         celestial_pb2.Empty,
     ]
     Stop: grpc.UnaryUnaryMultiCallable[
@@ -56,7 +57,7 @@ class CelestialServicer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def Update(
         self,
-        request: celestial_pb2.UpdateRequest,
+        request_iterator: collections.abc.Iterator[celestial_pb2.StateUpdateRequest],
         context: grpc.ServicerContext,
     ) -> celestial_pb2.Empty: ...
     @abc.abstractmethod

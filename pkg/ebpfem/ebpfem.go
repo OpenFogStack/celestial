@@ -1,4 +1,5 @@
-//go:build amd64
+//go:build linux && amd64
+// +build linux,amd64
 
 /*
 * This file is part of Celestial (https://github.com/OpenFogStack/celestial).
@@ -60,14 +61,14 @@ func (e *EBPFem) Register(id orchestrator.MachineID, netIf string) error {
 	v.Lock()
 	defer v.Unlock()
 
-	log.Debugf("loading ebpf objects for %s", id.String())
+	log.Tracef("loading ebpf objects for %s", id.String())
 	if err := loadEdtObjects(v.objs, nil); err != nil {
 		return errors.WithStack(err)
 	}
 
 	progFd := v.objs.edtPrograms.TcMain.FD()
 
-	log.Debugf("getting interface %s", v.netIf)
+	log.Tracef("getting interface %s", v.netIf)
 	iface, err := getIface(v.netIf)
 	if err != nil {
 		log.Errorf("interface %s not found", v.netIf)
@@ -75,7 +76,7 @@ func (e *EBPFem) Register(id orchestrator.MachineID, netIf string) error {
 	}
 
 	// Create clsact qdisc
-	log.Debugf("creating clsact qdisc for %s", v.netIf)
+	log.Tracef("creating clsact qdisc for %s", v.netIf)
 	_, err = createClsactQdisc(iface)
 	if err != nil {
 		log.Errorf("error creating clsact qdisc for %s", v.netIf)
@@ -83,15 +84,15 @@ func (e *EBPFem) Register(id orchestrator.MachineID, netIf string) error {
 	}
 
 	// Create fq qdisc
-	log.Debugf("creating fq qdisc for %s", v.netIf)
+	log.Tracef("creating fq qdisc for %s", v.netIf)
 	_, err = createFQdisc(iface)
 	if err != nil {
-		log.Debugf("error creating fq qdisc for %s", v.netIf)
+		log.Tracef("error creating fq qdisc for %s", v.netIf)
 		return errors.WithStack(err)
 	}
 
 	// Attach bpf program
-	log.Debugf("attaching bpf program for %s", v.netIf)
+	log.Tracef("attaching bpf program for %s", v.netIf)
 	_, err = createTCBpfFilter(iface, progFd, netlink.HANDLE_MIN_EGRESS, "edt_bandwidth")
 	if err != nil {
 		log.Errorf("error attaching bpf program for %s", v.netIf)
@@ -142,7 +143,7 @@ func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, b
 	}
 
 	for _, ip := range ips {
-		log.Debugf("updating bandwidth for %d to %d", ip, bandwidth)
+		log.Tracef("updating bandwidth for %d to %d", ip, bandwidth)
 		err = v.objs.IP_HANDLE_BPS_DELAY.Put(ip, hbd)
 		if err != nil {
 			return errors.WithStack(err)
@@ -172,7 +173,7 @@ func (e *EBPFem) SetLatency(source orchestrator.MachineID, target net.IPNet, lat
 	}
 
 	for _, ip := range ips {
-		log.Debugf("updating latency for %d to %d", ip, latency)
+		log.Tracef("updating latency for %d to %d", ip, latency)
 		err = v.objs.IP_HANDLE_BPS_DELAY.Put(ip, hbd)
 		if err != nil {
 			return errors.WithStack(err)
@@ -200,7 +201,7 @@ func (e *EBPFem) UnblockLink(source orchestrator.MachineID, target net.IPNet) er
 	}
 
 	for _, ip := range ips {
-		log.Debugf("unblocking for %d", ip)
+		log.Tracef("unblocking for %d", ip)
 		err = v.objs.IP_HANDLE_BPS_DELAY.Put(ip, hbd)
 		if err != nil {
 			return errors.WithStack(err)
@@ -226,7 +227,7 @@ func (e *EBPFem) BlockLink(source orchestrator.MachineID, target net.IPNet) erro
 	}
 
 	for _, ip := range ips {
-		log.Debugf("blocking for %d", ip)
+		log.Tracef("blocking for %d", ip)
 		err = v.objs.IP_HANDLE_BPS_DELAY.Put(ip, &handleBpsDelay{throttleRateBps: BLOCKED_BANDWIDTH, delayUs: BLOCKED_LATENCY_US})
 		if err != nil {
 			return errors.WithStack(err)

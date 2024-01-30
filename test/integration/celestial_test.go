@@ -22,6 +22,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -31,6 +32,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/OpenFogStack/celestial/pkg/dns"
 	"github.com/OpenFogStack/celestial/pkg/ebpfem"
@@ -194,10 +196,10 @@ func TestMain(m *testing.M) {
 
 func TestStart(t *testing.T) {
 
-	machines := make([]*celestial.UpdateRequest_MachineDiff, len(vms))
+	machines := make([]*celestial.StateUpdateRequest_MachineDiff, len(vms))
 
 	for i, vm := range vms {
-		machines[i] = &celestial.UpdateRequest_MachineDiff{
+		machines[i] = &celestial.StateUpdateRequest_MachineDiff{
 			Id: &celestial.MachineID{
 				Group: uint32(vm.group),
 				Id:    uint32(vm.id),
@@ -206,9 +208,10 @@ func TestStart(t *testing.T) {
 		}
 	}
 
-	_, err := s.Update(context.Background(), &celestial.UpdateRequest{
-		MachineDiffs: machines,
-	})
+	u := &testUpdateServer{
+		md: machines,
+	}
+	err := s.Update(u)
 
 	if err != nil {
 		t.Error(err)
@@ -288,8 +291,8 @@ func TestResolve(t *testing.T) {
 func TestModify(t *testing.T) {
 	v := 0
 
-	_, err := s.Update(context.Background(), &celestial.UpdateRequest{
-		MachineDiffs: []*celestial.UpdateRequest_MachineDiff{
+	u := &testUpdateServer{
+		md: []*celestial.StateUpdateRequest_MachineDiff{
 			{
 				Id: &celestial.MachineID{
 					Group: uint32(vms[v].group),
@@ -298,7 +301,9 @@ func TestModify(t *testing.T) {
 				Active: celestial.VMState_VM_STATE_STOPPED,
 			},
 		},
-	})
+	}
+
+	err := s.Update(u)
 
 	if err != nil {
 		t.Error(err)
@@ -319,8 +324,8 @@ func TestModify(t *testing.T) {
 
 	log.Debugf("machine is not reachable")
 
-	_, err = s.Update(context.Background(), &celestial.UpdateRequest{
-		MachineDiffs: []*celestial.UpdateRequest_MachineDiff{
+	u = &testUpdateServer{
+		md: []*celestial.StateUpdateRequest_MachineDiff{
 			{
 				Id: &celestial.MachineID{
 					Group: uint32(vms[v].group),
@@ -329,7 +334,9 @@ func TestModify(t *testing.T) {
 				Active: celestial.VMState_VM_STATE_ACTIVE,
 			},
 		},
-	})
+	}
+
+	err = s.Update(u)
 
 	if err != nil {
 		t.Error(err)
@@ -367,14 +374,14 @@ func TestModify(t *testing.T) {
 
 // check what happens when we adapt the network latency between the machines
 func testModifyLinks(t *testing.T, A int, B int, latency int) {
-	_, err := s.Update(context.Background(), &celestial.UpdateRequest{
-		NetworkDiffs: []*celestial.UpdateRequest_NetworkDiff{
+	u := &testUpdateServer{
+		ld: []*celestial.StateUpdateRequest_NetworkDiff{
 			{
 				Id: &celestial.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
-				Links: []*celestial.UpdateRequest_NetworkDiff_Link{
+				Links: []*celestial.StateUpdateRequest_NetworkDiff_Link{
 					{
 						Target: &celestial.MachineID{
 							Group: uint32(vms[B].group),
@@ -394,7 +401,7 @@ func testModifyLinks(t *testing.T, A int, B int, latency int) {
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
-				Links: []*celestial.UpdateRequest_NetworkDiff_Link{
+				Links: []*celestial.StateUpdateRequest_NetworkDiff_Link{
 					{
 						Target: &celestial.MachineID{
 							Group: uint32(vms[A].group),
@@ -410,7 +417,9 @@ func testModifyLinks(t *testing.T, A int, B int, latency int) {
 				},
 			},
 		},
-	})
+	}
+
+	err := s.Update(u)
 
 	if err != nil {
 		t.Error(err)
@@ -475,14 +484,14 @@ func TestBlockLink(t *testing.T) {
 	A := 0
 	B := 1
 
-	_, err := s.Update(context.Background(), &celestial.UpdateRequest{
-		NetworkDiffs: []*celestial.UpdateRequest_NetworkDiff{
+	u := &testUpdateServer{
+		ld: []*celestial.StateUpdateRequest_NetworkDiff{
 			{
 				Id: &celestial.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
-				Links: []*celestial.UpdateRequest_NetworkDiff_Link{
+				Links: []*celestial.StateUpdateRequest_NetworkDiff_Link{
 					{
 						Target: &celestial.MachineID{
 							Group: uint32(vms[B].group),
@@ -497,7 +506,7 @@ func TestBlockLink(t *testing.T) {
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
-				Links: []*celestial.UpdateRequest_NetworkDiff_Link{
+				Links: []*celestial.StateUpdateRequest_NetworkDiff_Link{
 					{
 						Target: &celestial.MachineID{
 							Group: uint32(vms[A].group),
@@ -508,7 +517,9 @@ func TestBlockLink(t *testing.T) {
 				},
 			},
 		},
-	})
+	}
+
+	err := s.Update(u)
 
 	if err != nil {
 		t.Error(err)
@@ -563,4 +574,52 @@ func TestDNS(t *testing.T) {
 		t.Error(err)
 	}
 
+}
+
+// Unfortunately these types are necessary to write a simple test case for our server...
+// Look at this Medium article and tell me that this is a good idea:
+// https://medium.com/@leeransetton/how-to-mock-grpc-stream-in-golang-db8c405fae37
+type testUpdateServer struct {
+	md   []*celestial.StateUpdateRequest_MachineDiff
+	ld   []*celestial.StateUpdateRequest_NetworkDiff
+	sent bool
+}
+
+func (u *testUpdateServer) SendAndClose(empty *celestial.Empty) error {
+	return nil
+}
+
+func (u *testUpdateServer) SetHeader(md metadata.MD) error {
+	return nil
+}
+
+func (u *testUpdateServer) SendHeader(md metadata.MD) error {
+	return nil
+}
+
+func (u *testUpdateServer) SetTrailer(md metadata.MD) {
+}
+
+func (u *testUpdateServer) Context() context.Context {
+	return nil
+}
+
+func (u *testUpdateServer) SendMsg(m any) error {
+	return nil
+}
+
+func (u *testUpdateServer) RecvMsg(m any) error {
+	return nil
+}
+
+func (u *testUpdateServer) Recv() (*celestial.StateUpdateRequest, error) {
+	if u.sent {
+		return nil, io.EOF
+	}
+
+	u.sent = true
+	return &celestial.StateUpdateRequest{
+		MachineDiffs: u.md,
+		NetworkDiffs: u.ld,
+	}, nil
 }

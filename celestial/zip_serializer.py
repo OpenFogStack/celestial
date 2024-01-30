@@ -127,8 +127,8 @@ def _init_from_str(
 # https://docs.python.org/3/library/struct.html
 #  we always force little-endian byte order
 # diff_link
-# (source_machine_id_group:uint8/B,source_machine_id_id:uint16/H,target_machine_id_group:uint8/B,target_machine_id_id:uint16/H,link_latency:uint32/I,link_bandwidth:uint32/I,link_blocked:bool/?,link_next_hop_machine_id_group:uint8/B,link_next_hop_machine_id_id:uint16/H)
-_DIFF_LINK_FMT = "<BHBHII?BH"
+# (source_machine_id_group:uint8/B,source_machine_id_id:uint16/H,target_machine_id_group:uint8/B,target_machine_id_id:uint16/H,link_latency:uint32/I,link_bandwidth:uint32/I,link_blocked:bool/?,link_next_hop_machine_id_group:uint8/B,link_next_hop_machine_id_id:uint16/H,link_prev_hop_machine_id_group:uint8/B,link_prev_hop_machine_id_id:uint16/H)
+_DIFF_LINK_FMT = "<BHBHII?BHBH"
 # diff_machine
 # (machine_id_group:uint8/B,machine_id_id:uint16/H,vm_state:uint8/B)
 _DIFF_MACHINE_FMT = "<BHB"
@@ -158,12 +158,14 @@ def _diff_link_to_bytes(
         celestial.types.Link_blocked(link),
         celestial.types.MachineID_group(celestial.types.Link_next_hop(link)),
         celestial.types.MachineID_id(celestial.types.Link_next_hop(link)),
+        celestial.types.MachineID_group(celestial.types.Link_prev_hop(link)),
+        celestial.types.MachineID_id(celestial.types.Link_prev_hop(link)),
     )
 
 
 def _diff_link_from_bytes(
     b: bytes,
-) -> typing.List[
+) -> typing.Iterator[
     typing.Tuple[
         celestial.types.MachineID_dtype,
         celestial.types.MachineID_dtype,
@@ -174,10 +176,23 @@ def _diff_link_from_bytes(
     Restore link diffs from bytes using the struct format string.
 
     :param b: Bytes of all serialized links in a timestep.
-    :returns: The restored links.
+    :returns: The restored links as an iterator.
     """
-    return [
-        (
+
+    for (
+        source_machine_id_group,
+        source_machine_id_id,
+        target_machine_id_group,
+        target_machine_id_id,
+        link_latency_us,
+        link_bandwidth_kbits,
+        link_blocked,
+        link_next_hop_machine_id_group,
+        link_next_hop_machine_id_id,
+        link_prev_hop_machine_id_group,
+        link_prev_hop_machine_id_id,
+    ) in struct.iter_unpack(_DIFF_LINK_FMT, b):
+        yield (
             celestial.types.MachineID(source_machine_id_group, source_machine_id_id),
             celestial.types.MachineID(target_machine_id_group, target_machine_id_id),
             celestial.types.Link(
@@ -187,20 +202,11 @@ def _diff_link_from_bytes(
                 celestial.types.MachineID(
                     link_next_hop_machine_id_group, link_next_hop_machine_id_id
                 ),
+                celestial.types.MachineID(
+                    link_prev_hop_machine_id_group, link_prev_hop_machine_id_id
+                ),
             ),
         )
-        for (
-            source_machine_id_group,
-            source_machine_id_id,
-            target_machine_id_group,
-            target_machine_id_id,
-            link_latency_us,
-            link_bandwidth_kbits,
-            link_blocked,
-            link_next_hop_machine_id_group,
-            link_next_hop_machine_id_id,
-        ) in struct.iter_unpack(_DIFF_LINK_FMT, b)
-    ]
 
 
 def _diff_machine_to_bytes(
@@ -223,24 +229,22 @@ def _diff_machine_to_bytes(
 
 def _diff_machine_from_bytes(
     b: bytes,
-) -> typing.List[
+) -> typing.Iterator[
     typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
 ]:
     """
     Restore machine diffs from bytes using the struct format string.
 
     :param b: Bytes of all serialized machines in a timestep.
-    :returns: The restored machines.
+    :returns: The restored machines as an iterator.
     """
-    return [
-        (
+    for machine_id_group, machine_id_id, vm_state in struct.iter_unpack(
+        _DIFF_MACHINE_FMT, b
+    ):
+        yield (
             celestial.types.MachineID(machine_id_group, machine_id_id),
             celestial.types.VMState(vm_state),
         )
-        for (machine_id_group, machine_id_id, vm_state) in struct.iter_unpack(
-            _DIFF_MACHINE_FMT, b
-        )
-    ]
 
 
 class ZipSerializer:
@@ -412,7 +416,8 @@ class ZipDeserializer:
 
         :returns: The restored configuration.
         """
-        with open(os.path.join(self.tmp_dir, _CONFIG_FILE), "rb") as f:
+        p = os.path.join(self.tmp_dir, _CONFIG_FILE)
+        with open(p, "rb") as f:
             return _config_from_bytes(f.read())
 
     def init_machines(
@@ -426,14 +431,15 @@ class ZipDeserializer:
 
         :returns: A list of the restored machine initializations.
         """
-        if not os.path.exists(os.path.join(self.tmp_dir, _INIT_FILE)):
+        p = os.path.join(self.tmp_dir, _INIT_FILE)
+        if not os.path.exists(p):
             return []
-        with open(os.path.join(self.tmp_dir, _INIT_FILE), "r") as f:
+        with open(p, "r") as f:
             return [_init_from_str(line) for line in f.readlines()]
 
     def diff_links(
         self, t: celestial.types.timestamp_s
-    ) -> typing.List[
+    ) -> typing.Iterator[
         typing.Tuple[
             celestial.types.MachineID_dtype,
             celestial.types.MachineID_dtype,
@@ -445,21 +451,24 @@ class ZipDeserializer:
         for a given timestep.
 
         :param t: The timestep to restore the link diffs for.
-        :returns: A list of the restored link diffs.
+        :returns: An iterator of the restored link diffs.
         """
-        if not os.path.exists(
-            os.path.join(self.tmp_dir, f"{_DIFF_LINK_FILE_PREFIX}{t}")
-        ):
-            return []
 
-        with open(
-            os.path.join(self.tmp_dir, f"{_DIFF_LINK_FILE_PREFIX}{t}"), "rb"
-        ) as f:
-            return _diff_link_from_bytes(f.read())
+        p = os.path.join(self.tmp_dir, f"{_DIFF_LINK_FILE_PREFIX}{t}")
+
+        if not os.path.exists(p):
+            yield from ()  # return empty iterator
+            return
+
+        with open(p, "rb") as f:
+            for ld in _diff_link_from_bytes(f.read()):
+                yield ld
+
+        return
 
     def diff_machines(
         self, t: celestial.types.timestamp_s
-    ) -> typing.List[
+    ) -> typing.Iterator[
         typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
     ]:
         """
@@ -467,14 +476,16 @@ class ZipDeserializer:
         file for a given timestep.
 
         :param t: The timestep to restore the machine diffs for.
-        :returns: A list of the restored machine diffs.
+        :returns: An iterator of the restored machine diffs.
         """
-        if not os.path.exists(
-            os.path.join(self.tmp_dir, f"{_DIFF_MACHINE_FILE_PREFIX}{t}")
-        ):
-            return []
+        p = os.path.join(self.tmp_dir, f"{_DIFF_MACHINE_FILE_PREFIX}{t}")
 
-        with open(
-            os.path.join(self.tmp_dir, f"{_DIFF_MACHINE_FILE_PREFIX}{t}"), "rb"
-        ) as f:
-            return _diff_machine_from_bytes(f.read())
+        if not os.path.exists(p):
+            yield from ()  # return empty iterator
+            return
+
+        with open(p, "rb") as f:
+            for md in _diff_machine_from_bytes(f.read()):
+                yield md
+
+        return

@@ -109,7 +109,7 @@ func (v *vm) createQDisc(target net.IPNet) (uint16, error) {
 
 func (v *vm) updateDelay(target net.IPNet, delay uint32) error {
 
-	log.Debugf("updating delay on %s for %s to %d", v.netIf, target.String(), delay)
+	log.Tracef("updating delay on %s for %s to %d", v.netIf, target.String(), delay)
 
 	// get the index
 	l, ok := v.links[fromIPNet(target)]
@@ -135,7 +135,7 @@ func (v *vm) updateDelay(target net.IPNet, delay uint32) error {
 
 func (v *vm) updateBandwidth(target net.IPNet, bandwidth uint64) error {
 
-	log.Debugf("updating bandwidth on %s for %s to %d", v.netIf, target.String(), bandwidth)
+	log.Tracef("updating bandwidth on %s for %s to %d", v.netIf, target.String(), bandwidth)
 
 	// get the index
 	l, ok := v.links[fromIPNet(target)]

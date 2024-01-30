@@ -15,6 +15,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+# For normal use, we recommend running Make commands with the celestial-make
+# Docker container, as that has all the right depencies installed. Especially
+# cumbersome are gRPC and protobuf, which make breaking changes without a
+# proper versioning scheme. Simply replace `make` with `./celestial-make`.
+
 ARCH=amd64
 OS=linux
 
@@ -34,13 +39,13 @@ proto/celestial/celestial.pb.go proto/celestial/celestial_grpc.pb.go proto/celes
 ebpf: pkg/ebpfem/edt_bpfel_x86.go pkg/ebpfem/edt_bpfel_x86.o ## build ebpf files
 pkg/ebpfem/edt_bpfel_x86.go pkg/ebpfem/edt_bpfel_x86.o: pkg/ebpfem/ebpfem.go pkg/ebpfem/ebpf/net.c pkg/ebpfem/ebpf/headers/helpers.h pkg/ebpfem/ebpf/headers/maps.h ## build ebpf files
     ## apt-get install -y clang gcc-multilib libbpf-dev llvm
-	go generate ./pkg/ebpfem
+	@go generate ./pkg/ebpfem
 
 celestial.bin: go.mod go.sum celestial.go ${GO_FILES} ## build go binary
 	GOOS=${OS} GOARCH=${ARCH} go build -o celestial.bin .
 
 celestial-make: compile.Dockerfile ## build the compile container
-	docker build --platform ${OS}/${ARCH} -f $< -t $@ .
+	@docker build --platform ${OS}/${ARCH} -f $< -t $@ .
 
-rootfsbuilder: ## build the rootfs builder container
-	cd ./builder ; make rootfsbuilder ; cd ..
+rootfsbuilder: builder/build-script.sh builder/Dockerfile builder/fcinit.c builder/inittab builder/interfaces builder/run-user-script builder/prepare.sh builder/ceinit ## build the rootfs builder container
+	@docker build --platform=linux/amd64 -t $@:latest builder/
