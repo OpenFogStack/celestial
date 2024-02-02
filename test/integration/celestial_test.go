@@ -377,27 +377,23 @@ func testModifyLinks(t *testing.T, A int, B int, latency int) {
 	u := &testUpdateServer{
 		ld: []*celestial.StateUpdateRequest_NetworkDiff{
 			{
-				Id: &celestial.MachineID{
+				Source: &celestial.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
-				Links: []*celestial.StateUpdateRequest_NetworkDiff_Link{
-					{
-						Target: &celestial.MachineID{
-							Group: uint32(vms[B].group),
-							Id:    uint32(vms[B].id),
-						},
-						Latency:   uint32(latency * 1000), // convert to microseconds
-						Bandwidth: 10000,
-						Next: &celestial.MachineID{
-							Group: uint32(vms[B].group),
-							Id:    uint32(vms[B].id),
-						},
-						Prev: &celestial.MachineID{
-							Group: uint32(vms[A].group),
-							Id:    uint32(vms[A].id),
-						},
-					},
+				Target: &celestial.MachineID{
+					Group: uint32(vms[B].group),
+					Id:    uint32(vms[B].id),
+				},
+				Latency:   uint32(latency * 1000), // convert to microseconds
+				Bandwidth: 10000,
+				Next: &celestial.MachineID{
+					Group: uint32(vms[B].group),
+					Id:    uint32(vms[B].id),
+				},
+				Prev: &celestial.MachineID{
+					Group: uint32(vms[A].group),
+					Id:    uint32(vms[A].id),
 				},
 			},
 		},
@@ -471,19 +467,15 @@ func TestBlockLink(t *testing.T) {
 	u := &testUpdateServer{
 		ld: []*celestial.StateUpdateRequest_NetworkDiff{
 			{
-				Id: &celestial.MachineID{
+				Source: &celestial.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
-				Links: []*celestial.StateUpdateRequest_NetworkDiff_Link{
-					{
-						Target: &celestial.MachineID{
-							Group: uint32(vms[B].group),
-							Id:    uint32(vms[B].id),
-						},
-						Blocked: true,
-					},
+				Target: &celestial.MachineID{
+					Group: uint32(vms[B].group),
+					Id:    uint32(vms[B].id),
 				},
+				Blocked: true,
 			},
 		},
 	}

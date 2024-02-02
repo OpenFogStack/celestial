@@ -251,7 +251,7 @@ func (s *Server) Update(stream celestial.Celestial_UpdateServer) error {
 		}
 	}
 
-	log.Debugf("parse time: %v", time.Now().Sub(parseStart))
+	log.Debugf("parse time: %v", time.Since(parseStart))
 
 	err := s.o.Update(&orchestrator.State{
 		NetworkState:  ns,

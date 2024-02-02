@@ -44,7 +44,7 @@ jobs:
       - name: mypy-check2
         uses: theCapypara/mypy-check@master
         with:
-          requirements: types-toml
+          requirements: types-toml numpy types-request mypy-protobuf
           path: "*.py"
           mypy_flags: "--config setup.cfg"
 

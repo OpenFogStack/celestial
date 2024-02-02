@@ -26,9 +26,6 @@ const (
 	ACTIVE
 )
 
-const defaultLatency = 0
-const defaultBandwidth = 1000_000_000
-
 type Link struct {
 	// Blocked is true if the link is blocked
 	Blocked bool
@@ -49,10 +46,6 @@ type MachineID struct {
 
 func (m MachineID) String() string {
 	return fmt.Sprintf("%d.%d", m.Group, m.Id)
-}
-
-func (m MachineID) lt(b MachineID) bool {
-	return m.Group < b.Group || (m.Group == b.Group && m.Id < b.Id)
 }
 
 type Host uint8

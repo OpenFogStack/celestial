@@ -37,8 +37,6 @@ type Orchestrator struct {
 
 	virt VirtualizationBackend
 
-	host Host
-
 	initialized bool
 }
 
