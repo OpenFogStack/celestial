@@ -27,6 +27,16 @@ cp -r  minirootfs/* ./tmp/
 
 # if you don't do this, apk can't access its repositories
 cp /etc/resolv.conf ./tmp/etc/resolv.conf
+# mount /dev/random and /dev/urandom (needed for some operations, such as git)
+mkdir -p ./tmp/dev
+touch ./tmp/dev/random
+mount --rbind /dev/random ./tmp/dev/random
+mount --make-rslave ./tmp/dev/random
+touch ./tmp/dev/urandom
+mount --rbind /dev/urandom ./tmp/dev/urandom
+mount --make-rslave ./tmp/dev/urandom
+
+# copy the necessary files
 cp interfaces ./tmp/etc/network/interfaces
 cp inittab ./tmp/etc/inittab
 cp run-user-script ./tmp/sbin/run-user-script
@@ -53,9 +63,14 @@ mkdir -p ./tmp/overlay/root \
     ./tmp/mnt \
     ./tmp/rom
 
-# now delete the nameserver config agains
+# now delete the nameserver config again
 rm ./tmp/etc/resolv.conf
 ln -s /proc/net/pnp ./tmp/etc/resolv.conf
+# and unmount the devices
+umount ./tmp/dev/random
+rm ./tmp/dev/random
+umount ./tmp/dev/urandom
+rm ./tmp/dev/urandom
 
 rm ./tmp/prepare.sh
 
