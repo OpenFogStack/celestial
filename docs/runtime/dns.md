@@ -1,7 +1,8 @@
 ---
 layout: default
 title: DNS API
-nav_order: 13
+nav_order: 4
+parent: Runtime
 ---
 
 ## DNS API
