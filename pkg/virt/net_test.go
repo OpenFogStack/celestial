@@ -101,6 +101,34 @@ func Test_getNet(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test4",
+			args: args{
+				id: orchestrator.MachineID{
+					Group: 1,
+					Id:    1385,
+				},
+			},
+			want: network{
+				ip: net.IPNet{
+					IP:   net.IPv4(10, 1, 21, 166),
+					Mask: net.CIDRMask(30, 32),
+				},
+				gateway: net.IPNet{
+					IP:   net.IPv4(10, 1, 21, 165),
+					Mask: net.CIDRMask(30, 32),
+				},
+				network: net.IPNet{
+					IP:   net.IPv4(10, 1, 21, 164),
+					Mask: net.CIDRMask(30, 32),
+				},
+				mac: net.HardwareAddr{
+					0xAA, 0xCE, 0x4, 0, 0, 0x13,
+				},
+				tap: "ct-1-1385",
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -210,13 +238,24 @@ func Test_getID(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "test5",
+			name: "test8",
 			args: args{
 				ip: net.IPv4(10, 1, 0, 0),
 			},
 			want: orchestrator.MachineID{
 				Group: 1,
 				Id:    0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "test9",
+			args: args{
+				ip: net.IPv4(10, 1, 21, 166),
+			},
+			want: orchestrator.MachineID{
+				Group: 1,
+				Id:    1385,
 			},
 			wantErr: false,
 		},

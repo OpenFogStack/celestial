@@ -32,6 +32,8 @@ _INIT_FILE = "i"
 _DIFF_LINK_FILE_PREFIX = "l"
 _DIFF_MACHINE_FILE_PREFIX = "m"
 
+_MAX_WRITERS = 100
+
 
 def _config_to_bytes(config: celestial.config.Config) -> bytes:
     """
@@ -179,34 +181,34 @@ def _diff_link_from_bytes(
     :returns: The restored links as an iterator.
     """
 
-    for (
-        source_machine_id_group,
-        source_machine_id_id,
-        target_machine_id_group,
-        target_machine_id_id,
-        link_latency_us,
-        link_bandwidth_kbits,
-        link_blocked,
-        link_next_hop_machine_id_group,
-        link_next_hop_machine_id_id,
-        link_prev_hop_machine_id_group,
-        link_prev_hop_machine_id_id,
-    ) in struct.iter_unpack(_DIFF_LINK_FMT, b):
-        yield (
-            celestial.types.MachineID(source_machine_id_group, source_machine_id_id),
-            celestial.types.MachineID(target_machine_id_group, target_machine_id_id),
-            celestial.types.Link(
+    # conveniently, we don't have to type-cast everything
+    # let's hope our types never change!
+    return (
+        (
+            (source_machine_id_group, source_machine_id_id, ""),
+            (target_machine_id_group, target_machine_id_id, ""),
+            (
                 link_latency_us,
                 link_bandwidth_kbits,
                 link_blocked,
-                celestial.types.MachineID(
-                    link_next_hop_machine_id_group, link_next_hop_machine_id_id
-                ),
-                celestial.types.MachineID(
-                    link_prev_hop_machine_id_group, link_prev_hop_machine_id_id
-                ),
+                (link_next_hop_machine_id_group, link_next_hop_machine_id_id, ""),
+                (link_prev_hop_machine_id_group, link_prev_hop_machine_id_id, ""),
             ),
         )
+        for (
+            source_machine_id_group,
+            source_machine_id_id,
+            target_machine_id_group,
+            target_machine_id_id,
+            link_latency_us,
+            link_bandwidth_kbits,
+            link_blocked,
+            link_next_hop_machine_id_group,
+            link_next_hop_machine_id_id,
+            link_prev_hop_machine_id_group,
+            link_prev_hop_machine_id_id,
+        ) in struct.iter_unpack(_DIFF_LINK_FMT, b)
+    )
 
 
 def _diff_machine_to_bytes(
@@ -238,13 +240,16 @@ def _diff_machine_from_bytes(
     :param b: Bytes of all serialized machines in a timestep.
     :returns: The restored machines as an iterator.
     """
-    for machine_id_group, machine_id_id, vm_state in struct.iter_unpack(
-        _DIFF_MACHINE_FMT, b
-    ):
-        yield (
+
+    return (
+        (
             celestial.types.MachineID(machine_id_group, machine_id_id),
             celestial.types.VMState(vm_state),
         )
+        for machine_id_group, machine_id_id, vm_state in struct.iter_unpack(
+            _DIFF_MACHINE_FMT, b
+        )
+    )
 
 
 class ZipSerializer:
@@ -284,7 +289,7 @@ class ZipSerializer:
         # create a temporary directory
         # check if the `mktemp` command is available
         self.tmp_dir = "./.tmp"
-        if subprocess.run(["which", "mktemp"]).returncode == 0:
+        if subprocess.run(["which", "mktemp"], capture_output=True).returncode == 0:
             self.tmp_dir = (
                 subprocess.run(["mktemp", "-d"], capture_output=True)
                 .stdout.decode("utf-8")
@@ -305,6 +310,27 @@ class ZipSerializer:
         with open(os.path.join(self.write_dir, _CONFIG_FILE), "wb") as f:
             f.write(_config_to_bytes(config))
 
+        self.writers: typing.Dict[str, typing.IO[bytes]] = {}
+
+    def _get_writer(self, n: str) -> typing.IO[bytes]:
+        """
+        Get the writer for a file.
+
+        :param n: The filename of the file to get the writer for.
+        :returns: The writer.
+        """
+        if n not in self.writers:
+            # before we open a new writer, make sure we don't have too many
+            if len(self.writers) >= _MAX_WRITERS:
+                # close all the writers
+                # just to make sure we don't get over the file handler limit
+                for w in self.writers.values():
+                    w.close()
+                self.writers = {}
+
+            self.writers[n] = open(os.path.join(self.write_dir, n), "wb")
+        return self.writers[n]
+
     def init_machine(
         self,
         machine: celestial.types.MachineID_dtype,
@@ -316,6 +342,7 @@ class ZipSerializer:
         :param machine: The machine ID of the machine to initialize.
         :param config: The configuration of the machine to initialize.
         """
+
         with open(os.path.join(self.write_dir, _INIT_FILE), "a") as f:
             f.write(f"{_init_to_str(machine, config)}\n")
 
@@ -334,10 +361,10 @@ class ZipSerializer:
         :param target: The target machine ID of the link.
         :param link: The link to serialize.
         """
-        with open(
-            os.path.join(self.write_dir, f"{_DIFF_LINK_FILE_PREFIX}{t}"), "ab"
-        ) as f:
-            f.write(_diff_link_to_bytes(source, target, link))
+
+        self._get_writer(f"{_DIFF_LINK_FILE_PREFIX}{t}").write(
+            _diff_link_to_bytes(source, target, link)
+        )
 
     def diff_machine(
         self,
@@ -352,10 +379,9 @@ class ZipSerializer:
         :param machine: The machine ID of the machine to serialize.
         :param s: The VM state of the machine to serialize.
         """
-        with open(
-            os.path.join(self.write_dir, f"{_DIFF_MACHINE_FILE_PREFIX}{t}"), "ab"
-        ) as f:
-            f.write(_diff_machine_to_bytes(machine, s))
+        self._get_writer(f"{_DIFF_MACHINE_FILE_PREFIX}{t}").write(
+            _diff_machine_to_bytes(machine, s)
+        )
 
     def persist(self) -> None:
         """
@@ -363,6 +389,10 @@ class ZipSerializer:
 
         :raises FileExistsError: If the output file already exists.
         """
+        # close all writers
+        for w in self.writers.values():
+            w.close()
+
         # zip the temporary directory
         # filename = os.path.join(self.tmp_dir, self.filename)
         shutil.make_archive(self.filename, "zip", self.write_dir)
@@ -392,7 +422,7 @@ class ZipDeserializer:
         # create a temporary directory
         # check if the `mktemp` command is available
         self.tmp_dir = "./.tmp"
-        if subprocess.run(["which", "mktemp"]).returncode == 0:
+        if subprocess.run(["which", "mktemp"], capture_output=True).returncode == 0:
             self.tmp_dir = (
                 subprocess.run(["mktemp", "-d"], capture_output=True)
                 .stdout.decode("utf-8")

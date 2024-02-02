@@ -237,53 +237,38 @@ class StateUpdateRequest(google.protobuf.message.Message):
     class NetworkDiff(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        @typing_extensions.final
-        class Link(google.protobuf.message.Message):
-            DESCRIPTOR: google.protobuf.descriptor.Descriptor
-
-            BLOCKED_FIELD_NUMBER: builtins.int
-            LATENCY_FIELD_NUMBER: builtins.int
-            BANDWIDTH_FIELD_NUMBER: builtins.int
-            TARGET_FIELD_NUMBER: builtins.int
-            NEXT_FIELD_NUMBER: builtins.int
-            PREV_FIELD_NUMBER: builtins.int
-            blocked: builtins.bool
-            latency: builtins.int
-            bandwidth: builtins.int
-            @property
-            def target(self) -> global___MachineID: ...
-            @property
-            def next(self) -> global___MachineID:
-                """used for path reconstruction"""
-            @property
-            def prev(self) -> global___MachineID: ...
-            def __init__(
-                self,
-                *,
-                blocked: builtins.bool = ...,
-                latency: builtins.int = ...,
-                bandwidth: builtins.int = ...,
-                target: global___MachineID | None = ...,
-                next: global___MachineID | None = ...,
-                prev: global___MachineID | None = ...,
-            ) -> None: ...
-            def HasField(self, field_name: typing_extensions.Literal["next", b"next", "prev", b"prev", "target", b"target"]) -> builtins.bool: ...
-            def ClearField(self, field_name: typing_extensions.Literal["bandwidth", b"bandwidth", "blocked", b"blocked", "latency", b"latency", "next", b"next", "prev", b"prev", "target", b"target"]) -> None: ...
-
-        ID_FIELD_NUMBER: builtins.int
-        LINKS_FIELD_NUMBER: builtins.int
+        BLOCKED_FIELD_NUMBER: builtins.int
+        SOURCE_FIELD_NUMBER: builtins.int
+        TARGET_FIELD_NUMBER: builtins.int
+        LATENCY_FIELD_NUMBER: builtins.int
+        BANDWIDTH_FIELD_NUMBER: builtins.int
+        NEXT_FIELD_NUMBER: builtins.int
+        PREV_FIELD_NUMBER: builtins.int
+        blocked: builtins.bool
         @property
-        def id(self) -> global___MachineID: ...
+        def source(self) -> global___MachineID: ...
         @property
-        def links(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___StateUpdateRequest.NetworkDiff.Link]: ...
+        def target(self) -> global___MachineID: ...
+        latency: builtins.int
+        bandwidth: builtins.int
+        @property
+        def next(self) -> global___MachineID:
+            """used for path reconstruction"""
+        @property
+        def prev(self) -> global___MachineID: ...
         def __init__(
             self,
             *,
-            id: global___MachineID | None = ...,
-            links: collections.abc.Iterable[global___StateUpdateRequest.NetworkDiff.Link] | None = ...,
+            blocked: builtins.bool = ...,
+            source: global___MachineID | None = ...,
+            target: global___MachineID | None = ...,
+            latency: builtins.int = ...,
+            bandwidth: builtins.int = ...,
+            next: global___MachineID | None = ...,
+            prev: global___MachineID | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["id", b"id"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["id", b"id", "links", b"links"]) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["next", b"next", "prev", b"prev", "source", b"source", "target", b"target"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["bandwidth", b"bandwidth", "blocked", b"blocked", "latency", b"latency", "next", b"next", "prev", b"prev", "source", b"source", "target", b"target"]) -> None: ...
 
     MACHINE_DIFFS_FIELD_NUMBER: builtins.int
     NETWORK_DIFFS_FIELD_NUMBER: builtins.int

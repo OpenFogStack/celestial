@@ -57,7 +57,6 @@ stop the emulation run and exit gracefully, including on the hosts.
 """
 
 import concurrent.futures
-import itertools
 import logging
 import signal
 import sys
@@ -65,8 +64,11 @@ import time
 import typing
 
 import celestial.host
+import celestial.proto_util
 import celestial.types
 import celestial.zip_serializer
+import proto.celestial.celestial_pb2
+import proto.celestial.celestial_pb2_grpc
 
 DEBUG = True
 DEFAULT_PORT = 1969
@@ -131,36 +133,33 @@ if __name__ == "__main__":
 
     # init the hosts
     logging.info("Initializing hosts...")
-    init_request = celestial.host.make_init_request(hosts, machines)
+    init_request = celestial.proto_util.make_init_request(hosts, machines)
     with concurrent.futures.ThreadPoolExecutor() as e:
         for h in hosts:
-            e.submit(h.init, init_request).result()
+            e.submit(h.init, init_request)  # .result()
 
     logging.info("Hosts initialized!")
 
     def get_diff(
         t: celestial.types.timestamp_s,
-    ) -> typing.Tuple[
-        typing.Iterator[
-            typing.Tuple[celestial.types.MachineID_dtype, celestial.types.VMState]
-        ],
-        typing.Iterator[
-            typing.Tuple[
-                celestial.types.MachineID_dtype,
-                celestial.types.MachineID_dtype,
-                celestial.types.Link_dtype,
-            ]
-        ],
-    ]:
+    ) -> typing.List[proto.celestial.celestial_pb2.StateUpdateRequest]:
         # we get iterators of the deserialized diffs
-        machine_diff_iter = serializer.diff_machines(t)
-        link_diff_iter = serializer.diff_links(t)
+        t1 = time.perf_counter()
+        l = [
+            *celestial.proto_util.make_update_request_iter(
+                serializer.diff_machines(t), serializer.diff_links(t)
+            )
+        ]
 
-        return (machine_diff_iter, link_diff_iter)
+        logging.debug(f"diffs took {time.perf_counter() - t1} seconds")
+
+        return l
 
     # start the simulation
     timestep: celestial.types.timestamp_s = 0
-    machine_diff_iter, link_diff_iter = get_diff(timestep)
+
+    updates = get_diff(timestep)
+
     start_time = time.perf_counter()
     logging.info("Starting emulation...")
 
@@ -171,18 +170,10 @@ if __name__ == "__main__":
         while True:
             logging.info(f"Updating for timestep {timestep}")
 
-            # in order to have different threads read from the same iterator
-            # at their own pace, we have to tee them
-            # each thread will get a custom view of the iterator
-            machine_diff_iters = itertools.tee(machine_diff_iter, len(hosts))
-            link_diff_iters = itertools.tee(link_diff_iter, len(hosts))
             with concurrent.futures.ThreadPoolExecutor() as e:
                 for h in range(len(hosts)):
-                    e.submit(
-                        hosts[h].update,
-                        machine_diff_iters[h],
-                        link_diff_iters[h],
-                    ).result()
+                    # need to make some generators
+                    e.submit(hosts[h].update, (u for u in updates))
 
             timestep += config.resolution
 
@@ -192,7 +183,7 @@ if __name__ == "__main__":
             logging.debug(f"getting update for timestep {timestep}")
 
             # already getting the next timestep to be faster
-            machine_diff_iter, link_diff_iter = get_diff(timestep)
+            updates = get_diff(timestep)
 
             logging.debug(
                 f"waiting for {timestep -(time.perf_counter() - start_time)} seconds"
@@ -202,6 +193,9 @@ if __name__ == "__main__":
 
     finally:
         logging.info("got keyboard interrupt, stopping...")
-        for h in hosts:
-            h.stop()
+        with concurrent.futures.ThreadPoolExecutor() as e:
+            for h in range(len(hosts)):
+                # need to make some generators
+                e.submit(hosts[h].stop)
+
         logging.info("finished")

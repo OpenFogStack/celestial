@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-ping/ping"
@@ -42,8 +43,10 @@ type peer struct {
 	directAddr  net.IP
 	wgAddr      net.IP
 	allowedNets []*net.IPNet
-	port        uint16
-	publicKey   string
+	sync.Mutex  // can't have two goroutines modifying this at the same time
+
+	port      uint16
+	publicKey string
 	// microseconds
 	latency uint64
 }
@@ -174,6 +177,8 @@ func (p *PeeringService) Route(network net.IPNet, host orchestrator.Host) error 
 		return errors.Errorf("unknown host %d", host)
 	}
 
+	h.Lock()
+	defer h.Unlock()
 	h.allowedNets = append(h.allowedNets, &network)
 
 	// update the list of allowed IPs

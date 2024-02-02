@@ -271,6 +271,25 @@ class Shell:
 
             self.satellites_array[sat_id]["in_bbox"] = sat_is_in_bbox
 
+        # xyz_pos = np.vectorize(rot)(self.satellites_array)
+        # unfortunately it won't let me do the np.dot within the numba function
+        # xyz_pos = np.array(
+        #     [
+        #         np.dot(neg_rotation_matrix, np.array([x["x"], x["y"], x["z"]]))
+        #         for x in self.satellites_array
+        #     ]
+        # )
+
+        # self._numba_is_in_bbox(
+        #     self.bbox.lat1,
+        #     self.bbox.lat2,
+        #     self.bbox.lon1,
+        #     self.bbox.lon2,
+        #     self.semi_major_axis,
+        #     self.satellites_array,
+        #     xyz_pos=xyz_pos,
+        # )
+
         for gst in self.gst_array:
             new_pos = np.dot(
                 rotation_matrix, [gst["init_x"], gst["init_y"], gst["init_z"]]
@@ -460,6 +479,49 @@ class Shell:
                 return np.bool_(False)
 
         return np.bool_(lat >= self.bbox.lat1 and lat <= self.bbox.lat2)
+
+    # @staticmethod
+    # # @numba.njit  # type: ignore
+    # def _numba_is_in_bbox(
+    #     bbox_lat1: float,
+    #     bbox_lat2: float,
+    #     bbox_lon1: float,
+    #     bbox_lon2: float,
+    #     semi_major_axis: float,
+    #     satellites_array: np.ndarray,  # type: ignore
+    #     xyz_pos: typing.List[typing.Tuple[np.int32, np.int32, np.int32]],
+    # ) -> None:
+    #     """Find out for each satellite whether its position is in the bounding box of the constellation."""
+
+    #     for sat_id in range(len(satellites_array)):
+    #         # take cartesian coordinates and convert to lat long
+
+    #         x = xyz_pos[sat_id][0]
+    #         y = xyz_pos[sat_id][1]
+    #         z = xyz_pos[sat_id][2]
+
+    #         # convert that position into lat lon
+
+    #         div = z / semi_major_axis
+    #         if np.abs(div) > 1:
+    #             lat = np.degrees(np.arccos(1 if div > 0 else -1))
+    #         else:
+    #             lat = np.degrees(np.arcsin(z / semi_major_axis))
+    #         lon = np.degrees(np.arctan2(y, x))
+
+    #         # check if lat long is in bounding box
+    #         if bbox_lon2 < bbox_lon1:
+    #             if lon < bbox_lon1 and lon > bbox_lon2:
+    #                 satellites_array[sat_id]["in_bbox"] = np.bool_(False)
+    #                 continue
+    #         else:
+    #             if lon < bbox_lon1 or lon > bbox_lon2:
+    #                 satellites_array[sat_id]["in_bbox"] = np.bool_(False)
+    #                 continue
+
+    #         satellites_array[sat_id]["in_bbox"] = np.bool_(
+    #             lat >= bbox_lat1 and lat <= bbox_lat2
+    #         )
 
     def _init_ground_stations(
         self, groundstations: typing.List[celestial.config.GroundStation]

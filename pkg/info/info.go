@@ -456,7 +456,7 @@ func Start(port uint64, o *orchestrator.Orchestrator) error {
 
 	r.HandleFunc("/self", i.getSelf).Methods("GET")
 	r.HandleFunc("/info", i.getInfo).Methods("GET")
-	r.HandleFunc("/shell/{shell:[0-9][0-9]*}", i.getShell).Methods("GET")
+	r.HandleFunc("/shell/{shell:[1-9][0-9]*}", i.getShell).Methods("GET")
 	r.HandleFunc("/shell/{shell:[1-9][0-9]*}/{sat:[0-9]+}", i.getSat).Methods("GET")
 	r.HandleFunc("/gst/{name}", i.getGST).Methods("GET")
 	r.HandleFunc("/path/{source_shell}/{source_sat}/{target_shell}/{target_sat}", i.getPath).Methods("GET")

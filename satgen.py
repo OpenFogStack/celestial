@@ -83,6 +83,9 @@ if __name__ == "__main__":
     i = 0
     pbar = tqdm.tqdm(total=int(config.duration / config.resolution))
     while i < config.duration:
+        # import cProfile
+
+        # cProfile.run("constellation.step(i)", sort="cumtime")
         constellation.step(i)
         i += config.resolution
         pbar.update(1)

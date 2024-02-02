@@ -40,6 +40,8 @@ func New() *EBPFem {
 }
 
 func (e *EBPFem) Stop() error {
+	e.Lock()
+	defer e.Unlock()
 	for _, v := range e.vms {
 		err := v.objs.Close()
 		if err != nil {
@@ -99,7 +101,9 @@ func (e *EBPFem) Register(id orchestrator.MachineID, netIf string) error {
 		return errors.WithStack(err)
 	}
 
+	e.Lock()
 	e.vms[id] = v
+	e.Unlock()
 
 	return nil
 }
@@ -121,7 +125,9 @@ func (v *vm) getHBD(target net.IPNet) *handleBpsDelay {
 }
 
 func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, bandwidth uint64) error {
+	e.RLock()
 	v, ok := e.vms[source]
+	e.RUnlock()
 
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
@@ -153,8 +159,9 @@ func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, b
 }
 
 func (e *EBPFem) SetLatency(source orchestrator.MachineID, target net.IPNet, latency uint32) error {
+	e.RLock()
 	v, ok := e.vms[source]
-
+	e.RUnlock()
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
 	}
@@ -183,8 +190,9 @@ func (e *EBPFem) SetLatency(source orchestrator.MachineID, target net.IPNet, lat
 }
 
 func (e *EBPFem) UnblockLink(source orchestrator.MachineID, target net.IPNet) error {
+	e.RLock()
 	v, ok := e.vms[source]
-
+	e.RUnlock()
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
 	}
@@ -211,8 +219,9 @@ func (e *EBPFem) UnblockLink(source orchestrator.MachineID, target net.IPNet) er
 }
 
 func (e *EBPFem) BlockLink(source orchestrator.MachineID, target net.IPNet) error {
+	e.RLock()
 	v, ok := e.vms[source]
-
+	e.RUnlock()
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
 	}

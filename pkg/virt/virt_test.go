@@ -1,3 +1,5 @@
+//go:build linux && amd64
+
 /*
 * This file is part of Celestial (https://github.com/OpenFogStack/celestial).
 * Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.

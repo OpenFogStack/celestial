@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-bbox = [-90.0, -180.0, 90.0, 180.0]
+bbox = [0.0, -60.0, 90.0, 60.0]
 resolution = 10
 duration = 900
 
@@ -31,19 +31,19 @@ kernel = "vmlinux.bin"
 rootfs = "validator.img"
 
 [[shell]]
-planes = 6
-sats = 10
-altitude_km = 1000
-inclination = 90.0
-arc_of_ascending_nodes = 180.0
+planes = 72
+sats = 22
+altitude_km = 900
+inclination = 53.0
+arc_of_ascending_nodes = 360.0
 eccentricity = 0.0
 
 [[shell]]
 planes = 6
 sats = 10
-altitude_km = 900
-inclination = 53.0
-arc_of_ascending_nodes = 360.0
+altitude_km = 1000
+inclination = 90.0
+arc_of_ascending_nodes = 180.0
 eccentricity = 0.0
 
 [[ground_station]]
