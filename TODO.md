@@ -10,5 +10,5 @@
 - [] Support for OCI images
 - [x] Add NetEm stuff
 - [] Add fault injection
-- [] Update documentation
-- [] git cloning in rootfs builder not working as git has no access to dev/urandom (needs symlink into chroot)
+- [x] Update documentation
+- [x] git cloning in rootfs builder not working as git has no access to dev/urandom (needs symlink into chroot)
