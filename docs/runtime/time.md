@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Time API
-nav_order: 12
+nav_order: 2
+parent: Runtime
 ---
 
 ## Time
