@@ -31,7 +31,7 @@ if __name__ == "__main__":
     validate = pd.read_csv(results_file)
 
     # convert the "0.0" times to "1e7", i.e., "infinity"
-    validate["actual"] = validate["actual"].apply(lambda x: 1e7 if x == 0.0 else x)
+    # validate["actual"] = validate["actual"].apply(lambda x: 1e7 if x == 0.0 else x)
 
     # normalize the start time to 0
     start_time = validate["t"].min()
@@ -80,23 +80,29 @@ if __name__ == "__main__":
 
     # first plot the _expected_ values
     expected_line = sns.lineplot(data=validate, x="t", y="expected", hue="sat")
+    expected_line.set_yscale("log")
     save_fig(expected_line, "expected_line")
 
     # then plot the actual measurements
     actual_line = sns.lineplot(data=validate, x="t", y="actual", hue="sat")
+    actual_line.set_yscale("log")
     save_fig(actual_line, "actual_line")
 
     # let's see only the ones that are not unreachable next
-    validate_reachable = validate[validate["expected"] < 1e7]
+    validate_reachable = validate[
+        (validate["expected"] < 1e7) & (validate["actual"] < 1e7)
+    ]
 
     # first plot the _expected_ values
     reachable_expected = sns.lineplot(
         data=validate_reachable, x="t", y="expected", hue="sat"
     )
+    reachable_expected.set_yscale("log")
     save_fig(reachable_expected, "reachable_expected")
 
     # then plot the actual measurements
     reachable_actual = sns.lineplot(
         data=validate_reachable, x="t", y="actual", hue="sat"
     )
+    reachable_actual.set_yscale("log")
     save_fig(reachable_actual, "reachable_actual")

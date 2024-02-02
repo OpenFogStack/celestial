@@ -52,4 +52,5 @@ type vm struct {
 
 type EBPFem struct {
 	vms map[orchestrator.MachineID]*vm
+	sync.RWMutex
 }

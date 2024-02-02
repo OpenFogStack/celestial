@@ -63,7 +63,7 @@ func getID(ip net.IP) (orchestrator.MachineID, error) {
 
 	return orchestrator.MachineID{
 		Group: ip[1] & 0xFF,
-		Id:    uint32((ip[2]<<6)&0xFF) + uint32(((ip[3])>>2)&0xFF),
+		Id:    uint32(ip[2])<<6 + uint32(ip[3])>>2,
 	}, nil
 }
 

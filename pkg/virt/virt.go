@@ -20,6 +20,7 @@ package virt
 import (
 	"fmt"
 	"os/exec"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 
@@ -125,7 +126,9 @@ func (v *Virt) RegisterMachine(id orchestrator.MachineID, name string, host orch
 		return err
 	}
 
+	v.Lock()
 	v.machines[id] = m
+	v.Unlock()
 
 	return nil
 }
@@ -133,7 +136,10 @@ func (v *Virt) RegisterMachine(id orchestrator.MachineID, name string, host orch
 // BlockLink blocks the link between two machines using the network emulation backend.
 func (v *Virt) BlockLink(source orchestrator.MachineID, target orchestrator.MachineID) error {
 	// check that the source machine is on this host, otherwise discard
-	if _, ok := v.machines[source]; !ok {
+	v.RLock()
+	_, ok := v.machines[source]
+	defer v.RUnlock()
+	if !ok {
 		return nil
 	}
 
@@ -143,7 +149,10 @@ func (v *Virt) BlockLink(source orchestrator.MachineID, target orchestrator.Mach
 // UnblockLink unblocks the link between two machines using the network emulation backend.
 func (v *Virt) UnblockLink(source orchestrator.MachineID, target orchestrator.MachineID) error {
 	// check that the source machine is on this host, otherwise discard
-	if _, ok := v.machines[source]; !ok {
+	v.RLock()
+	_, ok := v.machines[source]
+	defer v.RUnlock()
+	if !ok {
 		return nil
 	}
 
@@ -153,7 +162,10 @@ func (v *Virt) UnblockLink(source orchestrator.MachineID, target orchestrator.Ma
 // SetLatency sets the latency between two machines using the network emulation backend.
 func (v *Virt) SetLatency(source orchestrator.MachineID, target orchestrator.MachineID, latency uint32) error {
 	// check that the source machine is on this host, otherwise discard
-	if _, ok := v.machines[source]; !ok {
+	v.RLock()
+	_, ok := v.machines[source]
+	defer v.RUnlock()
+	if !ok {
 		return nil
 	}
 
@@ -163,7 +175,10 @@ func (v *Virt) SetLatency(source orchestrator.MachineID, target orchestrator.Mac
 // SetBandwidth sets the bandwidth between two machines using the network emulation backend.
 func (v *Virt) SetBandwidth(source orchestrator.MachineID, target orchestrator.MachineID, bandwidth uint64) error {
 	// check that the source machine is on this host, otherwise discard
-	if _, ok := v.machines[source]; !ok {
+	v.RLock()
+	_, ok := v.machines[source]
+	defer v.RUnlock()
+	if !ok {
 		return nil
 	}
 
@@ -172,7 +187,10 @@ func (v *Virt) SetBandwidth(source orchestrator.MachineID, target orchestrator.M
 
 func (v *Virt) StopMachine(machine orchestrator.MachineID) error {
 	// check that the source machine is on this host, otherwise discard
-	if _, ok := v.machines[machine]; !ok {
+	v.RLock()
+	_, ok := v.machines[machine]
+	defer v.RUnlock()
+	if !ok {
 		return nil
 	}
 
@@ -181,7 +199,10 @@ func (v *Virt) StopMachine(machine orchestrator.MachineID) error {
 
 func (v *Virt) StartMachine(machine orchestrator.MachineID) error {
 	// check that the source machine is on this host, otherwise discard
-	if _, ok := v.machines[machine]; !ok {
+	v.RLock()
+	_, ok := v.machines[machine]
+	defer v.RUnlock()
+	if !ok {
 		return nil
 	}
 
@@ -189,14 +210,22 @@ func (v *Virt) StartMachine(machine orchestrator.MachineID) error {
 }
 
 func (v *Virt) Stop() error {
+	v.Lock()
+	defer v.Unlock()
 	log.Debugf("stopping %d machines", len(v.machines))
+	var wg sync.WaitGroup
 	for m := range v.machines {
-		err := v.transition(m, KILLED)
+		wg.Add(1)
+		go func(id orchestrator.MachineID) {
+			defer wg.Done()
+			err := v.transition(id, KILLED)
 
-		if err != nil {
-			return err
-		}
+			if err != nil {
+				log.Error(err)
+			}
+		}(m)
 	}
+	wg.Wait()
 
 	log.Debug("stopping netem backend")
 	err := v.neb.Stop()

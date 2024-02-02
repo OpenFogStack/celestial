@@ -226,16 +226,11 @@ don't worry if your output looks slightly dissimilar.
 
 To build Celestial, your best option is to use the `celestial-make` Docker
 image.
-Build this image with:
+Build and use this image by using `./celestial-make` instead of `make` for
+some commands:
 
 ```sh
-docker build -f compile.Dockerfile -t celestial-make .
-```
-
-Then build `celestial.bin` with:
-
-```sh
-docker run --rm -v $(pwd):/celestial celestial-make celestial.bin
+./celestial-make celestial.bin
 ```
 
 This will build the executable `celestial.bin` in the current directory.
@@ -350,13 +345,10 @@ ssh $CELESTIAL_HOST sudo apt-get install wireguard -y
 ssh $CELESTIAL_HOST curl -fsSL -o firecracker-v1.6.0-x86_64.tgz \
     https://github.com/firecracker-microvm/firecracker/releases/download/v1.6.0/firecracker-v1.6.0-x86_64.tgz
 ssh $CELESTIAL_HOST tar -xvf firecracker-v1.6.0-x86_64.tgz
-# and add the firecracker and jailer binaries to PATH
+# and add the firecracker binary to PATH
 ssh $CELESTIAL_HOST  sudo mv \
     release-v1.6.0-x86_64/firecracker-v1.6.0-x86_64 \
     /usr/local/bin/firecracker
-ssh $CELESTIAL_HOST sudo mv \
-    release-v1.6.0-x86_64/seccompiler-bin-v1.6.0-x86_64 \
-    /usr/local/bin/jailer
 
 # upload the celestial.bin
 cd ~/celestial
@@ -449,25 +441,31 @@ is running the validator ground station:
 
 ```sh
 $ tail -f /celestial/out/gst-validator.out
-trying sat 1442 shell 0
-expect 10.811155/10.811155 for sat 1442 shell 0 and found 22.423506
-trying sat 1443 shell 0
-expect 4.217975/4.217975 for sat 1443 shell 0 and found 9.413958
-trying sat 1464 shell 0
-expect 12.332064/12.332064 for sat 1464 shell 0 and found 25.309563
-trying sat 1465 shell 0
-expect 5.738477/5.738477 for sat 1465 shell 0 and found 12.450695
-trying sat 1486 shell 0
-expect 13.849221/13.849221 for sat 1486 shell 0 and found 28.427362
-trying sat 1487 shell 0
-expect 7.255186/7.255186 for sat 1487 shell 0 and found 15.675306
+trying sat 1 shell 1300
+expect 5.828/5.828 for sat 1300 shell 1 and found 12.950539588928223
+trying sat 1 shell 1301
+expect 2.617/2.617 for sat 1301 shell 1 and found 5.774497985839844
+trying sat 1 shell 1322
+expect 4.519/4.519 for sat 1322 shell 1 and found 10.051071643829346
+trying sat 1 shell 1323
+expect 3.16/3.16 for sat 1323 shell 1 and found 6.862342357635498
+trying sat 1 shell 1344
+expect 3.113/3.113 for sat 1344 shell 1 and found 7.225453853607178
+trying sat 1 shell 1345
+expect 4.564/4.564 for sat 1345 shell 1 and found 9.706079959869385
+trying sat 1 shell 1365
+expect 9.205/9.205 for sat 1365 shell 1 and found 19.009947776794434
+trying sat 1 shell 1366
+expect 2.613/2.613 for sat 1366 shell 1 and found 6.265699863433838
+trying sat 1 shell 1387
+expect 9.194/9.194 for sat 1387 shell 1 and found 18.981993198394775
 ...
 ```
 
-Similarly, to follow the output of the satellite `1420` in shell `0`:
+Similarly, to follow the output of the satellite `1420` in shell `1`:
 
 ```sh
-$ tail -f /celestial/out/0-1420.out
+$ tail -f /celestial/out/1-1420.out
 Wed Apr 27 11:48:46 UTC 2022: satellite server running
 Wed Apr 27 11:49:46 UTC 2022: satellite server running
 Wed Apr 27 11:50:46 UTC 2022: satellite server running
@@ -486,7 +484,7 @@ To download the file from the file system, we must mount it on the first host:
 $ CELESTIAL_HOST_1="192.168.0.8"
 $ ssh $CELESTIAL_HOST_1
 ubuntu@celestial-host-1:~$ mkdir -p ./tmp
-ubuntu@celestial-host-1:~$ sudo mount /celestial/ce-validator.ext4 ./tmp -o loop
+ubuntu@celestial-host-1:~$ sudo mount /celestial/cegst-validator.ext4 ./tmp -o loop
 ubuntu@celestial-host-1:~$ cp ./tmp/root/validator.csv .
 ubuntu@celestial-host-1:~$ sudo umount ./tmp
 ubuntu@celestial-host-1:~$ rmdir ./tmp
@@ -509,7 +507,7 @@ source .venv/bin/activate
 cd ./quick-start
 # pandas is additionally required as a dependency for this script
 python3 -m pip install -r requirements.txt
-python3 check_validator.py results.py
+python3 check_validator.py results.csv
 ```
 
 In the `graphs` folder, you should now see a few graphs:

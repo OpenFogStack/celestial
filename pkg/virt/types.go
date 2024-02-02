@@ -19,6 +19,7 @@ package virt
 
 import (
 	"net"
+	"sync"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
 
@@ -80,6 +81,7 @@ type Virt struct {
 	neb           NetworkEmulationBackend
 
 	machines map[orchestrator.MachineID]*machine
+	sync.RWMutex
 }
 
 // PeeringBackend is the interface for the peering backend.

@@ -88,29 +88,46 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 	}
 
 	// register all machines
-	progressMachines := 0
+	var wg sync.WaitGroup
+	var e error
+	progressMachines := atomic.Uint32{}
+
 	for m := range o.machines {
+		wg.Add(1)
+		go func(mid MachineID, mmachine *machine) {
+			defer wg.Done()
+			err := o.virt.RegisterMachine(mid, mmachine.name, mmachine.Host, mmachine.config)
+
+			if err != nil {
+				e = errors.WithStack(err)
+			}
+
+			progressMachines.Add(1)
+		}(m, o.machines[m])
+
 		o.State.MachinesState[m] = STOPPED
+	}
 
-		err := o.virt.RegisterMachine(m, o.machines[m].name, o.machines[m].Host, o.machines[m].config)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		progressMachines++
-
-		if progressMachines%10 == 0 {
-			log.Debugf("machine init progress: %d/%d", progressMachines, len(o.machines))
+	shown := 0
+	total := len(o.machines)
+	for state := 0; state < total; state = int(progressMachines.Load()) {
+		if state > shown && state%100 == 0 {
+			log.Debugf("machine init progress: %d/%d", progressMachines.Load(), total)
+			shown = state
 		}
 	}
-	log.Debugf("machine init progress: %d/%d", progressMachines, len(o.machines))
+
+	wg.Wait()
+	if e != nil {
+		return errors.WithStack(e)
+	}
 
 	log.Debugf("starting link init")
 
 	// init networking
 	// by default, all links are blocked
-	var wg sync.WaitGroup
-	var e error
+	wg = sync.WaitGroup{}
+	e = nil
 	progressLinks := atomic.Uint32{}
 
 	start := time.Now()
@@ -148,8 +165,8 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 		}(m, o.State.NetworkState[m])
 	}
 
-	shown := 0
-	total := len(o.machines) * (len(o.machines) - 1)
+	shown = 0
+	total = len(o.machines) * (len(o.machines) - 1)
 	for state := 0; state < total; state = int(progressLinks.Load()) {
 		if state > shown && state%100 == 0 {
 			log.Debugf("link init progress: %d/%d", progressLinks.Load(), total)

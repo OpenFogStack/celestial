@@ -45,7 +45,7 @@ ground_station_connection_type = "all"
 vcpu_count = 1
 mem_size_mib = 256
 disk_size_mib = 1
-kernel = "vmlinux.bin"
+kernel = "vmlinux-5.12.bin"
 rootfs = "server.img"
 
 # This is the satellite constellation configuration. We follow an older

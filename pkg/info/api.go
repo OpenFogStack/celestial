@@ -23,16 +23,19 @@ type Identifier struct {
 	Name  string `json:"name,omitempty"`
 }
 
+// Node is returned by `/self`, `/gst/{name}` and `/shell/{group}/{id}`.
 type Node struct {
 	Type       string     `json:"type"`
 	Active     bool       `json:"active"`
 	Identifier Identifier `json:"identifier"`
 }
 
+// Shell is returned by `/shell/{group}`.
 type Shell struct {
 	Sats []Node `json:"sats"`
 }
 
+// Constellation is returned by `/info`.
 type Constellation struct {
 	Shells         []Shell `json:"shells"`
 	Groundstations []Node  `json:"groundstations"`
@@ -45,6 +48,7 @@ type Segment struct {
 	Bandwidth uint64     `json:"bandwidth,omitempty"`
 }
 
+// Path is returned by `/path/{source_group}/{source_id}/{target_group}/{target_id}`.
 type Path struct {
 	Source    Identifier `json:"source"`
 	Target    Identifier `json:"target"`

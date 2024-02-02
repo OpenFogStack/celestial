@@ -78,6 +78,26 @@ def get_active_sats(shells: int, gateway: str) -> typing.List[typing.Dict[str, i
     return active
 
 
+def get_sats_state(
+    sats: typing.List[typing.Dict[str, int]], gateway: str
+) -> typing.List[typing.Tuple[typing.Dict[str, int], bool]]:
+    states = []
+
+    for sat in sats:
+        try:
+            response = requests.get(
+                f"http://{gateway}/shell/{sat['shell']}/{sat['sat']}"
+            )
+            data = response.json()
+
+            states.append((sat, data["active"]))
+
+        except Exception as e:
+            print(f"got error when trying to get sat {sat} info {e}")
+
+    return states
+
+
 def get_expected_latency(
     self_id: str, sat: int, shell: int, gateway: str
 ) -> typing.Union[float, bool]:
@@ -86,7 +106,7 @@ def get_expected_latency(
 
         data = response.json()
 
-        if data["blocked"]:
+        if "blocked" in data and data["blocked"]:
             return MAX_DELAY
 
         return float(data["delay"]) / 1e3  # convert to ms
@@ -99,12 +119,18 @@ def get_expected_latency(
 
 
 def get_real_latency(sat: int, shell: int) -> float:
-    act = ping3.ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
+    # send 4 pings and take the average
+    act = 0.0
+    n_pings = 4
+    for _ in range(n_pings):
+        p = ping3.ping(f"{sat}.{shell}.celestial", unit="ms", timeout=1)
 
-    if act is None or act is False:
-        return MAX_DELAY
+        if p is None:
+            return MAX_DELAY
 
-    return float(act)
+        act += float(p) / float(n_pings)
+
+    return act
 
 
 if __name__ == "__main__":
@@ -131,7 +157,7 @@ if __name__ == "__main__":
         control_group = []
 
         # add some random sats
-        for i in range(shells):
+        for i in range(1, shells + 1):
             for j in range(1):
                 control_group.append(
                     {
@@ -150,21 +176,28 @@ if __name__ == "__main__":
 
         while True:
             time.sleep(5.0)
-            active = get_active_sats(shells, gateway)
+            active_sats = get_active_sats(shells, gateway)
 
-            print(f"found {len(active)} active sats")
+            print(f"found {len(active_sats)} active sats")
 
-            targets = active.copy()
-            targets.extend(control_group)
+            targets = [(sat, True) for sat in active_sats]
 
-            for sat in targets:
-                print("trying sat {sat['sat']} shell {sat['shell']}")
+            targets.extend(get_sats_state(control_group, gateway))
 
-                expBef = get_expected_latency(id, sat["sat"], sat["shell"], gateway)
+            for sat, active in targets:
+                expBef = (
+                    get_expected_latency(id, sat["sat"], sat["shell"], gateway)
+                    if active
+                    else MAX_DELAY
+                )
 
                 act = get_real_latency(sat["sat"], sat["shell"])
 
-                expAft = get_expected_latency(id, sat["sat"], sat["shell"], gateway)
+                expAft = (
+                    get_expected_latency(id, sat["sat"], sat["shell"], gateway)
+                    if active
+                    else MAX_DELAY
+                )
 
                 # act can be a bit higher than 2*exp but never lower!
                 if 0 <= act - (expAft * 2) <= 5 or (

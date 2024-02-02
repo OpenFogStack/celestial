@@ -27,65 +27,69 @@ import (
 )
 
 func (v *Virt) transition(id orchestrator.MachineID, state state) error {
-	if v.machines[id].state == state {
+	v.RLock()
+	m := v.machines[id]
+	v.RUnlock()
+
+	if m.state == state {
 		return nil
 	}
 
 	switch state {
 	case STOPPED:
-		switch v.machines[id].state {
+		switch m.state {
 		case STARTED:
-			err := v.suspendMachine(v.machines[id])
+			err := suspendMachine(m)
 			if err != nil {
 				return err
 			}
-			v.machines[id].state = STOPPED
+			m.state = STOPPED
 			return nil
 		case REGISTERED:
 			// not started yet, so nothing to do
 			// but keep it as registered only, so that it can be started if it ever transitions to STARTED
 			return nil
 		default:
-			log.Tracef("cannot transition %s from %d to %d", id, v.machines[id].state, state)
+			log.Tracef("cannot transition %s from %d to %d", id, m.state, state)
 		}
 	case STARTED:
-		switch v.machines[id].state {
+		switch m.state {
 		case REGISTERED:
-			err := v.startMachine(v.machines[id])
+			err := startMachine(m)
 			if err != nil {
 				return err
 			}
-			v.machines[id].state = STARTED
+			m.state = STARTED
 			return nil
 
 		case STOPPED:
-			err := v.resumeMachine(v.machines[id])
+			err := resumeMachine(m)
 			if err != nil {
 				return err
 			}
-			v.machines[id].state = STARTED
+			m.state = STARTED
 			return nil
 		default:
-			log.Tracef("cannot transition %s from %d to %d", id, v.machines[id].state, state)
+			log.Tracef("cannot transition %s from %d to %d", id, m.state, state)
 		}
 	case REGISTERED:
 		return errors.Errorf("cannot transition to REGISTERED")
 	case KILLED:
-		switch v.machines[id].state {
+		switch m.state {
 		case STARTED:
-			err := v.killMachine(v.machines[id])
+			err := killMachine(m)
 			if err != nil {
 				return err
 			}
 			return nil
 		case STOPPED:
-			err := v.killMachine(v.machines[id])
+			err := killMachine(m)
 			if err != nil {
 				return err
 			}
 			return nil
 		default:
-			log.Tracef("cannot transition %s from %d to %d", id, v.machines[id].state, state)
+			log.Tracef("cannot transition %s from %d to %d", id, m.state, state)
 		}
 	}
 	return nil
@@ -118,7 +122,7 @@ func (v *Virt) register(id orchestrator.MachineID, m *machine, config orchestrat
 	return nil
 }
 
-func (v *Virt) killMachine(m *machine) error {
+func killMachine(m *machine) error {
 	log.Trace("Killing machine ", m.name)
 
 	err := m.vm.StopVMM()
@@ -130,17 +134,17 @@ func (v *Virt) killMachine(m *machine) error {
 	return nil
 }
 
-func (v *Virt) suspendMachine(m *machine) error {
+func suspendMachine(m *machine) error {
 	log.Trace("Suspending machine ", m.name)
 	return m.vm.PauseVM(context.Background())
 }
 
-func (v *Virt) resumeMachine(m *machine) error {
+func resumeMachine(m *machine) error {
 	log.Trace("Resuming machine ", m.name)
 	return m.vm.ResumeVM(context.Background())
 }
 
-func (v *Virt) startMachine(m *machine) error {
+func startMachine(m *machine) error {
 	log.Trace("Starting machine ", m.name)
 	// perform init tasks
 	err := m.initialize()

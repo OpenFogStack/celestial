@@ -53,7 +53,7 @@ func New(o *orchestrator.Orchestrator, pb PeeringBackend) *Server {
 }
 
 func (s *Server) Stop(_ context.Context, _ *celestial.Empty) (*celestial.Empty, error) {
-	log.Debug("server: received stop request")
+	log.Info("server: received stop request")
 
 	err := s.o.Stop()
 	if err != nil {
@@ -169,6 +169,7 @@ func (s *Server) Update(stream celestial.Celestial_UpdateServer) error {
 
 	// updates are streamed to us, we need to iterate until the stream ends
 	for update, err := stream.Recv(); err != io.EOF; update, err = stream.Recv() {
+		log.Debugf("received update")
 
 		if err != nil {
 			return errors.WithStack(err)
@@ -177,58 +178,58 @@ func (s *Server) Update(stream celestial.Celestial_UpdateServer) error {
 		// not a fan of the indentation but we need to check
 		// for nil here...
 		if update.NetworkDiffs != nil {
+			parseUpdateStart := time.Now()
 			for _, n := range update.NetworkDiffs {
 				a := orchestrator.MachineID{
-					Group: uint8(n.Id.Group),
-					Id:    n.Id.Id,
+					Group: uint8(n.Source.Group),
+					Id:    n.Source.Id,
 				}
 
 				if _, ok := ns[a]; !ok {
 					ns[a] = make(map[orchestrator.MachineID]*orchestrator.Link)
 				}
 
-				for _, l := range n.Links {
-					b := orchestrator.MachineID{
-						Group: uint8(l.Target.Group),
-						Id:    l.Target.Id,
-					}
+				b := orchestrator.MachineID{
+					Group: uint8(n.Target.Group),
+					Id:    n.Target.Id,
+				}
 
-					if _, ok := ns[b]; !ok {
-						ns[b] = make(map[orchestrator.MachineID]*orchestrator.Link)
-					}
+				if _, ok := ns[b]; !ok {
+					ns[b] = make(map[orchestrator.MachineID]*orchestrator.Link)
+				}
 
-					if l.Blocked {
-						ns[a][b] = &orchestrator.Link{
-							Blocked: true,
-						}
-						ns[b][a] = &orchestrator.Link{
-							Blocked: true,
-						}
-
-						continue
-					}
-
+				if n.Blocked {
 					ns[a][b] = &orchestrator.Link{
-						Latency:   l.Latency,
-						Bandwidth: l.Bandwidth,
-						Blocked:   false,
-						Next: orchestrator.MachineID{
-							Group: uint8(l.Next.Group),
-							Id:    l.Next.Id,
-						},
+						Blocked: true,
 					}
 					ns[b][a] = &orchestrator.Link{
-						Latency:   l.Latency,
-						Bandwidth: l.Bandwidth,
-						Blocked:   false,
-						Next: orchestrator.MachineID{
-							Group: uint8(l.Prev.Group),
-							Id:    l.Prev.Id,
-						},
+						Blocked: true,
 					}
 
+					continue
 				}
+
+				ns[a][b] = &orchestrator.Link{
+					Latency:   n.Latency,
+					Bandwidth: n.Bandwidth,
+					Blocked:   false,
+					Next: orchestrator.MachineID{
+						Group: uint8(n.Next.Group),
+						Id:    n.Next.Id,
+					},
+				}
+				ns[b][a] = &orchestrator.Link{
+					Latency:   n.Latency,
+					Bandwidth: n.Bandwidth,
+					Blocked:   false,
+					Next: orchestrator.MachineID{
+						Group: uint8(n.Prev.Group),
+						Id:    n.Prev.Id,
+					},
+				}
+
 			}
+			log.Debugf("parse update time: %v", time.Since(parseUpdateStart))
 		}
 
 		if update.MachineDiffs == nil {

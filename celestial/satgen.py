@@ -87,7 +87,7 @@ class SatgenConstellation:
             self.ground_stations.append(gst)
 
         for i, sc in enumerate(config.shells):
-            for j in range(s.total_sats):
+            for j in range(sc.total_sats):
                 self.nodes[
                     celestial.types.MachineID(
                         group=1 + i,
@@ -104,7 +104,7 @@ class SatgenConstellation:
                 m2: celestial.types.Link(
                     latency_us=0,
                     bandwidth_kbits=0,
-                    blocked=False,
+                    blocked=True,
                     next_hop=m1,
                     prev_hop=m2,
                 )
@@ -116,6 +116,15 @@ class SatgenConstellation:
 
         for machine, machine_config in self.nodes.items():
             self.writer.init_machine(machine, machine_config)
+
+        for gst in self.ground_stations:
+            self.machines_state[gst] = celestial.types.VMState.ACTIVE
+
+            self.writer.diff_machine(
+                0,  # starting time stamp 0
+                gst,
+                celestial.types.VMState.ACTIVE,
+            )
 
     def step(self, t: celestial.types.timestamp_s) -> None:
         """
@@ -131,19 +140,6 @@ class SatgenConstellation:
                 calculate_diffs=True,
                 delay_update_threshold_us=DELAY_UPDATE_THRESHOLD_US,
             )
-
-        # initially, turn on all ground stations
-        if not self.ground_stations_initialized:
-            for gst in self.ground_stations:
-                self.machines_state[gst] = celestial.types.VMState.ACTIVE
-
-                self.writer.diff_machine(
-                    self.current_time,
-                    gst,
-                    celestial.types.VMState.ACTIVE,
-                )
-
-            self.ground_stations_initialized = True
 
         for s in self.shells:
             for machine, state in s.get_sat_node_diffs().items():
