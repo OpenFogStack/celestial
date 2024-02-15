@@ -40,7 +40,7 @@ import (
 	"github.com/OpenFogStack/celestial/pkg/peer"
 	"github.com/OpenFogStack/celestial/pkg/server"
 	"github.com/OpenFogStack/celestial/pkg/virt"
-	"github.com/OpenFogStack/celestial/proto/celestial"
+	"github.com/OpenFogStack/celestial/proto"
 )
 
 const (
@@ -121,7 +121,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	// init
-	_, err = s.Register(context.Background(), &celestial.RegisterRequest{
+	_, err = s.Register(context.Background(), &proto.RegisterRequest{
 		Host: 0,
 	})
 
@@ -131,16 +131,16 @@ func TestMain(m *testing.M) {
 
 	log.Debug("initializing orchestrator")
 
-	machines := make([]*celestial.InitRequest_Machine, len(vms))
+	machines := make([]*proto.InitRequest_Machine, len(vms))
 
 	for i, vm := range vms {
-		machines[i] = &celestial.InitRequest_Machine{
-			Id: &celestial.MachineID{
+		machines[i] = &proto.InitRequest_Machine{
+			Id: &proto.MachineID{
 				Group: uint32(vm.group),
 				Id:    uint32(vm.id),
 			},
 			Host: 0,
-			Config: &celestial.InitRequest_Machine_MachineConfig{
+			Config: &proto.InitRequest_Machine_MachineConfig{
 				VcpuCount: 1,
 				Ram:       128,
 				DiskSize:  1024,
@@ -150,8 +150,8 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	_, err = s.Init(context.Background(), &celestial.InitRequest{
-		Hosts: []*celestial.InitRequest_Host{
+	_, err = s.Init(context.Background(), &proto.InitRequest{
+		Hosts: []*proto.InitRequest_Host{
 			{
 				Id: 0,
 			},
@@ -196,15 +196,15 @@ func TestMain(m *testing.M) {
 
 func TestStart(t *testing.T) {
 
-	machines := make([]*celestial.StateUpdateRequest_MachineDiff, len(vms))
+	machines := make([]*proto.StateUpdateRequest_MachineDiff, len(vms))
 
 	for i, vm := range vms {
-		machines[i] = &celestial.StateUpdateRequest_MachineDiff{
-			Id: &celestial.MachineID{
+		machines[i] = &proto.StateUpdateRequest_MachineDiff{
+			Id: &proto.MachineID{
 				Group: uint32(vm.group),
 				Id:    uint32(vm.id),
 			},
-			Active: celestial.VMState_VM_STATE_ACTIVE,
+			Active: proto.VMState_VM_STATE_ACTIVE,
 		}
 	}
 
@@ -292,13 +292,13 @@ func TestModify(t *testing.T) {
 	v := 0
 
 	u := &testUpdateServer{
-		md: []*celestial.StateUpdateRequest_MachineDiff{
+		md: []*proto.StateUpdateRequest_MachineDiff{
 			{
-				Id: &celestial.MachineID{
+				Id: &proto.MachineID{
 					Group: uint32(vms[v].group),
 					Id:    uint32(vms[v].id),
 				},
-				Active: celestial.VMState_VM_STATE_STOPPED,
+				Active: proto.VMState_VM_STATE_STOPPED,
 			},
 		},
 	}
@@ -325,13 +325,13 @@ func TestModify(t *testing.T) {
 	log.Debugf("machine is not reachable")
 
 	u = &testUpdateServer{
-		md: []*celestial.StateUpdateRequest_MachineDiff{
+		md: []*proto.StateUpdateRequest_MachineDiff{
 			{
-				Id: &celestial.MachineID{
+				Id: &proto.MachineID{
 					Group: uint32(vms[v].group),
 					Id:    uint32(vms[v].id),
 				},
-				Active: celestial.VMState_VM_STATE_ACTIVE,
+				Active: proto.VMState_VM_STATE_ACTIVE,
 			},
 		},
 	}
@@ -375,23 +375,23 @@ func TestModify(t *testing.T) {
 // check what happens when we adapt the network latency between the machines
 func testModifyLinks(t *testing.T, A int, B int, latency int) {
 	u := &testUpdateServer{
-		ld: []*celestial.StateUpdateRequest_NetworkDiff{
+		ld: []*proto.StateUpdateRequest_NetworkDiff{
 			{
-				Source: &celestial.MachineID{
+				Source: &proto.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
-				Target: &celestial.MachineID{
+				Target: &proto.MachineID{
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
 				Latency:   uint32(latency * 1000), // convert to microseconds
 				Bandwidth: 10000,
-				Next: &celestial.MachineID{
+				Next: &proto.MachineID{
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
-				Prev: &celestial.MachineID{
+				Prev: &proto.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
@@ -465,13 +465,13 @@ func TestBlockLink(t *testing.T) {
 	B := 1
 
 	u := &testUpdateServer{
-		ld: []*celestial.StateUpdateRequest_NetworkDiff{
+		ld: []*proto.StateUpdateRequest_NetworkDiff{
 			{
-				Source: &celestial.MachineID{
+				Source: &proto.MachineID{
 					Group: uint32(vms[A].group),
 					Id:    uint32(vms[A].id),
 				},
-				Target: &celestial.MachineID{
+				Target: &proto.MachineID{
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
@@ -541,12 +541,12 @@ func TestDNS(t *testing.T) {
 // Look at this Medium article and tell me that this is a good idea:
 // https://medium.com/@leeransetton/how-to-mock-grpc-stream-in-golang-db8c405fae37
 type testUpdateServer struct {
-	md   []*celestial.StateUpdateRequest_MachineDiff
-	ld   []*celestial.StateUpdateRequest_NetworkDiff
+	md   []*proto.StateUpdateRequest_MachineDiff
+	ld   []*proto.StateUpdateRequest_NetworkDiff
 	sent bool
 }
 
-func (u *testUpdateServer) SendAndClose(empty *celestial.Empty) error {
+func (u *testUpdateServer) SendAndClose(empty *proto.Empty) error {
 	return nil
 }
 
@@ -573,13 +573,13 @@ func (u *testUpdateServer) RecvMsg(m any) error {
 	return nil
 }
 
-func (u *testUpdateServer) Recv() (*celestial.StateUpdateRequest, error) {
+func (u *testUpdateServer) Recv() (*proto.StateUpdateRequest, error) {
 	if u.sent {
 		return nil, io.EOF
 	}
 
 	u.sent = true
-	return &celestial.StateUpdateRequest{
+	return &proto.StateUpdateRequest{
 		MachineDiffs: u.md,
 		NetworkDiffs: u.ld,
 	}, nil

@@ -34,20 +34,19 @@ class VMState(Enum):
     ACTIVE = 1
 
 
-MachineID_dtype = typing.Tuple[np.uint8, np.uint16, str]
+MachineID_dtype = typing.Tuple[np.uint8, np.uint16]
 
 
-def MachineID(group: int, id: int, name: str = "") -> MachineID_dtype:
+def MachineID(group: int, id: int) -> MachineID_dtype:
     """
-    Generate a machine ID from a group, an ID and an optional name.
+    Generate a machine ID from a group and an ID.
 
     :param group: The group of the machine.
     :param id: The ID of the machine.
-    :param name: The name of the machine.
 
     :return: A machine ID.
     """
-    return (np.uint8(group), np.uint16(id), name)
+    return (np.uint8(group), np.uint16(id))
 
 
 def MachineID_group(machine_id: MachineID_dtype) -> np.uint8:
@@ -68,16 +67,6 @@ def MachineID_id(machine_id: MachineID_dtype) -> np.uint16:
     :return: The ID of the machine ID.
     """
     return machine_id[1]
-
-
-def MachineID_name(machine_id: MachineID_dtype) -> str:
-    """
-    Get the name of a machine ID.
-
-    :param machine_id: The machine ID.
-    :return: The name of the machine ID.
-    """
-    return machine_id[2]
 
 
 Link_dtype = typing.Tuple[
@@ -157,6 +146,64 @@ def Link_prev_hop(link: Link_dtype) -> MachineID_dtype:
     :return: The previous hop of the link.
     """
     return link[4]
+
+
+MachineInfo_dtype = typing.Tuple[
+    typing.Optional[str],
+    typing.Optional[typing.Tuple[float, float]],
+    typing.Optional[typing.Tuple[str, str]],
+]
+
+
+def MachineInfo(
+    name: typing.Optional[str] = None,
+    location: typing.Optional[typing.Tuple[float, float]] = None,
+    tle: typing.Optional[typing.Tuple[str, str]] = None,
+) -> MachineInfo_dtype:
+    """
+    Additional information about a machine.
+
+    :param name: The name of the machine (for groundstations).
+    :param lat_long: The latitude and longitude of the machine (for groundstations).
+    :param tle: The TLE of the machine (for satellites).
+    :return: The machine info.
+    """
+
+    return (name, location, tle)
+
+
+def MachineInfo_name(info: MachineInfo_dtype) -> typing.Optional[str]:
+    """
+    Get the name of a machine.
+
+    :param info: The machine info.
+    :return: The name of the machine.
+    """
+    return info[0]
+
+
+def MachineInfo_location(
+    info: MachineInfo_dtype,
+) -> typing.Optional[typing.Tuple[float, float]]:
+    """
+    Get the latitude and longitude of a machine.
+
+    :param info: The machine info.
+    :return: The latitude and longitude of the machine.
+    """
+    return info[1]
+
+
+def MachineInfo_tle(
+    info: MachineInfo_dtype,
+) -> typing.Optional[typing.Tuple[str, str]]:
+    """
+    Get the TLE of a machine.
+
+    :param info: The machine info.
+    :return: The TLE of the machine.
+    """
+    return info[2]
 
 
 MachineState = typing.Dict[

@@ -38,7 +38,7 @@ import (
 	"github.com/OpenFogStack/celestial/pkg/peer"
 	"github.com/OpenFogStack/celestial/pkg/server"
 	"github.com/OpenFogStack/celestial/pkg/virt"
-	"github.com/OpenFogStack/celestial/proto/celestial"
+	"github.com/OpenFogStack/celestial/proto"
 )
 
 const (
@@ -105,7 +105,7 @@ func main() {
 
 	o := orchestrator.New(vb)
 
-	celestial.RegisterCelestialServer(s, server.New(o, pb))
+	proto.RegisterCelestialServer(s, server.New(o, pb))
 
 	lisS, err := net.Listen("tcp", net.JoinHostPort("", strconv.Itoa(int(*port))))
 

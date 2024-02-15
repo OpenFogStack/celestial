@@ -70,18 +70,28 @@ func (i *infoserver) getSelf(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s := &Node{
-		Type: "sat",
-		Identifier: Identifier{
-			Shell: m.ID.ID.Group,
-			ID:    m.ID.ID.Id,
-		},
-		Active: m.Active,
-	}
+	var s interface{}
 
-	if m.ID.Name != "" {
-		s.Identifier.Name = m.ID.Name
-		s.Type = "gst"
+	if m.Name != "" {
+		s = &GroundStation{
+			Identifier: Identifier{
+				Shell: m.ID.Group,
+				ID:    m.ID.Id,
+			},
+			Name: m.Name,
+			Lat:  m.Lat,
+			Lon:  m.Lon,
+		}
+	} else {
+		s = &Sat{
+			Identifier: Identifier{
+				Shell: m.ID.Group,
+				ID:    m.ID.Id,
+			},
+			Active: m.Active,
+			TLE1:   m.TLE1,
+			TLE2:   m.TLE2,
+		}
 	}
 
 	resp, err := json.Marshal(s)
@@ -108,33 +118,35 @@ func (i *infoserver) getInfo(w http.ResponseWriter, r *http.Request) {
 
 	for _, g := range c.Groups {
 		if g.Group == 0 {
-			s.Groundstations = make([]Node, len(g.Nodes))
+			s.GroundStations = make([]GroundStation, len(g.Nodes))
 			for j, n := range g.Nodes {
-				s.Groundstations[j] = Node{
-					Type: "gst",
+				s.GroundStations[j] = GroundStation{
 					Identifier: Identifier{
-						Shell: n.ID.ID.Group,
-						ID:    n.ID.ID.Id,
-						Name:  n.ID.Name,
+						Shell: n.ID.Group,
+						ID:    n.ID.Id,
 					},
-					Active: n.Active,
+					Name: n.Name,
+					Lat:  n.Lat,
+					Lon:  n.Lon,
 				}
 			}
 			continue
 		}
 
 		s.Shells[g.Group-1] = Shell{
-			Sats: make([]Node, len(g.Nodes)),
+			Sats: make([]Sat, len(g.Nodes)),
 		}
 
 		for _, n := range g.Nodes {
-			s.Shells[g.Group-1].Sats[n.ID.ID.Id] = Node{
-				Type: "sat",
+
+			s.Shells[g.Group-1].Sats[n.ID.Id] = Sat{
 				Identifier: Identifier{
-					Shell: n.ID.ID.Group,
-					ID:    n.ID.ID.Id,
+					Shell: n.ID.Group,
+					ID:    n.ID.Id,
 				},
 				Active: n.Active,
+				TLE1:   n.TLE1,
+				TLE2:   n.TLE2,
 			}
 		}
 
@@ -173,17 +185,18 @@ func (i *infoserver) getShell(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s := Shell{
-		Sats: make([]Node, 0, len(g.Nodes)),
+		Sats: make([]Sat, 0, len(g.Nodes)),
 	}
 
 	for _, n := range g.Nodes {
-		s.Sats = append(s.Sats, Node{
-			Type: "sat",
+		s.Sats = append(s.Sats, Sat{
 			Identifier: Identifier{
-				Shell: n.ID.ID.Group,
-				ID:    n.ID.ID.Id,
+				Shell: n.ID.Group,
+				ID:    n.ID.Id,
 			},
 			Active: n.Active,
+			TLE1:   n.TLE1,
+			TLE2:   n.TLE2,
 		})
 	}
 
@@ -230,16 +243,18 @@ func (i *infoserver) getSat(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		errRes(w, http.StatusInternalServerError, errors.Wrap(err, "could not marshal response"))
+		errRes(w, http.StatusInternalServerError, errors.Wrap(err, "could not get node by id"))
 		return
 	}
 
-	s := Node{
-		Type: "sat",
+	s := Sat{
 		Identifier: Identifier{
-			Shell: n.ID.ID.Group,
-			ID:    n.ID.ID.Id,
+			Shell: n.ID.Group,
+			ID:    n.ID.Id,
 		},
+		Active: n.Active,
+		TLE1:   n.TLE1,
+		TLE2:   n.TLE2,
 	}
 
 	resp, err := json.Marshal(s)
@@ -267,14 +282,14 @@ func (i *infoserver) getGST(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s := Node{
-		Type: "gst",
+	s := GroundStation{
 		Identifier: Identifier{
-			Shell: g.ID.ID.Group,
-			ID:    g.ID.ID.Id,
-			Name:  g.ID.Name,
+			Shell: g.ID.Group,
+			ID:    g.ID.Id,
 		},
-		Active: g.Active,
+		Name: g.Name,
+		Lat:  g.Lat,
+		Lon:  g.Lon,
 	}
 
 	resp, err := json.Marshal(s)
@@ -319,8 +334,8 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		source = orchestrator.MachineID{
-			Group: n.ID.ID.Group,
-			Id:    n.ID.ID.Id,
+			Group: n.ID.Group,
+			Id:    n.ID.Id,
 		}
 	} else {
 		sourceShell, err := strconv.ParseUint(v["source_shell"], 10, 32)
@@ -352,8 +367,8 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		target = orchestrator.MachineID{
-			Group: n.ID.ID.Group,
-			Id:    n.ID.ID.Id,
+			Group: n.ID.Group,
+			Id:    n.ID.Id,
 		}
 	} else {
 		targetShell, err := strconv.ParseUint(v["target_shell"], 10, 32)
@@ -389,19 +404,14 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sourceName, _ := i.Orchestrator.InfoGetNodeNameByID(p.Source)
-	targetName, _ := i.Orchestrator.InfoGetNodeNameByID(p.Target)
-
 	s := Path{
 		Source: Identifier{
 			Shell: p.Source.Group,
 			ID:    p.Source.Id,
-			Name:  sourceName,
 		},
 		Target: Identifier{
 			Shell: p.Target.Group,
 			ID:    p.Target.Id,
-			Name:  targetName,
 		},
 	}
 
@@ -411,19 +421,14 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 		s.Segments = make([]Segment, len(p.Segments))
 
 		for j, seg := range p.Segments {
-			sourceName, _ = i.Orchestrator.InfoGetNodeNameByID(seg.Source)
-			targetName, _ = i.Orchestrator.InfoGetNodeNameByID(seg.Target)
-
 			s.Segments[j] = Segment{
 				Source: Identifier{
 					Shell: seg.Source.Group,
 					ID:    seg.Source.Id,
-					Name:  sourceName,
 				},
 				Target: Identifier{
 					Shell: seg.Target.Group,
 					ID:    seg.Target.Id,
-					Name:  targetName,
 				},
 				Delay:     seg.Latency,
 				Bandwidth: seg.Bandwidth,

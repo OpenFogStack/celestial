@@ -67,8 +67,7 @@ import celestial.host
 import celestial.proto_util
 import celestial.types
 import celestial.zip_serializer
-import proto.celestial.celestial_pb2
-import proto.celestial.celestial_pb2_grpc
+import proto.celestial_pb2_grpc
 
 DEBUG = True
 DEFAULT_PORT = 1969
@@ -114,13 +113,15 @@ if __name__ == "__main__":
         int,
         typing.List[
             typing.Tuple[
-                celestial.types.MachineID_dtype, celestial.config.MachineConfig
+                celestial.types.MachineID_dtype,
+                celestial.config.MachineConfig,
+                celestial.types.MachineInfo,
             ]
         ],
     ] = {h: [] for h in range(len(hosts))}
     count = 0
 
-    for m_id, m_config in inits:
+    for m_id, m_config, m_info in inits:
         # this is the logic that assigns machines to hosts
         # we just do a round robin assignment for now
         # this might be suboptimal, because it forces any neighbor
@@ -128,7 +129,7 @@ if __name__ == "__main__":
         # assinging by shells might be better
         m_host = count % len(hosts)
 
-        machines[m_host].append((m_id, m_config))
+        machines[m_host].append((m_id, m_config, m_info))
         count += 1
 
     # init the hosts

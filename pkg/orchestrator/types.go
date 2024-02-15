@@ -66,10 +66,23 @@ type ISL struct {
 	Bandwidth uint64
 }
 
+// Info holds optional information about a node
+type Info struct {
+	Name string
+
+	// TLE strings are relevant for satellites
+	TLE1 string
+	TLE2 string
+
+	// lat and lon are relevant for ground stations
+	Lat float64
+	Lon float64
+}
+
 type machine struct {
-	name   string
 	Host   Host
 	config MachineConfig
+	info   Info
 }
 
 type MachineConfig struct {

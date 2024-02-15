@@ -20,7 +20,9 @@
 import datetime
 import numpy as np
 import math
+import typing
 import sgp4.api as sgp4
+from sgp4 import exporter
 
 if not sgp4.accelerated:
     import warnings
@@ -89,6 +91,9 @@ class SGP4Solver:
             starttime.minute,
             starttime.second,
         )
+
+        # TLEs
+        self.tles: typing.List[typing.Tuple[str, str]] = []
 
     def init_sat_array(self, satellites_array: np.ndarray) -> np.ndarray:  # type: ignore
         """
@@ -172,6 +177,10 @@ class SGP4Solver:
                 satellites_array[unique_id]["y"] = np.int32(r[1]) * 1000
                 satellites_array[unique_id]["z"] = np.int32(r[2]) * 1000
 
+                # generate TLE
+                tle = exporter.export_tle(self.sgp4_solvers[unique_id])
+                self.tles.append(tle)
+
         return satellites_array
 
     def set_time(
@@ -196,3 +205,13 @@ class SGP4Solver:
             satellites_array[sat_id]["z"] = np.int32(r[2]) * 1000
 
         return satellites_array
+
+    def get_tle(self, i: int) -> typing.Tuple[str, str]:
+        """
+        Get the TLE of a satellite.
+
+        :param i: The ID of the satellite.
+        :return: The TLE of the satellite.
+        """
+
+        return self.tles[i]

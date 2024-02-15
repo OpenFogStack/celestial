@@ -31,10 +31,12 @@ GO_FILES := $(shell find . -name '*.go' | grep -v _test.go)
 
 build: celestial.bin
 
-proto: proto/celestial/celestial.pb.go proto/celestial/celestial_grpc.pb.go proto/celestial/celestial_pb2.py proto/celestial/celestial_pb2.pyi proto/celestial/celestial_pb2_grpc.py proto/celestial/celestial_pb2_grpc.pyi
-proto/celestial/celestial.pb.go proto/celestial/celestial_grpc.pb.go proto/celestial/celestial_pb2.py proto/celestial/celestial_pb2.pyi proto/celestial/celestial_pb2_grpc.py proto/celestial/celestial_pb2_grpc.pyi: proto/celestial/celestial.proto proto/celestial/__init__.py ## build proto files
-	@protoc -I proto/celestial/ celestial.proto --go_out=proto/celestial --go_opt=paths=source_relative --go-grpc_out=proto/celestial --go-grpc_opt=require_unimplemented_servers=false,paths=source_relative
-	@python3 -m grpc_tools.protoc -I proto/celestial/ --python_out=proto/celestial --grpc_python_out=proto/celestial --mypy_out=proto/celestial celestial.proto --mypy_grpc_out=proto/celestial
+proto: proto/celestial.pb.go proto/celestial_grpc.pb.go proto/celestial_pb2.py proto/celestial_pb2.pyi proto/celestial_pb2_grpc.py proto/celestial_pb2_grpc.pyi
+proto/%.pb.go proto/%_grpc.pb.go : proto/%.proto ## build go proto files
+	@protoc -I proto/ $< --go_out=proto --go_opt=paths=source_relative --go-grpc_out=proto --go-grpc_opt=require_unimplemented_servers=false,paths=source_relative
+
+proto/%_pb2.py proto/%_pb2.pyi proto/%_pb2_grpc.py proto/%_pb2_grpc.pyi: proto/%.proto proto/__init__.py ## build python proto files
+	@python3 -m grpc_tools.protoc -I proto/ $< --python_out=proto --grpc_python_out=proto --mypy_out=proto --mypy_grpc_out=proto
 
 ebpf: pkg/ebpfem/edt_bpfel_x86.go pkg/ebpfem/edt_bpfel_x86.o ## build ebpf files
 pkg/ebpfem/edt_bpfel_x86.go pkg/ebpfem/edt_bpfel_x86.o: pkg/ebpfem/ebpfem.go pkg/ebpfem/ebpf/net.c pkg/ebpfem/ebpf/headers/helpers.h pkg/ebpfem/ebpf/headers/maps.h ## build ebpf files

@@ -69,11 +69,19 @@ message InitRequest {
             repeated string boot_parameters = 6;
         }
 
+        message Info {
+            optional string name = 1;
+            optional double lat = 2;
+            optional double lon = 3;
+            optional string TLE1 = 4;
+            optional string TLE2 = 5;
+        }
+
         MachineID id = 1;
-        optional string name = 2;
         // should actually be 8 bit but protobuf doesn't support uint8...
-        uint32 host = 3;
-        MachineConfig config = 4;
+        uint32 host = 2;
+        MachineConfig config = 3;
+        Info info = 4;
     }
 
     repeated Machine machines = 2;

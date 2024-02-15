@@ -427,6 +427,15 @@ class Shell:
 
         return gst_links
 
+    def get_tle(self, i: int) -> typing.Tuple[str, str]:
+        """
+        Get the TLE of a satellite.
+
+        :param i: The ID of the satellite.
+        :return: The TLE of the satellite.
+        """
+        return self.solver.get_tle(i)
+
     def _get_rotation_matrix(self, degrees: float) -> npt.NDArray[np.float64]:
         """A rotation matrix by which to rotate along the Earth's axis"""
 

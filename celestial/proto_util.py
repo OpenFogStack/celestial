@@ -23,8 +23,8 @@ import typing
 import celestial.config
 import celestial.host
 import celestial.types
-import proto.celestial.celestial_pb2
-import proto.celestial.celestial_pb2_grpc
+import proto
+import proto.celestial_pb2_grpc
 
 
 MAX_DIFF_UPDATE_SIZE = 100_000
@@ -36,7 +36,9 @@ def make_init_request(
         int,
         typing.List[
             typing.Tuple[
-                celestial.types.MachineID_dtype, celestial.config.MachineConfig
+                celestial.types.MachineID_dtype,
+                celestial.config.MachineConfig,
+                celestial.types.MachineInfo,
             ]
         ],
     ],
@@ -66,11 +68,21 @@ def make_init_request(
                 boot_parameters=m[1].boot_parameters,
             )
 
+            loc = celestial.types.MachineInfo_location(m[2])
+            tle = celestial.types.MachineInfo_tle(m[2])
+            i = proto.celestial.celestial_pb2.InitRequest.Machine.MachineInfo(
+                name=celestial.types.MachineInfo_name(m[2]),
+                lat=loc[0] if loc is not None else 0,
+                lon=loc[1] if loc is not None else 0,
+                tle_line1=tle[0] if tle is not None else "",
+                tle_line2=tle[1] if tle is not None else "",
+            )
+
             m = proto.celestial.celestial_pb2.InitRequest.Machine(
                 id=mid,
                 config=mc,
                 host=h.num,
-                name=celestial.types.MachineID_name(m[0]),
+                info=i,
             )
 
             init_request.machines.append(m)

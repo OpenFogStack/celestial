@@ -50,7 +50,7 @@ func (o *Orchestrator) GetResources() (availcpus uint32, availram uint64, err er
 	return uint32(runtime.NumCPU()), memory.TotalMemory(), nil
 }
 
-func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machineHosts map[MachineID]Host, machineNames map[MachineID]string) error {
+func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machineHosts map[MachineID]Host, machineInfos map[MachineID]*Info) error {
 	if o.initialized {
 		return errors.Errorf("orchestrator already initialized")
 	}
@@ -62,21 +62,17 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 
 	for m, config := range machineList {
 		o.machines[m] = &machine{
-			name:   machineNames[m],
 			config: config,
+			info:   *machineInfos[m],
 		}
 
-		if machineNames[m] != "" {
-			o.machineNames[machineNames[m]] = m
+		if o.machines[m].info.Name != "" {
+			o.machineNames[o.machines[m].info.Name] = m
 		}
 	}
 
 	for m, host := range machineHosts {
 		o.machines[m].Host = host
-	}
-
-	for m, name := range machineNames {
-		o.machines[m].name = name
 	}
 
 	// init state
@@ -94,7 +90,7 @@ func (o *Orchestrator) Initialize(machineList map[MachineID]MachineConfig, machi
 		wg.Add(1)
 		go func(mid MachineID, mmachine *machine) {
 			defer wg.Done()
-			err := o.virt.RegisterMachine(mid, mmachine.name, mmachine.Host, mmachine.config)
+			err := o.virt.RegisterMachine(mid, mmachine.info.Name, mmachine.Host, mmachine.config)
 
 			if err != nil {
 				e = errors.WithStack(err)

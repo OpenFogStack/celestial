@@ -20,25 +20,33 @@ package info
 type Identifier struct {
 	Shell uint8  `json:"shell"`
 	ID    uint32 `json:"id"`
-	Name  string `json:"name,omitempty"`
 }
 
-// Node is returned by `/self`, `/gst/{name}` and `/shell/{group}/{id}`.
-type Node struct {
-	Type       string     `json:"type"`
-	Active     bool       `json:"active"`
+// GroundStation is returned by `/gst/{name}`
+type GroundStation struct {
 	Identifier Identifier `json:"identifier"`
+	Name       string     `json:"name"`
+	Lat        float64    `json:"lat"`
+	Lon        float64    `json:"lon"`
+}
+
+// Sat is returned by `/self` and `/shell/{group}/{id}`.
+type Sat struct {
+	Identifier Identifier `json:"identifier"`
+	Active     bool       `json:"active"`
+	TLE1       string     `json:"tle1"`
+	TLE2       string     `json:"tle2"`
 }
 
 // Shell is returned by `/shell/{group}`.
 type Shell struct {
-	Sats []Node `json:"sats"`
+	Sats []Sat `json:"sats"`
 }
 
 // Constellation is returned by `/info`.
 type Constellation struct {
-	Shells         []Shell `json:"shells"`
-	Groundstations []Node  `json:"groundstations"`
+	Shells         []Shell         `json:"shells"`
+	GroundStations []GroundStation `json:"ground_stations"`
 }
 
 type Segment struct {

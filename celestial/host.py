@@ -22,8 +22,8 @@ import grpc
 import time
 import logging
 
-import proto.celestial.celestial_pb2
-import proto.celestial.celestial_pb2_grpc
+import proto
+import proto.celestial_pb2_grpc
 
 
 class Host:

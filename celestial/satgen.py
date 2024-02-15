@@ -71,9 +71,16 @@ class SatgenConstellation:
 
             self.shells.append(s)
 
-        self.nodes: typing.Dict[
+        self.nodes: typing.List[celestial.types.MachineID_dtype] = []
+
+        self.node_configs: typing.Dict[
             celestial.types.MachineID_dtype, celestial.config.MachineConfig
         ] = {}
+
+        self.node_infos: typing.Dict[
+            celestial.types.MachineID_dtype, celestial.types.MachineInfo
+        ] = {}
+
         self.ground_stations_initialized = False
 
         for i, g in enumerate(config.ground_stations):
@@ -83,21 +90,26 @@ class SatgenConstellation:
                 name=g.name,
             )
 
-            self.nodes[gst] = g.machine_config
+            self.nodes.append(gst)
+            self.node_configs[gst] = g.machine_config
+            self.node_infos[gst] = celestial.types.MachineInfo(
+                name=g.name,
+                location=[g.lat, g.long],
+            )
             self.ground_stations.append(gst)
 
         for i, sc in enumerate(config.shells):
             for j in range(sc.total_sats):
-                self.nodes[
-                    celestial.types.MachineID(
-                        group=1 + i,
-                        id=j,
-                    )
-                ] = sc.machine_config
+                m_id = celestial.types.MachineID(
+                    group=1 + i,
+                    id=j,
+                )
 
-        self.machines_state = {
-            m: celestial.types.VMState.STOPPED for m in self.nodes.keys()
-        }
+                self.nodes.append(m_id)
+                self.node_configs[m_id] = sc.machine_config
+                self.node_infos[m_id] = celestial.types.MachineInfo(tle=sc.get_tle(j))
+
+        self.machines_state = {m: celestial.types.VMState.STOPPED for m in self.nodes}
 
         self.links_state = {
             m1: {
@@ -108,14 +120,16 @@ class SatgenConstellation:
                     next_hop=m1,
                     prev_hop=m2,
                 )
-                for m2 in self.nodes.keys()
+                for m2 in self.nodes
                 if m1 != m2
             }
-            for m1 in self.nodes.keys()
+            for m1 in self.nodes
         }
 
-        for machine, machine_config in self.nodes.items():
-            self.writer.init_machine(machine, machine_config)
+        for machine in self.nodes:
+            self.writer.init_machine(
+                machine, self.node_configs[machine], self.node_infos[machine]
+            )
 
         for gst in self.ground_stations:
             self.machines_state[gst] = celestial.types.VMState.ACTIVE

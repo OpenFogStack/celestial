@@ -21,9 +21,19 @@ import abc
 import celestial_pb2
 import collections.abc
 import grpc
+import grpc.aio
+import typing
+
+_T = typing.TypeVar('_T')
+
+class _MaybeAsyncIterator(collections.abc.AsyncIterator[_T], collections.abc.Iterator[_T], metaclass=abc.ABCMeta):
+    ...
+
+class _ServicerContext(grpc.ServicerContext, grpc.aio.ServicerContext):  # type: ignore
+    ...
 
 class CelestialStub:
-    def __init__(self, channel: grpc.Channel) -> None: ...
+    def __init__(self, channel: typing.Union[grpc.Channel, grpc.aio.Channel]) -> None: ...
     Register: grpc.UnaryUnaryMultiCallable[
         celestial_pb2.RegisterRequest,
         celestial_pb2.RegisterResponse,
@@ -41,30 +51,48 @@ class CelestialStub:
         celestial_pb2.Empty,
     ]
 
+class CelestialAsyncStub:
+    Register: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.RegisterRequest,
+        celestial_pb2.RegisterResponse,
+    ]
+    Init: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.InitRequest,
+        celestial_pb2.Empty,
+    ]
+    Update: grpc.aio.StreamUnaryMultiCallable[
+        celestial_pb2.StateUpdateRequest,
+        celestial_pb2.Empty,
+    ]
+    Stop: grpc.aio.UnaryUnaryMultiCallable[
+        celestial_pb2.Empty,
+        celestial_pb2.Empty,
+    ]
+
 class CelestialServicer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def Register(
         self,
         request: celestial_pb2.RegisterRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.RegisterResponse: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.RegisterResponse, collections.abc.Awaitable[celestial_pb2.RegisterResponse]]: ...
     @abc.abstractmethod
     def Init(
         self,
         request: celestial_pb2.InitRequest,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
     @abc.abstractmethod
     def Update(
         self,
-        request_iterator: collections.abc.Iterator[celestial_pb2.StateUpdateRequest],
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        request_iterator: _MaybeAsyncIterator[celestial_pb2.StateUpdateRequest],
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
     @abc.abstractmethod
     def Stop(
         self,
         request: celestial_pb2.Empty,
-        context: grpc.ServicerContext,
-    ) -> celestial_pb2.Empty: ...
+        context: _ServicerContext,
+    ) -> typing.Union[celestial_pb2.Empty, collections.abc.Awaitable[celestial_pb2.Empty]]: ...
 
-def add_CelestialServicer_to_server(servicer: CelestialServicer, server: grpc.Server) -> None: ...
+def add_CelestialServicer_to_server(servicer: CelestialServicer, server: typing.Union[grpc.Server, grpc.aio.Server]) -> None: ...

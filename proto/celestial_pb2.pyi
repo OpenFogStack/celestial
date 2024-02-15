@@ -172,28 +172,64 @@ class InitRequest(google.protobuf.message.Message):
             ) -> None: ...
             def ClearField(self, field_name: typing_extensions.Literal["boot_parameters", b"boot_parameters", "disk_size", b"disk_size", "kernel", b"kernel", "ram", b"ram", "root_image", b"root_image", "vcpu_count", b"vcpu_count"]) -> None: ...
 
+        @typing_extensions.final
+        class Info(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            NAME_FIELD_NUMBER: builtins.int
+            LAT_FIELD_NUMBER: builtins.int
+            LON_FIELD_NUMBER: builtins.int
+            TLE1_FIELD_NUMBER: builtins.int
+            TLE2_FIELD_NUMBER: builtins.int
+            name: builtins.str
+            lat: builtins.float
+            lon: builtins.float
+            TLE1: builtins.str
+            TLE2: builtins.str
+            def __init__(
+                self,
+                *,
+                name: builtins.str | None = ...,
+                lat: builtins.float | None = ...,
+                lon: builtins.float | None = ...,
+                TLE1: builtins.str | None = ...,
+                TLE2: builtins.str | None = ...,
+            ) -> None: ...
+            def HasField(self, field_name: typing_extensions.Literal["TLE1", b"TLE1", "TLE2", b"TLE2", "_TLE1", b"_TLE1", "_TLE2", b"_TLE2", "_lat", b"_lat", "_lon", b"_lon", "_name", b"_name", "lat", b"lat", "lon", b"lon", "name", b"name"]) -> builtins.bool: ...
+            def ClearField(self, field_name: typing_extensions.Literal["TLE1", b"TLE1", "TLE2", b"TLE2", "_TLE1", b"_TLE1", "_TLE2", b"_TLE2", "_lat", b"_lat", "_lon", b"_lon", "_name", b"_name", "lat", b"lat", "lon", b"lon", "name", b"name"]) -> None: ...
+            @typing.overload
+            def WhichOneof(self, oneof_group: typing_extensions.Literal["_TLE1", b"_TLE1"]) -> typing_extensions.Literal["TLE1"] | None: ...
+            @typing.overload
+            def WhichOneof(self, oneof_group: typing_extensions.Literal["_TLE2", b"_TLE2"]) -> typing_extensions.Literal["TLE2"] | None: ...
+            @typing.overload
+            def WhichOneof(self, oneof_group: typing_extensions.Literal["_lat", b"_lat"]) -> typing_extensions.Literal["lat"] | None: ...
+            @typing.overload
+            def WhichOneof(self, oneof_group: typing_extensions.Literal["_lon", b"_lon"]) -> typing_extensions.Literal["lon"] | None: ...
+            @typing.overload
+            def WhichOneof(self, oneof_group: typing_extensions.Literal["_name", b"_name"]) -> typing_extensions.Literal["name"] | None: ...
+
         ID_FIELD_NUMBER: builtins.int
-        NAME_FIELD_NUMBER: builtins.int
         HOST_FIELD_NUMBER: builtins.int
         CONFIG_FIELD_NUMBER: builtins.int
+        INFO_FIELD_NUMBER: builtins.int
         @property
         def id(self) -> global___MachineID: ...
-        name: builtins.str
         host: builtins.int
         """should actually be 8 bit but protobuf doesn't support uint8..."""
         @property
         def config(self) -> global___InitRequest.Machine.MachineConfig: ...
+        @property
+        def info(self) -> global___InitRequest.Machine.Info: ...
         def __init__(
             self,
             *,
             id: global___MachineID | None = ...,
-            name: builtins.str | None = ...,
             host: builtins.int = ...,
             config: global___InitRequest.Machine.MachineConfig | None = ...,
+            info: global___InitRequest.Machine.Info | None = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["_name", b"_name", "config", b"config", "id", b"id", "name", b"name"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["_name", b"_name", "config", b"config", "host", b"host", "id", b"id", "name", b"name"]) -> None: ...
-        def WhichOneof(self, oneof_group: typing_extensions.Literal["_name", b"_name"]) -> typing_extensions.Literal["name"] | None: ...
+        def HasField(self, field_name: typing_extensions.Literal["config", b"config", "id", b"id", "info", b"info"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["config", b"config", "host", b"host", "id", b"id", "info", b"info"]) -> None: ...
 
     HOSTS_FIELD_NUMBER: builtins.int
     MACHINES_FIELD_NUMBER: builtins.int

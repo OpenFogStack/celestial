@@ -31,12 +31,14 @@ class Serializer(typing.Protocol):
         self,
         machine: celestial.types.MachineID_dtype,
         config: celestial.config.MachineConfig,
+        info: celestial.types.MachineInfo,
     ) -> None:
         """
         Serialize a machine initialization.
 
         :param machine: The machine ID of the machine.
         :param config: The configuration of the machine.
+        :param info: The info of the machine.
         """
         ...
 
@@ -95,12 +97,16 @@ class Deserializer(typing.Protocol):
     def init_machine(
         self,
     ) -> typing.List[
-        typing.Tuple[celestial.types.MachineID_dtype, celestial.config.MachineConfig]
+        typing.Tuple[
+            celestial.types.MachineID_dtype,
+            celestial.config.MachineConfig,
+            celestial.types.MachineInfo,
+        ]
     ]:
         """
         Deserialize the initial machine states.
 
-        :return: A list of machine ID and machine configuration tuples.
+        :return: A list of machine ID,machine configuration, and machine info tuples.
         """
         ...
 

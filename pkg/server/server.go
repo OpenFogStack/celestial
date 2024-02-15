@@ -26,10 +26,10 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/OpenFogStack/celestial/pkg/peer"
-	"github.com/OpenFogStack/celestial/proto/celestial"
+	"github.com/OpenFogStack/celestial/proto"
 
 	"github.com/OpenFogStack/celestial/pkg/orchestrator"
+	"github.com/OpenFogStack/celestial/pkg/peer"
 )
 
 type PeeringBackend interface {
@@ -119,15 +119,35 @@ func (s *Server) Init(_ context.Context, request *celestial.InitRequest) (*celes
 		machineHosts[id] = orchestrator.Host(machine.Host)
 	}
 
-	machineNames := make(map[orchestrator.MachineID]string)
+	machineInfo := make(map[orchestrator.MachineID]*orchestrator.Info)
 
 	for _, machine := range request.Machines {
-		if machine.Name != nil {
-			machineNames[orchestrator.MachineID{
-				Group: uint8(machine.Id.Group),
-				Id:    machine.Id.Id,
-			}] = *machine.Name
+		m := orchestrator.MachineID{
+			Group: uint8(machine.Id.Group),
+			Id:    machine.Id.Id,
 		}
+
+		if machine.Info != nil {
+			machineInfo[m] = &orchestrator.Info{}
+
+			if machine.Info.Name != nil {
+				machineInfo[m].Name = *machine.Info.Name
+			}
+			if machine.Info.TLE1 != nil {
+				machineInfo[m].TLE1 = *machine.Info.TLE1
+			}
+			if machine.Info.TLE2 != nil {
+				machineInfo[m].TLE2 = *machine.Info.TLE2
+			}
+			if machine.Info.Lat != nil {
+				machineInfo[m].Lat = *machine.Info.Lat
+			}
+			if machine.Info.Lon != nil {
+				machineInfo[m].Lon = *machine.Info.Lon
+			}
+
+		}
+
 	}
 
 	hostList := make(map[orchestrator.Host]peer.HostInfo)
@@ -148,7 +168,7 @@ func (s *Server) Init(_ context.Context, request *celestial.InitRequest) (*celes
 	log.Debug("peering backend initialized")
 
 	log.Debug("initializing orchestrator")
-	err = s.o.Initialize(machineList, machineHosts, machineNames)
+	err = s.o.Initialize(machineList, machineHosts, machineInfo)
 
 	if err != nil {
 		return nil, err

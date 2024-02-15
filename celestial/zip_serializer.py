@@ -63,12 +63,14 @@ def _config_from_bytes(b: bytes) -> celestial.config.Config:
 
 
 # INIT commands include too many strings, hence we use CSV
-_INIT_HEAD = "machine_id_group,machine_id_id,machine_id_name,config_vcpu_count,config_mem_size_mib,config_disk_size,config_kernel,config_rootfs,config_boot_parameters"
+_INIT_HEAD = "machine_id_group,machine_id_id,config_vcpu_count,config_mem_size_mib,config_disk_size,config_kernel,config_rootfs,config_boot_parameters,info_name,info_lat,info_lon,info_tle1,info_tle2"
 _LIST_SEP = "|"
 
 
 def _init_to_str(
-    machine: celestial.types.MachineID_dtype, config: celestial.config.MachineConfig
+    machine: celestial.types.MachineID_dtype,
+    config: celestial.config.MachineConfig,
+    info: celestial.types.MachineInfo,
 ) -> str:
     """
     Serialize the initialization of a Celestial emulation VM to a string.
@@ -79,21 +81,27 @@ def _init_to_str(
 
     :param machine: The machine ID of the machine to initialize.
     :param config: The configuration of the machine to initialize.
+    :param info: The info of the machine to initialize.
+
     :returns: The serialized initialization.
     """
     b = _LIST_SEP.join(config.boot_parameters)
 
-    return f"{machine[0]},{machine[1]},{machine[2]},{config.vcpu_count},{config.mem_size_mib},{config.disk_size},{config.kernel},{config.rootfs},{b}"
+    return f"{machine[0]},{machine[1]},{config.vcpu_count},{config.mem_size_mib},{config.disk_size},{config.kernel},{config.rootfs},{b},{info[0]},{info[1][0]},{info[1][1]},{info[2][0]},{info[2][1]}"
 
 
 def _init_from_str(
     s: str,
-) -> typing.Tuple[celestial.types.MachineID_dtype, celestial.config.MachineConfig]:
+) -> typing.Tuple[
+    celestial.types.MachineID_dtype,
+    celestial.config.MachineConfig,
+    celestial.types.MachineInfo,
+]:
     """
     Restore the machine initialization parameters from a CSV line.
 
     :param s: The serialized initialization.
-    :returns: The machine ID and its configuration.
+    :returns: The machine ID, its configuration, and machine information.
     :raises ValueError: If the serialized initialization is not a valid
         initialization.
     """
@@ -101,17 +109,21 @@ def _init_from_str(
     (
         group,
         id,
-        name,
         vcpu_count,
         mem_size_mib,
         disk_size,
         kernel,
         rootfs,
         boot_parameters,
+        name,
+        lat,
+        lon,
+        tle1,
+        tle2,
     ) = s.split(",")
     try:
         return (
-            celestial.types.MachineID(int(group), int(id), name),
+            celestial.types.MachineID(int(group), int(id)),
             celestial.config.MachineConfig(
                 int(vcpu_count),
                 int(mem_size_mib),
@@ -119,6 +131,11 @@ def _init_from_str(
                 kernel,
                 rootfs,
                 boot_parameters.split(_LIST_SEP),
+            ),
+            celestial.types.MachineInfo(
+                name,
+                (float(lat), float(lon)),
+                (tle1, tle2),
             ),
         )
     except ValueError as e:
@@ -335,16 +352,18 @@ class ZipSerializer:
         self,
         machine: celestial.types.MachineID_dtype,
         config: celestial.config.MachineConfig,
+        info: celestial.types.MachineInfo,
     ) -> None:
         """
         Write an initialization for a machine to the initialization file.
 
         :param machine: The machine ID of the machine to initialize.
         :param config: The configuration of the machine to initialize.
+        :param info: The info of the machine to initialize.
         """
 
         with open(os.path.join(self.write_dir, _INIT_FILE), "a") as f:
-            f.write(f"{_init_to_str(machine, config)}\n")
+            f.write(f"{_init_to_str(machine, config, info)}\n")
 
     def diff_link(
         self,
@@ -453,7 +472,11 @@ class ZipDeserializer:
     def init_machines(
         self,
     ) -> typing.List[
-        typing.Tuple[celestial.types.MachineID_dtype, celestial.config.MachineConfig]
+        typing.Tuple[
+            celestial.types.MachineID_dtype,
+            celestial.config.MachineConfig,
+            celestial.types.MachineInfo,
+        ]
     ]:
         """
         Restore the machine initializations from the initialization file

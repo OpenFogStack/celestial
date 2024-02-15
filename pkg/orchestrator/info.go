@@ -23,14 +23,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-type NodeIDInfo struct {
-	ID   MachineID
-	Name string
-}
-
 type NodeInfo struct {
-	ID     NodeIDInfo
+	ID     MachineID
 	Active bool
+	Info
 }
 
 type GroupInfo struct {
@@ -100,18 +96,9 @@ func (o *Orchestrator) InfoGetNodeByIP(ip net.IP) (NodeInfo, error) {
 	}
 
 	n := NodeInfo{
-		ID: NodeIDInfo{
-			ID:   id,
-			Name: "",
-		},
-	}
-
-	if o.machines[id].name != "" {
-		n.ID.Name = o.machines[id].name
-	}
-
-	if o.State.MachinesState[id] == ACTIVE {
-		n.Active = true
+		ID:     id,
+		Info:   o.machines[id].info,
+		Active: o.State.MachinesState[id] == ACTIVE,
 	}
 
 	return n, nil
@@ -130,14 +117,9 @@ func (o *Orchestrator) InfoGetConstellation() (ConstellationInfo, error) {
 		}
 
 		n := NodeInfo{
-			ID: NodeIDInfo{
-				ID:   m,
-				Name: o.machines[m].name,
-			},
-		}
-
-		if o.State.MachinesState[m] == ACTIVE {
-			n.Active = true
+			ID:     m,
+			Info:   o.machines[m].info,
+			Active: o.State.MachinesState[m] == ACTIVE,
 		}
 
 		g[m.Group][m.Id] = n
@@ -174,14 +156,9 @@ func (o *Orchestrator) InfoGetGroup(group uint8) (GroupInfo, error) {
 		}
 
 		n := NodeInfo{
-			ID: NodeIDInfo{
-				ID:   m,
-				Name: o.machines[m].name,
-			},
-		}
-
-		if o.State.MachinesState[m] == ACTIVE {
-			n.Active = true
+			ID:     m,
+			Info:   o.machines[m].info,
+			Active: o.State.MachinesState[m] == ACTIVE,
 		}
 
 		g[m.Id] = n
@@ -205,18 +182,9 @@ func (o *Orchestrator) InfoGetNodeByID(id MachineID) (NodeInfo, error) {
 	}
 
 	n := NodeInfo{
-		ID: NodeIDInfo{
-			ID:   id,
-			Name: "",
-		},
-	}
-
-	if o.machines[id].name != "" {
-		n.ID.Name = o.machines[id].name
-	}
-
-	if o.State.MachinesState[id] == ACTIVE {
-		n.Active = true
+		ID:     id,
+		Info:   o.machines[id].info,
+		Active: o.State.MachinesState[id] == ACTIVE,
 	}
 
 	return n, nil
@@ -227,7 +195,7 @@ func (o *Orchestrator) InfoGetNodeNameByID(id MachineID) (string, error) {
 		return "", errors.New("orchestrator not initialized")
 	}
 
-	name := o.machines[id].name
+	name := o.machines[id].info.Name
 
 	if name == "" {
 		return "", errors.Errorf("machine with id %s does not have a name", id)
@@ -248,10 +216,9 @@ func (o *Orchestrator) InfoGetNodeByName(name string) (NodeInfo, error) {
 	}
 
 	n := NodeInfo{
-		ID: NodeIDInfo{
-			ID:   id,
-			Name: name,
-		},
+		ID:     id,
+		Info:   o.machines[id].info,
+		Active: o.State.MachinesState[id] == ACTIVE,
 	}
 
 	if o.State.MachinesState[id] == ACTIVE {
