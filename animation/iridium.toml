@@ -40,6 +40,6 @@ arc_of_ascending_nodes = 180.0
 eccentricity = 0.0
 
 [[ground_station]]
-name = "TU Berlin"
+name = "TUBerlin"
 lat = 52.51499
 long = 13.32674

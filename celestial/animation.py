@@ -26,6 +26,8 @@ import types
 import typing
 
 import celestial.config
+import celestial.types
+import celestial.shell
 
 EARTH_RADIUS_M = 6371000  # radius of Earth in meters
 
@@ -539,9 +541,9 @@ class Animation:
 
         # initialize all the positions
         for i in range(len(self.sat_positions[shell_no])):
-            self.shell_inactive_actors[shell_no].satPointIDs[
-                i
-            ] = self.shell_inactive_actors[shell_no].satVtkPts.InsertNextPoint(0, 0, 0)
+            self.shell_inactive_actors[shell_no].satPointIDs[i] = (
+                self.shell_inactive_actors[shell_no].satVtkPts.InsertNextPoint(0, 0, 0)
+            )
 
             self.shell_inactive_actors[shell_no].satVtkVerts.InsertNextCell(1)
             self.shell_inactive_actors[shell_no].satVtkVerts.InsertCellPoint(
