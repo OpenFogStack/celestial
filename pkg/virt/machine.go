@@ -149,7 +149,7 @@ func (m *machine) initialize() error {
 		return errors.WithStack(err)
 	}
 
-	loglevel := "ERROR"
+	var loglevel string
 
 	// unfortunately Firecracker is incredibly verbose
 	switch log.GetLevel() {

@@ -543,7 +543,7 @@ class Shell:
             )
             init_pos[2] = (EARTH_RADIUS_M + 100.0) * math.sin(latitude)
 
-            temp: npt.NDArray[GROUNDPOINT_DTYPE] = np.zeros(1, dtype=GROUNDPOINT_DTYPE)
+            temp: npt.NDArray = np.zeros(1, dtype=GROUNDPOINT_DTYPE)  # type: ignore
 
             temp[0]["ID"] = np.int16(-i - 1)
 

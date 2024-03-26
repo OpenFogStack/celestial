@@ -145,7 +145,7 @@ if __name__ == "__main__":
     ) -> typing.List[proto.celestial.celestial_pb2.StateUpdateRequest]:
         # we get iterators of the deserialized diffs
         t1 = time.perf_counter()
-        l = [
+        s = [
             *celestial.proto_util.make_update_request_iter(
                 serializer.diff_machines(t), serializer.diff_links(t)
             )
@@ -153,7 +153,7 @@ if __name__ == "__main__":
 
         logging.debug(f"diffs took {time.perf_counter() - t1} seconds")
 
-        return l
+        return s
 
     # start the simulation
     timestep: celestial.types.timestamp_s = 0
@@ -171,9 +171,9 @@ if __name__ == "__main__":
             logging.info(f"Updating for timestep {timestep}")
 
             with concurrent.futures.ThreadPoolExecutor() as e:
-                for h in range(len(hosts)):
+                for i in range(len(hosts)):
                     # need to make some generators
-                    e.submit(hosts[h].update, (u for u in updates))
+                    e.submit(hosts[i].update, (u for u in updates))
 
             timestep += config.resolution
 
@@ -194,8 +194,8 @@ if __name__ == "__main__":
     finally:
         logging.info("got keyboard interrupt, stopping...")
         with concurrent.futures.ThreadPoolExecutor() as e:
-            for h in range(len(hosts)):
+            for i in range(len(hosts)):
                 # need to make some generators
-                e.submit(hosts[h].stop)
+                e.submit(hosts[i].stop)
 
         logging.info("finished")

@@ -104,7 +104,7 @@ func removeNetworkDevice(tapName string, hostInterface string) error {
 }
 
 // createNetworkDevice creates a new network device for a microVM.
-func createNetworkDevice(gateway net.IPNet, tapName string, hostInterface string) error {
+func createNetworkDevice(gateway net.IPNet, tapName string, _ string) error {
 
 	// ip tuntap add [TAP_NAME] mode tap
 

@@ -16,4 +16,10 @@
 #
 
 builds:
-  - skip: true
+  - id: "celestial.bin"
+    main: ./celestial.go
+    binary: celestial.bin
+    goos:
+      - linux
+    goarch:
+      - amd64

@@ -30,6 +30,14 @@ import proto.celestial.celestial_pb2_grpc
 MAX_DIFF_UPDATE_SIZE = 100_000
 
 
+def _machineID_group(m: celestial.types.MachineID_dtype) -> int:
+    return typing.cast(int, celestial.types.MachineID_group(m))
+
+
+def _machineID_id(m: celestial.types.MachineID_dtype) -> int:
+    return typing.cast(int, celestial.types.MachineID_id(m))
+
+
 def make_init_request(
     hosts: typing.List[celestial.host.Host],
     machines: typing.Dict[
@@ -53,8 +61,8 @@ def make_init_request(
 
         for m in machines[h.num]:
             mid = proto.celestial.celestial_pb2.MachineID(
-                group=celestial.types.MachineID_group(m[0]),
-                id=celestial.types.MachineID_id(m[0]),
+                group=_machineID_group(m[0]),
+                id=_machineID_id(m[0]),
             )
 
             mc = proto.celestial.celestial_pb2.InitRequest.Machine.MachineConfig(
@@ -66,19 +74,22 @@ def make_init_request(
                 boot_parameters=m[1].boot_parameters,
             )
 
-            m = proto.celestial.celestial_pb2.InitRequest.Machine(
+            r = proto.celestial.celestial_pb2.InitRequest.Machine(
                 id=mid,
                 config=mc,
                 host=h.num,
                 name=celestial.types.MachineID_name(m[0]),
             )
 
-            init_request.machines.append(m)
+            init_request.machines.append(r)
 
     return init_request
 
 
-def _islice(iterable: typing.Iterator, n: int) -> typing.Iterator:
+T = typing.TypeVar("T")
+
+
+def _islice(iterable: typing.Iterator[T], n: int) -> typing.Iterator[T]:
     count = 0
 
     for i in iterable:
@@ -114,8 +125,8 @@ def make_update_request_iter(
         machine_diffs=[
             proto.celestial.celestial_pb2.StateUpdateRequest.MachineDiff(
                 id=proto.celestial.celestial_pb2.MachineID(
-                    group=celestial.types.MachineID_group(m_id),
-                    id=celestial.types.MachineID_id(m_id),
+                    group=_machineID_group(m_id),
+                    id=_machineID_id(m_id),
                 ),
                 active=proto.celestial.celestial_pb2.VM_STATE_STOPPED
                 if m_state == celestial.types.VMState.STOPPED
@@ -131,42 +142,36 @@ def make_update_request_iter(
                 network_diffs=[
                     proto.celestial.celestial_pb2.StateUpdateRequest.NetworkDiff(
                         source=proto.celestial.celestial_pb2.MachineID(
-                            group=celestial.types.MachineID_group(source),
-                            id=celestial.types.MachineID_id(source),
+                            group=_machineID_group(source),
+                            id=_machineID_id(source),
                         ),
                         target=proto.celestial.celestial_pb2.MachineID(
-                            group=celestial.types.MachineID_group(target),
-                            id=celestial.types.MachineID_id(target),
+                            group=_machineID_group(target),
+                            id=_machineID_id(target),
                         ),
-                        latency=celestial.types.Link_latency_us(link),
-                        bandwidth=celestial.types.Link_bandwidth_kbits(link),
+                        latency=typing.cast(int, celestial.types.Link_latency_us(link)),
+                        bandwidth=typing.cast(
+                            int, celestial.types.Link_bandwidth_kbits(link)
+                        ),
                         blocked=False,
                         next=proto.celestial.celestial_pb2.MachineID(
-                            group=celestial.types.MachineID_group(
-                                celestial.types.Link_next_hop(link)
-                            ),
-                            id=celestial.types.MachineID_id(
-                                celestial.types.Link_next_hop(link)
-                            ),
+                            group=_machineID_group(celestial.types.Link_next_hop(link)),
+                            id=_machineID_id(celestial.types.Link_next_hop(link)),
                         ),
                         prev=proto.celestial.celestial_pb2.MachineID(
-                            group=celestial.types.MachineID_group(
-                                celestial.types.Link_prev_hop(link)
-                            ),
-                            id=celestial.types.MachineID_id(
-                                celestial.types.Link_prev_hop(link)
-                            ),
+                            group=_machineID_group(celestial.types.Link_prev_hop(link)),
+                            id=_machineID_id(celestial.types.Link_prev_hop(link)),
                         ),
                     )
                     if not celestial.types.Link_blocked(link)
                     else proto.celestial.celestial_pb2.StateUpdateRequest.NetworkDiff(
                         source=proto.celestial.celestial_pb2.MachineID(
-                            group=celestial.types.MachineID_group(source),
-                            id=celestial.types.MachineID_id(source),
+                            group=_machineID_group(source),
+                            id=_machineID_id(source),
                         ),
                         target=proto.celestial.celestial_pb2.MachineID(
-                            group=celestial.types.MachineID_group(target),
-                            id=celestial.types.MachineID_id(target),
+                            group=_machineID_group(target),
+                            id=_machineID_id(target),
                         ),
                         blocked=True,
                     )
