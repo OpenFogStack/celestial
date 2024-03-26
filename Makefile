@@ -27,7 +27,7 @@ PROJECT_NAME := "celestial"
 PKG := "github.com/OpenFogStack/$(PROJECT_NAME)"
 GO_FILES := $(shell find . -name '*.go' | grep -v _test.go)
 
-.PHONY: build proto ebpf celestial-make rootfsbuilder
+.PHONY: build proto ebpf celestial-make satgen-docker rootfsbuilder
 
 build: celestial.bin
 
@@ -46,6 +46,9 @@ celestial.bin: go.mod go.sum celestial.go ${GO_FILES} ## build go binary
 
 celestial-make: compile.Dockerfile ## build the compile container
 	@docker build --platform ${OS}/${ARCH} -f $< -t $@ .
+
+satgen-docker: satgen.Dockerfile satgen.py requirements.txt celestial/*.py ## build the satgen container
+	@docker build -f $< -t $@ .
 
 rootfsbuilder: builder/build-script.sh builder/Dockerfile builder/fcinit.c builder/inittab builder/interfaces builder/run-user-script builder/prepare.sh builder/ceinit ## build the rootfs builder container
 	@docker build --platform=linux/amd64 -t $@:latest builder/

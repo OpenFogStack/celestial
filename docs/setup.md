@@ -101,6 +101,13 @@ source .venv/bin/activate
 python3 -m pip install -r requirements.txt
 ```
 
+Alternatively, you can also run this with Docker.
+Build the `satgen-docker` image:
+
+```sh
+make satgen-docker
+```
+
 #### Running Satellite Trajectory Generation
 
 We can then use the `satgen.py` script to generate trajectories:
@@ -111,6 +118,16 @@ python3 satgen.py [PATH_TO_CONFIG] [OUTPUT_PATH]
 
 Replace `PATH_TO_CONFIG` with the path to your configuration file and the
 optional `OUTPUT_PATH` with a path to your output file.
+
+If you want to use the Docker image instead:
+
+```sh
+docker run --rm \
+    -v ${pwd}:/app \
+    satgen-docker \
+    /app/[PATH_TO_CONFIG] \
+    /app/[OUTPUT_PATH] \
+```
 
 After a few seconds to minutes (depending on the size of the constellation
 you want to emulate) you will end up with a `.zip` file that you can use for
