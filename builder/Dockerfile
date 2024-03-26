@@ -36,17 +36,34 @@ RUN wget http://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION_MAJOR}.${ALPINE_
     cd minirootfs && \
     tar xzf ../alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz && \
     cd .. && \
-    rm alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz
+    rm alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz && \
+    mkdir -p ./rootfs && \
+    cp -r  minirootfs/* ./rootfs/ && \
+    rm -rf minirootfs
+
+# install dependencies in minirootfs
+RUN cp /etc/resolv.conf ./rootfs/etc/resolv.conf && \
+    chroot ./rootfs/ apk -X "http://dl-5.alpinelinux.org/alpine/latest-stable/main" -U --allow-untrusted --root / --initdb add \
+    openrc \
+    ca-certificates \
+    alpine-base \
+    util-linux \
+    iptables \
+    iproute2 \
+    strace \
+    attr \
+    grep \
+    chrony
 
 COPY fcinit.c fcinit.c
-RUN gcc -static -O3 -o ./fcinit fcinit.c && \
+RUN gcc -static -O3 -o ./rootfs/sbin/fcinit fcinit.c && \
     rm fcinit.c
 
-COPY inittab inittab
-COPY interfaces interfaces
-COPY run-user-script run-user-script
-COPY prepare.sh prepare.sh
-COPY ceinit ceinit
+COPY inittab ./rootfs/etc/inittab
+COPY interfaces ./rootfs/etc/network/interfaces
+COPY run-user-script ./rootfs/sbin/run-user-script
+COPY prepare.sh ./rootfs/prepare.sh
+COPY ceinit ./rootfs/sbin/ceinit
 
 COPY build-script.sh /build-script.sh
 

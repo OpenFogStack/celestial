@@ -16,19 +16,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# install dependencies
-apk -X "http://dl-5.alpinelinux.org/alpine/latest-stable/main" -U --allow-untrusted --root / --initdb add \
-    openrc \
-    ca-certificates \
-    alpine-base \
-    util-linux \
-    iptables \
-    iproute2 \
-    strace \
-    attr \
-    grep \
-    chrony
-
 # link rc services
 ln -sf /etc/init.d/devfs        /etc/runlevels/boot/devfs
 ln -sf /etc/init.d/procfs       /etc/runlevels/boot/procfs
