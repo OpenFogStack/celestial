@@ -18,7 +18,6 @@
 name: goreleaser
 
 on:
-  pull_request:
   push:
     tags:
       - "*"
@@ -28,13 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: '1.21'
+          cache: false
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:

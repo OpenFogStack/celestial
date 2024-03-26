@@ -241,6 +241,10 @@ func (p *PeeringService) InitPeering(remotes map[orchestrator.Host]HostInfo) err
 
 		portNum, err := strconv.ParseUint(port, 10, 16)
 
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
 		r := &peer{
 			directAddr:  net.ParseIP(addr),
 			wgAddr:      remoteWgAddr,

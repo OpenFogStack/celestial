@@ -54,7 +54,9 @@ class Host:
         """
         request = proto.celestial.celestial_pb2.RegisterRequest(host=self.num)
 
-        response = self.stub.Register(request)
+        response: proto.celestial.celestial_pb2.RegisterResponse = self.stub.Register(
+            request
+        )
 
         # others currently not used
         self.peer_public_key = response.peer_public_key

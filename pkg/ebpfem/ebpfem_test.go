@@ -65,6 +65,7 @@ func TestBasic(t *testing.T) {
 
 	if _, err := cmd.CombinedOutput(); err != nil {
 		// ignore
+		log.Debugf("could not delete tap %s: %s", tap, err)
 	}
 
 	// iptables -D FORWARD -i [TAP_NAME] -o [HOSTINTERFACE] -j ACCEPT
@@ -73,6 +74,7 @@ func TestBasic(t *testing.T) {
 
 	if _, err := cmd.CombinedOutput(); err != nil {
 		// ignore
+		log.Debugf("could not delete iptables rule: %s", err)
 	}
 
 	// create a tap device
