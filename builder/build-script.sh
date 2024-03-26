@@ -21,59 +21,46 @@
 
 set -ex
 
-mkdir -p ./tmp
-
-cp -r  minirootfs/* ./tmp/
-
-# if you don't do this, apk can't access its repositories
-cp /etc/resolv.conf ./tmp/etc/resolv.conf
 # mount /dev/random and /dev/urandom (needed for some operations, such as git)
-mkdir -p ./tmp/dev
-touch ./tmp/dev/random
-mount --rbind /dev/random ./tmp/dev/random
-mount --make-rslave ./tmp/dev/random
-touch ./tmp/dev/urandom
-mount --rbind /dev/urandom ./tmp/dev/urandom
-mount --make-rslave ./tmp/dev/urandom
+mkdir -p ./rootfs/dev
+touch ./rootfs/dev/random
+mount --rbind /dev/random ./rootfs/dev/random
+mount --make-rslave ./rootfs/dev/random
+touch ./rootfs/dev/urandom
+mount --rbind /dev/urandom ./rootfs/dev/urandom
+mount --make-rslave ./rootfs/dev/urandom
 
-# copy the necessary files
-cp interfaces ./tmp/etc/network/interfaces
-cp inittab ./tmp/etc/inittab
-cp run-user-script ./tmp/sbin/run-user-script
-cp fcinit ./tmp/sbin/fcinit
-cp ceinit ./tmp/sbin/ceinit
-cp /app.sh ./tmp/app.sh
+# # copy the necessary files
+cp /app.sh ./rootfs/app.sh
 
 if [ -d "/files" ]; then
-    cp -rv /files/* ./tmp/
+    cp -rv /files/* ./rootfs/
 fi
 
-cp prepare.sh ./tmp/prepare.sh
-chroot ./tmp/ /bin/sh /prepare.sh
+chroot ./rootfs/ /bin/sh /prepare.sh
+rm ./rootfs/prepare.sh
 
 if [ -f "/base.sh" ]; then
-    cp /base.sh ./tmp/base.sh
-    chroot ./tmp/ /bin/sh base.sh
-    rm ./tmp/base.sh
+    cp /base.sh ./rootfs/base.sh
+    chroot ./rootfs/ /bin/sh base.sh
+    rm ./rootfs/base.sh
 fi
 
 # these are the mount points we need to create
-mkdir -p ./tmp/overlay/root \
-    ./tmp/overlay/work \
-    ./tmp/mnt \
-    ./tmp/rom
+mkdir -p ./rootfs/overlay/root \
+    ./rootfs/overlay/work \
+    ./rootfs/mnt \
+    ./rootfs/rom
 
 # now delete the nameserver config again
-rm ./tmp/etc/resolv.conf
-ln -s /proc/net/pnp ./tmp/etc/resolv.conf
+rm ./rootfs/etc/resolv.conf
+ln -s /proc/net/pnp ./rootfs/etc/resolv.conf
 # and unmount the devices
-umount ./tmp/dev/random
-rm ./tmp/dev/random
-umount ./tmp/dev/urandom
-rm ./tmp/dev/urandom
+umount ./rootfs/dev/random
+rm ./rootfs/dev/random
+umount ./rootfs/dev/urandom
+rm ./rootfs/dev/urandom
 
-rm ./tmp/prepare.sh
-
-mksquashfs ./tmp rootfs.img -noappend
+mksquashfs ./rootfs rootfs.img -noappend
 
 mv rootfs.img /opt/code/"$1"
