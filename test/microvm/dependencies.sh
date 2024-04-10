@@ -16,17 +16,21 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# link rc services
-ln -sf /etc/init.d/devfs        /etc/runlevels/boot/devfs
-ln -sf /etc/init.d/procfs       /etc/runlevels/boot/procfs
-ln -sf /etc/init.d/sysfs        /etc/runlevels/boot/sysfs
+set -ex
 
-ln -sf networking               /etc/init.d/net.eth0
-ln -sf /etc/init.d/networking   /etc/runlevels/default/networking
-ln -sf /etc/init.d/net.eth0     /etc/runlevels/default/net.eth0
+sudo apt-get update
 
-# disable modules
-echo rc_want="!modules">> /etc/rc.conf
+sudo apt-get install \
+    --no-install-recommends \
+    --no-install-suggests \
+    -y g++ gcc make cmake build-essential
 
-passwd root -d root
-exit
+# and we need firecracker on the machine
+# download the current release
+curl -fsSL -o firecracker-v1.6.0-x86_64.tgz \
+    https://github.com/firecracker-microvm/firecracker/releases/download/v1.6.0/firecracker-v1.6.0-x86_64.tgz
+tar -xvf firecracker-v1.6.0-x86_64.tgz
+# and add the firecracker and jailer binaries
+sudo mv release-v1.6.0-x86_64/firecracker-v1.6.0-x86_64 /usr/local/bin/firecracker
+sudo mv release-v1.6.0-x86_64/seccompiler-bin-v1.6.0-x86_64 /usr/local/bin/jailer
+

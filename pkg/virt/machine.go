@@ -161,7 +161,7 @@ func (m *machine) initialize() error {
 
 	// magic!
 	// see: https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html
-	bootparams := "init=/sbin/ceinit ro console=ttyS0 noapic acpi=off reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb loglevel=3"
+	bootparams := "init=/sbin/ceinit ro console=ttyS0 noapic acpi=off reboot=k panic=1 random.trust_cpu=on pci=off tsc=reliable quiet ipv6.disable=1 nomodule overlay_root=vdb loglevel=3 i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd"
 
 	for _, param := range m.bootparams {
 		bootparams += " " + param

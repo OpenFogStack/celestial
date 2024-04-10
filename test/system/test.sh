@@ -2,7 +2,6 @@
 
 set -xe
 
-
 # figure out the amount of hosts to use
 # if the --hosts flag is set, use that
 # if the --hosts flag is not set, use the default of 1

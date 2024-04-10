@@ -93,7 +93,14 @@ func TestMain(m *testing.M) {
 	//neb := netem.New()
 	neb := ebpfem.New()
 
-	vb, err := virt.New(TEST_IF, TEST_INIT_DELAY, pb, neb)
+	// get interface from environment
+	iface := os.Getenv("CELESTIAL_IFACE")
+
+	if iface == "" {
+		iface = TEST_IF
+	}
+
+	vb, err := virt.New(iface, TEST_INIT_DELAY, pb, neb)
 
 	if err != nil {
 		panic(err)
@@ -168,13 +175,13 @@ func TestMain(m *testing.M) {
 	status := m.Run()
 
 	//uncomment this to wait for interrupt by keyboard press
-	//print("Press 'Enter' to continue...")
-	//_, err = bufio.NewReader(os.Stdin).ReadBytes('\n')
-	//if err != nil && !errors.Is(err, io.EOF) {
-	//	panic(err)
-	//}
+	// print("Press 'Enter' to continue...")
+	// _, err = bufio.NewReader(os.Stdin).ReadBytes('\n')
+	// if err != nil && !errors.Is(err, io.EOF) {
+	// 	panic(err)
+	// }
 
-	//<-time.After(120 * time.Second)
+	// <-time.After(120 * time.Second)
 
 	// run cleanup
 	log.Debug("cleaning up")

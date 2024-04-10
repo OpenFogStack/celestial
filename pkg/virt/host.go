@@ -122,5 +122,22 @@ func (v *Virt) initHost() error {
 		return err
 	}
 
+	// finally, check that the clocksource is tsc and set it otherwise
+	clocksource, err := os.ReadFile("/sys/devices/system/clocksource/clocksource0/current_clocksource")
+
+	if err != nil {
+		return err
+	}
+
+	if string(clocksource) != "tsc\n" {
+		// set the clocksource to tsc
+		log.Warnf("The current clock source on the host is %s, setting it to tsc", string(clocksource))
+		err = os.WriteFile("/sys/devices/system/clocksource/clocksource0/current_clocksource", []byte("tsc"), fs.FileMode(0644))
+
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

@@ -131,6 +131,8 @@ func killMachine(m *machine) error {
 		return err
 	}
 
+	log.Trace("Killed machine ", m.name)
+
 	return nil
 }
 

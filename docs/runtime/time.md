@@ -33,6 +33,29 @@ On a host side, we have seen that it works with Amazon Linux 2 and
 Ubuntu 22.04 LTS, but we weren't able to get it to work with Debian.
 There is probably a way to find out if your host supports it, but maybe you just
 need to try it out.
+For Ubuntu 22.04 LTS, it worked for Amazon Web Services and Google Cloud, but not
+on our local machine.
+The reason was that the host clock source was `kvm-clock` (nested virtualization)
+and not `tsc`.
+If starting a microVM gives you the log message `NOT using /dev/ptp0`, `tsc` is
+not set as a clock source on your host.
+Celestial will try to set this, but it may not work.
+
+```sh
+# reading current clock source says kvm-clock
+$ cat /sys/devices/system/clocksource/clocksource0/current_clocksource
+kvm-clock
+
+# tsc is available
+$ cat /sys/devices/system/clocksource/clocksource0/available_clocksource
+kvm-clock tsc acpi_pm
+
+# set tsc as a clock source
+$ echo tsc > /sys/devices/system/clocksource/clocksource0/current_clocksource
+```
+
+Note that this will change after a reboot.
+Making this persist requires changing you kernel parameters.
 
 On a client side, you need to configure a time synchronization service and have
 PTP support enabled in your kernel with these lines in your kernel config:

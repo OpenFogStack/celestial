@@ -222,11 +222,6 @@ func (d *Server) Start(port uint64) error {
 		return errors.WithStack(err)
 	}
 
-	// remove the file when we are done
-	defer func() {
-
-	}()
-
 	// restart systemd-resolved
 	cmd = exec.Command("systemctl", "restart", "systemd-resolved")
 
