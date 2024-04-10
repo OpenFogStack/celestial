@@ -1,0 +1,5 @@
+test/microvm/dependencies.sh
+test/microvm/run_microvm.sh
+test/microvm/id_ed25519
+test/microvm/rootfs/ssh.img
+test/microvm/vmlinux.bin

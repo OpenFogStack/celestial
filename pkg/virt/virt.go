@@ -210,8 +210,6 @@ func (v *Virt) StartMachine(machine orchestrator.MachineID) error {
 }
 
 func (v *Virt) Stop() error {
-	v.Lock()
-	defer v.Unlock()
 	log.Debugf("stopping %d machines", len(v.machines))
 	var wg sync.WaitGroup
 	for m := range v.machines {
@@ -226,6 +224,8 @@ func (v *Virt) Stop() error {
 		}(m)
 	}
 	wg.Wait()
+	v.Lock()
+	defer v.Unlock()
 
 	log.Debug("stopping netem backend")
 	err := v.neb.Stop()

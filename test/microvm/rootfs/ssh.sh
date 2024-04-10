@@ -1,4 +1,5 @@
 #!/bin/sh
+
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
 # Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
@@ -16,17 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# link rc services
-ln -sf /etc/init.d/devfs        /etc/runlevels/boot/devfs
-ln -sf /etc/init.d/procfs       /etc/runlevels/boot/procfs
-ln -sf /etc/init.d/sysfs        /etc/runlevels/boot/sysfs
-
-ln -sf networking               /etc/init.d/net.eth0
-ln -sf /etc/init.d/networking   /etc/runlevels/default/networking
-ln -sf /etc/init.d/net.eth0     /etc/runlevels/default/net.eth0
-
-# disable modules
-echo rc_want="!modules">> /etc/rc.conf
-
-passwd root -d root
-exit
+while true; do
+    echo "$(date): satellite server running"
+    sleep 10
+done

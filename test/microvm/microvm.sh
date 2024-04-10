@@ -56,7 +56,7 @@ make rootfsbuilder
 popd
 
 pushd rootfs
-make
+make -B
 popd
 
 echo "$DIVIDER"
@@ -69,7 +69,6 @@ echo "$DIVIDER"
 if [ "$TEST_HOST" == "gcloud" ]; then
     tofu init
     tofu apply -auto-approve
-
 
     GCP_ZONE="$(tofu output -json | jq -r '.zone.value')"
     GCP_PROJECT="$(tofu output -json | jq -r '.project.value')"
@@ -123,7 +122,6 @@ while read -r f; do
     rsync -avz "$ROOT/$f" "$SSH_ADDRESS":
 done <fileslist.txt
 
-
 echo "$DIVIDER"
 echo "Running dependencies.sh..."
 echo "$DIVIDER"
@@ -134,14 +132,9 @@ ssh "$SSH_ADDRESS" "./dependencies.sh"
 echo "Done running dependencies.sh on host"
 
 echo "$DIVIDER"
-# move files
-echo "Moving files..."
+echo "Running run_microvm.sh..."
 echo "$DIVIDER"
-ssh "$SSH_ADDRESS" "sudo mv ./ssh.img /celestial/ssh.img"
-
-echo "Running test..."
-CELESTIAL_IFACE=$(ssh "$SSH_ADDRESS" ip -o -4 route show to default | awk '{print $5}')
-ssh "$SSH_ADDRESS" "CELESTIAL_IFACE=$CELESTIAL_IFACE sudo /usr/local/go/bin/go test"
+ssh "$SSH_ADDRESS" "sudo ./run_microvm.sh"
 
 echo "$DIVIDER"
 echo "Done!"

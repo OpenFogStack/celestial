@@ -1,4 +1,3 @@
-#!/bin/sh
 #
 # This file is part of Celestial (https://github.com/OpenFogStack/celestial).
 # Copyright (c) 2024 Tobias Pfandzelter, The OpenFogStack Team.
@@ -16,17 +15,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# link rc services
-ln -sf /etc/init.d/devfs        /etc/runlevels/boot/devfs
-ln -sf /etc/init.d/procfs       /etc/runlevels/boot/procfs
-ln -sf /etc/init.d/sysfs        /etc/runlevels/boot/sysfs
+.PHONY: all
 
-ln -sf networking               /etc/init.d/net.eth0
-ln -sf /etc/init.d/networking   /etc/runlevels/default/networking
-ln -sf /etc/init.d/net.eth0     /etc/runlevels/default/net.eth0
+all: ssh.img
 
-# disable modules
-echo rc_want="!modules">> /etc/rc.conf
+ssh.img: ssh.sh ssh-base.sh id_ed25519.pub
+	@docker run -it --platform=linux/amd64 --rm -v $(PWD)/ssh.sh:/app.sh -v $(PWD)/id_ed25519.pub:/files/id_ed25519.pub -v $(PWD)/ssh-base.sh:/base.sh -v $(PWD):/opt/code --privileged rootfsbuilder $@
 
-passwd root -d root
-exit
+id_ed25519.pub:
+	cd .. ; ./make_key.sh

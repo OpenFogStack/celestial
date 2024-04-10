@@ -16,6 +16,18 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+# if /dev/ptp0 is available, we can use it as a time source
+if [ -e /dev/ptp0 ]; then
+    # setup chrony to use PTP as the time source
+    echo "refclock PHC /dev/ptp0 poll -2 dpoll -2 offset 0 trust prefer" > /etc/chrony/chrony.conf
+    echo "Using PTP clock /dev/ptp0 as time source"
+else
+    echo "NOT using PTP clock /dev/ptp0 as time source"
+fi
+
+# start chronyd
+rc-service chronyd start
+
 # clock synchronization
 chronyc makestep
 sleep 1
@@ -31,4 +43,4 @@ echo "Celestial: Starting user script..."
 /bin/sh app.sh
 
 echo "Celestial: User script finished, shutting down..."
-reboot # reboot actually shuts down the microVM in Firecracker
+reboot -f # reboot actually shuts down the microVM in Firecracker
