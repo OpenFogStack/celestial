@@ -27,6 +27,8 @@ ln -sf /etc/init.d/net.eth0     /etc/runlevels/default/net.eth0
 
 # disable modules
 echo rc_want="!modules">> /etc/rc.conf
+# disable fsck
+echo rc_need="!fsck">> /etc/rc.conf
 
 passwd root -d root
 exit
