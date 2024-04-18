@@ -49,7 +49,7 @@ if __name__ == "__main__":
                 raise Exception("invalid filename")
 
             if parts[0] == "gst":
-                a_shell = "-1"
+                a_shell = "gst"
 
             else:
                 # first part is a_shell
@@ -80,8 +80,10 @@ if __name__ == "__main__":
                     try:
                         int(parts[1])
                         int(parts[2])
-                    except:
-                        continue
+                    except Exception:
+                        # or maybe its a gst
+                        if parts[1] != "gst":
+                            continue
 
                     # write the line!
                     out_file.write(f"{a_shell},{a_sat},{line}\n")
