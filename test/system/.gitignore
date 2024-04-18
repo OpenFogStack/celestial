@@ -1,3 +1,4 @@
 out/
+output/results.csv
 host.log
 coordinator.log

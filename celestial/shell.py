@@ -939,9 +939,6 @@ class Shell:
 
                 for x1 in g_valid_links[g1, : g_valid_link_lens[g1]]:
                     for x2 in g_valid_links[g2, : g_valid_link_lens[g2]]:
-                        if gst_links_array[x2]["gst"] != g2:
-                            continue
-
                         _s1 = gst_links_array[x1]["sat"]
                         _s2 = gst_links_array[x2]["sat"]
 
