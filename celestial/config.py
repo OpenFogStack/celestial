@@ -250,6 +250,11 @@ CONFIG_SCHEMA = {
         "min": 30e0,
         "max": 1e10,
     },
+    "offset": {
+        "type": "integer",
+        "required": False,
+        "min": 0,
+    },
     "network_params": {
         "type": "dict",
         "schema": NETWORK_PARAMS_SCHEMA,
@@ -470,6 +475,7 @@ class Config:
 
         self.duration = config["duration"]
         self.resolution = config["resolution"]
+        self.offset = config.get("offset", 0)
 
         self.shells = [
             Shell(

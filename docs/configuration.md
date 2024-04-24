@@ -29,6 +29,14 @@ resolution = 1
 # will run for.
 duration = 300
 
+# Set the offset for the simulation in seconds. This is the time that satgen.py
+# will start at. This is optional and defaults to 0. It is not necessary to set
+# this for symmetrical constellations, but can be quite useful if you only want
+# to have a single plane of satellites but need them to go over a specific point
+# on Earth. Note that the ascending node of the first plane is always at Long=0.
+# If you want it to be at Long=X, you need to set the offset to X * 86400 / 360.
+offset = 0
+
 # The network_params section lets you specify parameters for networking between
 # your machines. These can also be overridden for different shells or ground
 # stations.

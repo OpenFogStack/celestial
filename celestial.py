@@ -156,7 +156,7 @@ if __name__ == "__main__":
         return s
 
     # start the simulation
-    timestep: celestial.types.timestamp_s = 0
+    timestep: celestial.types.timestamp_s = 0 + config.offset
 
     updates = get_diff(timestep)
 
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
             timestep += config.resolution
 
-            if timestep > config.duration:
+            if timestep > config.duration + config.offset:
                 break
 
             logging.debug(f"getting update for timestep {timestep}")
@@ -186,9 +186,9 @@ if __name__ == "__main__":
             updates = get_diff(timestep)
 
             logging.debug(
-                f"waiting for {timestep -(time.perf_counter() - start_time)} seconds"
+                f"waiting for {timestep - config.offset - (time.perf_counter() - start_time)} seconds"
             )
-            while time.perf_counter() - start_time < timestep:
+            while time.perf_counter() - start_time < timestep - config.offset:
                 time.sleep(0.001)
 
     finally:

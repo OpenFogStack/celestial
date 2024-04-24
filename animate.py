@@ -87,15 +87,15 @@ if __name__ == "__main__":
     )
 
     # run the simulation
-    i = 0
+    i = 0 + config.offset
     start_time = time.perf_counter()
 
-    while i < config.duration:
+    while i < config.duration + config.offset:
         print(f"step {i}")
         constellation.step(i)
         i += config.resolution
 
-        while time.perf_counter() - start_time < i:
+        while time.perf_counter() - start_time < i - config.offset:
             time.sleep(0.001)
 
     animation.join()
