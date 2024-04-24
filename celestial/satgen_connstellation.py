@@ -47,13 +47,11 @@ class SatgenConstellation:
         :param config: The configuration of the constellation.
         :param writer: The serializer to use for writing updates.
         """
-        self.current_time = 0
+        self.current_time: celestial.types.timestamp_s = config.offset
         self.shells: typing.List[celestial.shell.Shell] = []
         self.ground_stations: typing.List[celestial.types.MachineID_dtype] = []
 
         self.writer = writer
-
-        self.start_time: celestial.types.timestamp_s = 0
 
         for i, sc in enumerate(config.shells):
             s = celestial.shell.Shell(
@@ -121,7 +119,7 @@ class SatgenConstellation:
             self.machines_state[gst] = celestial.types.VMState.ACTIVE
 
             self.writer.diff_machine(
-                0,  # starting time stamp 0
+                self.current_time,
                 gst,
                 celestial.types.VMState.ACTIVE,
             )
