@@ -82,9 +82,9 @@ if __name__ == "__main__":
     )
 
     # run the simulation
-    i = 0
+    i = 0 + config.offset
     pbar = tqdm.tqdm(total=int(config.duration / config.resolution))
-    while i < config.duration:
+    while i < config.duration + config.offset:
         # import cProfile
 
         # cProfile.run("constellation.step(i)", sort="cumtime")
