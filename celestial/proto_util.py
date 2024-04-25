@@ -152,7 +152,7 @@ def make_update_request_iter(
                         latency_us=typing.cast(
                             int, celestial.types.Link_latency_us(link)
                         ),
-                        bandwidth_kbits=typing.cast(
+                        bandwidth_kbps=typing.cast(
                             int, celestial.types.Link_bandwidth_kbits(link)
                         ),
                         blocked=False,

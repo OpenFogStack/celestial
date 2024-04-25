@@ -88,9 +88,9 @@ if __name__ == "__main__":
         axis=1,
     )
 
-    results["a_shell"] = results["a_shell"].astype(int).astype(str)
-    results["b_shell"] = results["b_shell"].astype(int).astype(str)
-    results["b_sat"] = results["b_sat"].astype(int).astype(str)
+    results["a_shell"] = results["a_shell"].astype(str)  # .astype(int).astype(str)
+    results["b_shell"] = results["b_shell"].astype(str)  # .astype(int).astype(str)
+    results["b_sat"] = results["b_sat"].astype(str)  # .astype(int).astype(str)
 
     # make a column a with a_shell-a_sat as a string
     results["a"] = results.apply(

@@ -387,6 +387,9 @@ def _fill_configuration(
 ) -> typing.MutableMapping[str, typing.Any]:
     """Fill the configuration with default values."""
 
+    if "offset" not in config:
+        config["offset"] = 0
+
     if "boot_parameters" not in config["compute_params"]:
         config["compute_params"]["boot_parameters"] = []
 
@@ -475,7 +478,7 @@ class Config:
 
         self.duration = config["duration"]
         self.resolution = config["resolution"]
-        self.offset = config.get("offset", 0)
+        self.offset = config["offset"]
 
         self.shells = [
             Shell(
