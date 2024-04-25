@@ -34,6 +34,7 @@ import (
 	"github.com/OpenFogStack/celestial/pkg/dns"
 	"github.com/OpenFogStack/celestial/pkg/ebpfem"
 	"github.com/OpenFogStack/celestial/pkg/info"
+	"github.com/OpenFogStack/celestial/pkg/netem"
 	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 	"github.com/OpenFogStack/celestial/pkg/peer"
 	"github.com/OpenFogStack/celestial/pkg/server"
@@ -60,6 +61,7 @@ func main() {
 	infoServerPort := flag.Uint64("info-server-port", DEFAULT_INFO_PORT, "Port to bind info server to")
 	networkInterface := flag.String("network-interface", DEFAULT_IF, "Name of your main network interface")
 	initDelay := flag.Uint64("init-delay", DEFAULT_INIT_DELAY, "Maximum delay when initially booting a machine -- can help reduce load at beginning of emulation")
+	emBackend := flag.String("em-backend", "ebpf", "Backend to use for emulation (ebpf or netem)")
 	debug := flag.Bool("debug", false, "Enable debug logging")
 	trace := flag.Bool("trace", false, "Enable trace logging")
 
@@ -90,8 +92,18 @@ func main() {
 		panic(err)
 	}
 
-	//neb := netem.New()
-	neb := ebpfem.New()
+	var neb virt.NetworkEmulationBackend
+
+	switch *emBackend {
+	case "ebpf":
+		log.Info("Using eBPF backend")
+		neb = ebpfem.New()
+	case "netem":
+		log.Info("Using netem backend")
+		neb = netem.New()
+	default:
+		log.Fatal("Invalid emulation backend")
+	}
 
 	if err != nil {
 		panic(err)
