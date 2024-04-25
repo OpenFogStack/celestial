@@ -31,7 +31,7 @@ import (
 	"github.com/OpenFogStack/celestial/pkg/orchestrator"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64 edt ebpf/net.c -- -I./ebpf/headers
+//go:generate env BPF2GO_FLAGS="-O3" go run github.com/cilium/ebpf/cmd/bpf2go -target amd64 edt ebpf/net.c -- -I./ebpf/headers
 
 func New() *EBPFem {
 	return &EBPFem{
@@ -57,7 +57,7 @@ func (e *EBPFem) Register(id orchestrator.MachineID, netIf string) error {
 	v := &vm{
 		netIf: netIf,
 		objs:  &edtObjects{},
-		hbd:   make(map[string]*handleBpsDelay),
+		hbd:   make(map[string]*handleKbpsDelay),
 	}
 
 	v.Lock()
@@ -108,15 +108,15 @@ func (e *EBPFem) Register(id orchestrator.MachineID, netIf string) error {
 	return nil
 }
 
-func (v *vm) getHBD(target net.IPNet) *handleBpsDelay {
+func (v *vm) getHBD(target net.IPNet) *handleKbpsDelay {
 	hbd, ok := v.hbd[target.String()]
 	if ok {
 		return hbd
 	}
 
-	hbd = &handleBpsDelay{
-		throttleRateBps: DEFAULT_BANDWIDTH,
-		delayUs:         DEFAULT_LATENCY_US,
+	hbd = &handleKbpsDelay{
+		throttleRateKbps: DEFAULT_BANDWIDTH_KBPS,
+		delayUs:          DEFAULT_LATENCY_US,
 	}
 
 	v.hbd[target.String()] = hbd
@@ -140,7 +140,7 @@ func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, b
 
 	hbd := v.getHBD(target)
 
-	hbd.throttleRateBps = uint32(bandwidth)
+	hbd.throttleRateKbps = uint32(bandwidth)
 
 	ips, err := parseNetToLongs(target)
 
@@ -150,7 +150,7 @@ func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, b
 
 	for _, ip := range ips {
 		log.Tracef("updating bandwidth for %d to %d", ip, bandwidth)
-		err = v.objs.IP_HANDLE_BPS_DELAY.Put(ip, hbd)
+		err = v.objs.IP_HANDLE_KBPS_DELAY.Put(ip, hbd)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -181,7 +181,7 @@ func (e *EBPFem) SetLatency(source orchestrator.MachineID, target net.IPNet, lat
 
 	for _, ip := range ips {
 		log.Tracef("updating latency for %d to %d", ip, latency)
-		err = v.objs.IP_HANDLE_BPS_DELAY.Put(ip, hbd)
+		err = v.objs.IP_HANDLE_KBPS_DELAY.Put(ip, hbd)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -210,7 +210,7 @@ func (e *EBPFem) UnblockLink(source orchestrator.MachineID, target net.IPNet) er
 
 	for _, ip := range ips {
 		log.Tracef("unblocking for %d", ip)
-		err = v.objs.IP_HANDLE_BPS_DELAY.Put(ip, hbd)
+		err = v.objs.IP_HANDLE_KBPS_DELAY.Put(ip, hbd)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -237,7 +237,7 @@ func (e *EBPFem) BlockLink(source orchestrator.MachineID, target net.IPNet) erro
 
 	for _, ip := range ips {
 		log.Tracef("blocking for %d", ip)
-		err = v.objs.IP_HANDLE_BPS_DELAY.Put(ip, &handleBpsDelay{throttleRateBps: BLOCKED_BANDWIDTH, delayUs: BLOCKED_LATENCY_US})
+		err = v.objs.IP_HANDLE_KBPS_DELAY.Put(ip, &handleKbpsDelay{throttleRateKbps: BLOCKED_BANDWIDTH_KBPS, delayUs: BLOCKED_LATENCY_US})
 		if err != nil {
 			return errors.WithStack(err)
 		}

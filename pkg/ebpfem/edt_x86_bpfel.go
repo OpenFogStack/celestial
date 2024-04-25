@@ -12,9 +12,9 @@ import (
 	"github.com/cilium/ebpf"
 )
 
-type edtHandleBpsDelay struct {
-	ThrottleRateBps uint32
-	DelayUs         uint32
+type edtHandleKbpsDelay struct {
+	ThrottleRateKbps uint32
+	DelayUs          uint32
 }
 
 // loadEdt returns the embedded CollectionSpec for edt.
@@ -65,8 +65,8 @@ type edtProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type edtMapSpecs struct {
-	IP_HANDLE_BPS_DELAY *ebpf.MapSpec `ebpf:"IP_HANDLE_BPS_DELAY"`
-	FlowMap             *ebpf.MapSpec `ebpf:"flow_map"`
+	IP_HANDLE_KBPS_DELAY *ebpf.MapSpec `ebpf:"IP_HANDLE_KBPS_DELAY"`
+	FlowMap              *ebpf.MapSpec `ebpf:"flow_map"`
 }
 
 // edtObjects contains all objects after they have been loaded into the kernel.
@@ -88,13 +88,13 @@ func (o *edtObjects) Close() error {
 //
 // It can be passed to loadEdtObjects or ebpf.CollectionSpec.LoadAndAssign.
 type edtMaps struct {
-	IP_HANDLE_BPS_DELAY *ebpf.Map `ebpf:"IP_HANDLE_BPS_DELAY"`
-	FlowMap             *ebpf.Map `ebpf:"flow_map"`
+	IP_HANDLE_KBPS_DELAY *ebpf.Map `ebpf:"IP_HANDLE_KBPS_DELAY"`
+	FlowMap              *ebpf.Map `ebpf:"flow_map"`
 }
 
 func (m *edtMaps) Close() error {
 	return _EdtClose(
-		m.IP_HANDLE_BPS_DELAY,
+		m.IP_HANDLE_KBPS_DELAY,
 		m.FlowMap,
 	)
 }
@@ -123,5 +123,5 @@ func _EdtClose(closers ...io.Closer) error {
 
 // Do not access this directly.
 //
-//go:embed edt_bpfel_x86.o
+//go:embed edt_x86_bpfel.o
 var _EdtBytes []byte

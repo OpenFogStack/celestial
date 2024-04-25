@@ -36,8 +36,8 @@ proto/celestial/celestial.pb.go proto/celestial/celestial_grpc.pb.go proto/celes
 	@protoc -I proto/celestial/ celestial.proto --go_out=proto/celestial --go_opt=paths=source_relative --go-grpc_out=proto/celestial --go-grpc_opt=require_unimplemented_servers=false,paths=source_relative
 	@python3 -m grpc_tools.protoc -I proto/celestial/ --python_out=proto/celestial --grpc_python_out=proto/celestial --mypy_out=proto/celestial celestial.proto --mypy_grpc_out=proto/celestial
 
-ebpf: pkg/ebpfem/edt_bpfel_x86.go pkg/ebpfem/edt_bpfel_x86.o ## build ebpf files
-pkg/ebpfem/edt_bpfel_x86.go pkg/ebpfem/edt_bpfel_x86.o: pkg/ebpfem/ebpfem.go pkg/ebpfem/ebpf/net.c pkg/ebpfem/ebpf/headers/helpers.h pkg/ebpfem/ebpf/headers/maps.h ## build ebpf files
+ebpf: pkg/ebpfem/edt_x86_bpfel.go pkg/ebpfem/edt_x86_bpfel.o ## build ebpf files
+pkg/ebpfem/edt_x86_bpfel.go pkg/ebpfem/edt_x86_bpfel.o: pkg/ebpfem/ebpfem.go pkg/ebpfem/ebpf/net.c pkg/ebpfem/ebpf/headers/helpers.h pkg/ebpfem/ebpf/headers/maps.h ## build ebpf files
     ## apt-get install -y clang gcc-multilib libbpf-dev llvm
 	@go generate ./pkg/ebpfem
 

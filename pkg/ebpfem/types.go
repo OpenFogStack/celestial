@@ -28,16 +28,16 @@ import (
 )
 
 const (
-	DEFAULT_LATENCY_US = 0
-	DEFAULT_BANDWIDTH  = 1_000_000_000
+	DEFAULT_LATENCY_US     = 0
+	DEFAULT_BANDWIDTH_KBPS = 1_000_000
 
-	BLOCKED_LATENCY_US = 1_000_000_000
-	BLOCKED_BANDWIDTH  = 0
+	BLOCKED_LATENCY_US     = 1_000_000_000
+	BLOCKED_BANDWIDTH_KBPS = 0
 )
 
-type handleBpsDelay struct {
-	throttleRateBps uint32
-	delayUs         uint32
+type handleKbpsDelay struct {
+	throttleRateKbps uint32
+	delayUs          uint32
 }
 
 type vm struct {
@@ -45,7 +45,7 @@ type vm struct {
 
 	// ebpf specific
 	objs *edtObjects
-	hbd  map[string]*handleBpsDelay
+	hbd  map[string]*handleKbpsDelay
 
 	sync.Mutex
 }
