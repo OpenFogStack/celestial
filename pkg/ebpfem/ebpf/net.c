@@ -47,13 +47,13 @@ struct
     __uint(max_entries, 65535);
 } flow_map SEC(".maps");
 
-static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_t *throttle_rate_bps)
+static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_t *throttle_rate_kbps)
 {
     // use ip as key in map
     int key = ip_address;
 
     // find out if the packet should be dropped (i.e. if the rate is 0)
-    if (*throttle_rate_bps == 0)
+    if (*throttle_rate_kbps == 0)
     {
         return TC_ACT_SHOT;
         // TODO: originally I wanted to set a mark and have iptables reject
@@ -70,8 +70,8 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
 
     // when was the last packet sent?
     uint64_t *last_tstamp = bpf_map_lookup_elem(&flow_map, &key);
-    // calculate delay between packets based on bandwidth and packet size (bps = byte/second)
-    uint64_t delay_ns = ((uint64_t)skb->len) * NS_PER_SEC / *throttle_rate_bps;
+    // calculate delay between packets based on bandwidth and packet size (kbps = byte/1000/second)
+    uint64_t delay_ns = ((uint64_t)skb->len) * NS_PER_SEC / 1000 / *throttle_rate_kbps;
 
     uint64_t now = bpf_ktime_get_ns();
     uint64_t tstamp, next_tstamp = 0;
@@ -88,8 +88,11 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
     // if the delayed timestamp is already in the past, send the packet
     if (next_tstamp <= tstamp)
     {
+        // setting the timestamp
+        // if it does not work, drop the packet
         if (bpf_map_update_elem(&flow_map, &key, &tstamp, BPF_ANY))
             return TC_ACT_SHOT;
+        // return TC_ACT_OK;
 
         return TC_ACT_OK;
     }
@@ -105,6 +108,7 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
     // update last timestamp in map
     if (bpf_map_update_elem(&flow_map, &key, &next_tstamp, BPF_EXIST))
         return TC_ACT_SHOT;
+    // return TC_ACT_OK;
 
     // set delayed timestamp for packet
     skb->tstamp = next_tstamp;
@@ -165,12 +169,12 @@ int tc_main(struct __sk_buff *skb)
             // source IP, to be used as map lookup key
             // see above
             __u32 ip_address = iphdr->saddr;
-            __u32 *throttle_rate_bps;
+            __u32 *throttle_rate_kbps;
             __u32 *delay_us;
 
-            struct handle_bps_delay *val_struct;
+            struct handle_kbps_delay *val_struct;
             // Map lookup
-            val_struct = bpf_map_lookup_elem(&IP_HANDLE_BPS_DELAY, &ip_address);
+            val_struct = bpf_map_lookup_elem(&IP_HANDLE_KBPS_DELAY, &ip_address);
 
             // Safety check, go on if no handle could be retrieved
             if (!val_struct)
@@ -178,14 +182,14 @@ int tc_main(struct __sk_buff *skb)
                 return TC_ACT_OK;
             }
 
-            throttle_rate_bps = &val_struct->throttle_rate_bps;
+            throttle_rate_kbps = &val_struct->throttle_rate_kbps;
             // Safety check, go on if no handle could be retrieved
-            if (!throttle_rate_bps)
+            if (!throttle_rate_kbps)
             {
                 return TC_ACT_OK;
             }
 
-            int ret = throttle_flow(skb, ip_address, throttle_rate_bps);
+            int ret = throttle_flow(skb, ip_address, throttle_rate_kbps);
 
             if (ret != TC_ACT_OK)
             {
