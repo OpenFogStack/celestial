@@ -42,9 +42,9 @@ func Test_path(t *testing.T) {
 				n: NetworkState{
 					MachineID{Id: 0}: {
 						MachineID{Id: 1}: &Link{
-							Blocked:   false,
-							Latency:   1,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     1,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 1,
 							},
@@ -52,9 +52,9 @@ func Test_path(t *testing.T) {
 					},
 					MachineID{Id: 1}: {
 						MachineID{Id: 0}: &Link{
-							Blocked:   false,
-							Latency:   1,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     1,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 0,
 							},
@@ -63,16 +63,16 @@ func Test_path(t *testing.T) {
 				},
 			},
 			want: PathInfo{
-				Source:    MachineID{Id: 1},
-				Target:    MachineID{Id: 0},
-				Latency:   1,
-				Bandwidth: 1,
+				Source:        MachineID{Id: 1},
+				Target:        MachineID{Id: 0},
+				LatencyUs:     1,
+				BandwidthKbps: 1,
 				Segments: []SegmentInfo{
 					{
-						Source:    MachineID{Id: 0},
-						Target:    MachineID{Id: 1},
-						Latency:   1,
-						Bandwidth: 1,
+						Source:        MachineID{Id: 0},
+						Target:        MachineID{Id: 1},
+						LatencyUs:     1,
+						BandwidthKbps: 1,
 					},
 				},
 				Blocked: false,
@@ -86,9 +86,9 @@ func Test_path(t *testing.T) {
 				n: NetworkState{
 					MachineID{Id: 0}: {
 						MachineID{Id: 1}: &Link{
-							Blocked:   false,
-							Latency:   1,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     1,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 1,
 							},
@@ -96,9 +96,9 @@ func Test_path(t *testing.T) {
 					},
 					MachineID{Id: 1}: {
 						MachineID{Id: 0}: &Link{
-							Blocked:   false,
-							Latency:   1,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     1,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 0,
 							},
@@ -107,16 +107,16 @@ func Test_path(t *testing.T) {
 				},
 			},
 			want: PathInfo{
-				Source:    MachineID{Id: 0},
-				Target:    MachineID{Id: 1},
-				Latency:   1,
-				Bandwidth: 1,
+				Source:        MachineID{Id: 0},
+				Target:        MachineID{Id: 1},
+				LatencyUs:     1,
+				BandwidthKbps: 1,
 				Segments: []SegmentInfo{
 					{
-						Source:    MachineID{Id: 0},
-						Target:    MachineID{Id: 1},
-						Latency:   1,
-						Bandwidth: 1,
+						Source:        MachineID{Id: 0},
+						Target:        MachineID{Id: 1},
+						LatencyUs:     1,
+						BandwidthKbps: 1,
 					},
 				},
 				Blocked: false,
@@ -130,17 +130,17 @@ func Test_path(t *testing.T) {
 				n: NetworkState{
 					MachineID{Id: 0}: {
 						MachineID{Id: 1}: &Link{
-							Blocked:   false,
-							Latency:   2,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     2,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 2,
 							},
 						},
 						MachineID{Id: 2}: &Link{
-							Blocked:   false,
-							Latency:   1,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     1,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 2,
 							},
@@ -148,17 +148,17 @@ func Test_path(t *testing.T) {
 					},
 					MachineID{Id: 1}: {
 						MachineID{Id: 0}: &Link{
-							Blocked:   false,
-							Latency:   2,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     2,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 2,
 							},
 						},
 						MachineID{Id: 2}: &Link{
-							Blocked:   false,
-							Latency:   1,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     1,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 2,
 							},
@@ -166,17 +166,17 @@ func Test_path(t *testing.T) {
 					},
 					MachineID{Id: 2}: {
 						MachineID{Id: 0}: &Link{
-							Blocked:   false,
-							Latency:   1,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     1,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 0,
 							},
 						},
 						MachineID{Id: 1}: &Link{
-							Blocked:   false,
-							Latency:   1,
-							Bandwidth: 1,
+							Blocked:       false,
+							LatencyUs:     1,
+							BandwidthKbps: 1,
 							Next: MachineID{
 								Id: 1,
 							},
@@ -185,21 +185,21 @@ func Test_path(t *testing.T) {
 				},
 			},
 			want: PathInfo{
-				Source:    MachineID{Id: 1},
-				Target:    MachineID{Id: 0},
-				Latency:   2,
-				Bandwidth: 1,
+				Source:        MachineID{Id: 1},
+				Target:        MachineID{Id: 0},
+				LatencyUs:     2,
+				BandwidthKbps: 1,
 				Segments: []SegmentInfo{
 					{
-						Source:    MachineID{Id: 1},
-						Target:    MachineID{Id: 2},
-						Latency:   1,
-						Bandwidth: 1,
+						Source:        MachineID{Id: 1},
+						Target:        MachineID{Id: 2},
+						LatencyUs:     1,
+						BandwidthKbps: 1,
 					}, {
-						Source:    MachineID{Id: 2},
-						Target:    MachineID{Id: 0},
-						Latency:   1,
-						Bandwidth: 1,
+						Source:        MachineID{Id: 2},
+						Target:        MachineID{Id: 0},
+						LatencyUs:     1,
+						BandwidthKbps: 1,
 					},
 				},
 				Blocked: false,

@@ -49,8 +49,6 @@ struct
 
 static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_t *throttle_rate_kbps)
 {
-    // use ip as key in map
-    int key = ip_address;
 
     // find out if the packet should be dropped (i.e. if the rate is 0)
     if (*throttle_rate_kbps == 0)
@@ -67,6 +65,9 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
         //        skb->mark = skb->mark | 0x80;
         //        return TC_ACT_OK;
     }
+
+    // use ip as key in map
+    uint32_t key = ip_address;
 
     // when was the last packet sent?
     uint64_t *last_tstamp = bpf_map_lookup_elem(&flow_map, &key);
@@ -92,7 +93,6 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
         // if it does not work, drop the packet
         if (bpf_map_update_elem(&flow_map, &key, &tstamp, BPF_ANY))
             return TC_ACT_SHOT;
-        // return TC_ACT_OK;
 
         return TC_ACT_OK;
     }
@@ -108,7 +108,6 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
     // update last timestamp in map
     if (bpf_map_update_elem(&flow_map, &key, &next_tstamp, BPF_EXIST))
         return TC_ACT_SHOT;
-    // return TC_ACT_OK;
 
     // set delayed timestamp for packet
     skb->tstamp = next_tstamp;
@@ -119,20 +118,18 @@ static inline int throttle_flow(struct __sk_buff *skb, __u32 ip_address, uint32_
 
 static inline int inject_delay(struct __sk_buff *skb, uint32_t *delay_us)
 {
-    uint64_t delay_ns;
-    uint64_t now = bpf_ktime_get_ns();
-    delay_ns = (*delay_us) * NS_PER_US;
-    uint64_t ts = skb->tstamp;
-    uint64_t new_ts = ((uint64_t)skb->tstamp) + delay_ns;
+    uint64_t delay_ns = (*delay_us) * NS_PER_US;
 
     // sometimes skb-tstamp is reset to 0
     // https://patchwork.kernel.org/project/netdevbpf/patch/20220301053637.930759-1-kafai@fb.com/
     // check if skb->tstamp == 0
-    if (ts == 0)
+    if (skb->tstamp == 0)
     {
-        skb->tstamp = now + delay_ns;
+        skb->tstamp = bpf_ktime_get_ns() + delay_ns;
         return TC_ACT_OK;
     }
+
+    uint64_t new_ts = ((uint64_t)skb->tstamp) + delay_ns;
     // otherwise add additional delay to packets
     skb->tstamp = new_ts;
 

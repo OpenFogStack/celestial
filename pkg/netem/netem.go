@@ -29,9 +29,9 @@ import (
 )
 
 type link struct {
-	blocked   bool
-	latency   uint32
-	bandwidth uint64
+	blocked       bool
+	latencyUs     uint32
+	bandwidthKbps uint64
 
 	// tc specific
 	tcIndex uint16
@@ -191,7 +191,7 @@ func (n *Netem) checkLink(source orchestrator.MachineID, target net.IPNet) error
 	return nil
 }
 
-func (n *Netem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, bandwidth uint64) error {
+func (n *Netem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, bandwidthKbps uint64) error {
 	v, ok := n.vms[source]
 
 	if !ok {
@@ -207,18 +207,18 @@ func (n *Netem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, ba
 		return err
 	}
 
-	err = v.updateBandwidth(target, bandwidth)
+	err = v.updateBandwidth(target, bandwidthKbps)
 
 	if err != nil {
 		return err
 	}
 
-	n.vms[source].links[fromIPNet(target)].bandwidth = bandwidth
+	n.vms[source].links[fromIPNet(target)].bandwidthKbps = bandwidthKbps
 
 	return nil
 }
 
-func (n *Netem) SetLatency(source orchestrator.MachineID, target net.IPNet, latency uint32) error {
+func (n *Netem) SetLatency(source orchestrator.MachineID, target net.IPNet, latencyUs uint32) error {
 	v, ok := n.vms[source]
 
 	if !ok {
@@ -234,13 +234,13 @@ func (n *Netem) SetLatency(source orchestrator.MachineID, target net.IPNet, late
 		return err
 	}
 
-	err = v.updateDelay(target, latency)
+	err = v.updateDelay(target, latencyUs)
 
 	if err != nil {
 		return err
 	}
 
-	n.vms[source].links[fromIPNet(target)].latency = latency
+	n.vms[source].links[fromIPNet(target)].latencyUs = latencyUs
 
 	return nil
 }

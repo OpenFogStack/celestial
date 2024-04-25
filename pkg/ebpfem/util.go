@@ -97,7 +97,7 @@ func getIface(name string) (netlink.Link, error) {
 	return iface, nil
 }
 
-// CreateClsactQdisc creates clsact qdisc. This is necessary for the tc egress hook. The packets are forwarded to network_simulation.c.
+// CreateClsactQdisc creates clsact qdisc. This is necessary for the tc egress hook. The packets are forwarded to net.c.
 // The eBPF-program adjusts the departure time of the packets based on the values in the eBPF-map.
 func createClsactQdisc(iface netlink.Link) (*netlink.GenericQdisc, error) {
 	attrs := netlink.QdiscAttrs{
@@ -119,7 +119,7 @@ func createClsactQdisc(iface netlink.Link) (*netlink.GenericQdisc, error) {
 }
 
 /*
-Creates fq qdisc which uses a timing wheel and then releases the pakets to the network interface based on their
+Creates fq qdisc which uses a timing wheel and then releases the packets to the network interface based on their
 time stamp.
 */
 func createFQdisc(iface netlink.Link) (*netlink.Fq, error) {

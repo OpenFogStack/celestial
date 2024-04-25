@@ -107,9 +107,9 @@ func (v *vm) createQDisc(target net.IPNet) (uint16, error) {
 	return v.handle, nil
 }
 
-func (v *vm) updateDelay(target net.IPNet, delay uint32) error {
+func (v *vm) updateDelay(target net.IPNet, delayUs uint32) error {
 
-	log.Tracef("updating delay on %s for %s to %d", v.netIf, target.String(), delay)
+	log.Tracef("updating delay on %s for %s to %d", v.netIf, target.String(), delayUs)
 
 	// get the index
 	l, ok := v.links[fromIPNet(target)]
@@ -120,8 +120,8 @@ func (v *vm) updateDelay(target net.IPNet, delay uint32) error {
 
 	// convert to milliseconds
 	// x.y ms
-	x := delay / 1000
-	y := delay % 1000 / 10 // ignore the last digit, netem is not that accurate anyway
+	x := delayUs / 1000
+	y := delayUs % 1000 / 10 // ignore the last digit, netem is not that accurate anyway
 
 	// tc qdisc change dev [TAP_NAME] parent 1:[INDEX] handle [INDEX]: netem delay [DELAY].0ms limit 1000000
 	cmd := exec.Command(TC_BIN, "qdisc", "change", "dev", v.netIf, "parent", fmt.Sprintf("1:%d", l.tcIndex), "handle", fmt.Sprintf("%d:", l.tcIndex), "netem", "delay", fmt.Sprintf("%d.%dms", x, y), "limit", "1000000")
@@ -133,9 +133,9 @@ func (v *vm) updateDelay(target net.IPNet, delay uint32) error {
 	return nil
 }
 
-func (v *vm) updateBandwidth(target net.IPNet, bandwidth uint64) error {
+func (v *vm) updateBandwidth(target net.IPNet, bandwidthKbps uint64) error {
 
-	log.Tracef("updating bandwidth on %s for %s to %d", v.netIf, target.String(), bandwidth)
+	log.Tracef("updating bandwidth on %s for %s to %d", v.netIf, target.String(), bandwidthKbps)
 
 	// get the index
 	l, ok := v.links[fromIPNet(target)]
@@ -144,7 +144,7 @@ func (v *vm) updateBandwidth(target net.IPNet, bandwidth uint64) error {
 		return errors.Errorf("unknown link %s", target.String())
 	}
 
-	rate := fmt.Sprintf("%d.0kbit", bandwidth)
+	rate := fmt.Sprintf("%d.0kbit", bandwidthKbps)
 
 	// tc class change dev [TAP_NAME] parent 1: classid 1:[INDEX] htb rate [RATE] quantum 1514
 	cmd := exec.Command(TC_BIN, "class", "change", "dev", v.netIf, "parent", "1:", "classid", fmt.Sprintf("1:%d", l.tcIndex), "htb", "rate", rate, "quantum", "1514")
