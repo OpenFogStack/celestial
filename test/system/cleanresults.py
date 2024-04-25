@@ -48,12 +48,8 @@ if __name__ == "__main__":
             if len(parts) != 2:
                 raise Exception("invalid filename")
 
-            if parts[0] == "gst":
-                a_shell = "gst"
-
-            else:
-                # first part is a_shell
-                a_shell = parts[0]
+            # first part is a_shell
+            a_shell = parts[0]
 
             a_sat = parts[1].split(".")[0]
 
@@ -81,7 +77,6 @@ if __name__ == "__main__":
                         int(parts[1])
                         int(parts[2])
                     except Exception:
-                        # or maybe its a gst
                         if parts[1] != "gst":
                             continue
 
