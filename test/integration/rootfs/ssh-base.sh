@@ -48,3 +48,6 @@ PubkeyAuthentication yes
 " | tee -a /etc/ssh/sshd_config >/dev/null
 
 cat id_ed25519.pub >> /root/.ssh/authorized_keys
+
+# add iperf3
+apk -U --allow-untrusted --root / add iperf3
