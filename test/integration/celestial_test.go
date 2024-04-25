@@ -90,7 +90,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	//neb := netem.New()
+	// neb := netem.New()
 	neb := ebpfem.New()
 
 	// get interface from environment
@@ -109,10 +109,6 @@ func TestMain(m *testing.M) {
 	log.Debug("creating orchestrator")
 
 	o = orchestrator.New(vb)
-
-	if err != nil {
-		panic(err)
-	}
 
 	log.Debug("initializing server")
 
@@ -464,6 +460,129 @@ func TestModifyLinks(t *testing.T) {
 	testModifyLinks(t, A, B, 200)
 	testModifyLinks(t, A, B, 300)
 	testModifyLinks(t, A, B, 400)
+}
+
+// check what happens when we adapt the bandwidth between the machines
+func testModifyBandwidth(t *testing.T, A int, B int, bandwidth int) {
+	u := &testUpdateServer{
+		ld: []*celestial.StateUpdateRequest_NetworkDiff{
+			{
+				Source: &celestial.MachineID{
+					Group: uint32(vms[A].group),
+					Id:    uint32(vms[A].id),
+				},
+				Target: &celestial.MachineID{
+					Group: uint32(vms[B].group),
+					Id:    uint32(vms[B].id),
+				},
+				Latency:   1000, //1 * 1000, // convert to microseconds
+				Bandwidth: uint64(bandwidth),
+				Next: &celestial.MachineID{
+					Group: uint32(vms[B].group),
+					Id:    uint32(vms[B].id),
+				},
+				Prev: &celestial.MachineID{
+					Group: uint32(vms[A].group),
+					Id:    uint32(vms[A].id),
+				},
+			},
+		},
+	}
+
+	err := s.Update(u)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	x := func(A, B int) {
+		// check if bandwidth is actually set
+		// run iperf3 over SSH command:
+		// start iperf3 on target:
+		// ssh root@[ip2] iperf3 -s --one-off
+		cTarget := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[B].ip.String(), "iperf3", "-s", "--one-off")
+
+		// start iperf3 on source:
+		// ssh root@[ip1] iperf3 -c [ip2] -f k -b [bandwidth]k -u
+		cSource := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "iperf3", "-c", vms[B].ip.String(), "-f", "k", "-b", fmt.Sprintf("%dk", bandwidth), "-u")
+
+		go cTarget.CombinedOutput()
+
+		time.Sleep(2 * time.Second)
+
+		out, err := cSource.CombinedOutput()
+		if err != nil {
+			log.Debug(string(out))
+			t.Error(err)
+		}
+
+		// check that bandwidth is as expected
+		// parse output of this form:
+		// Connecting to host 10.1.0.6, port 5201
+		// [  5] local 10.1.0.2 port 41502 connected to 10.1.0.6 port 5201
+		// [ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+		// [  5]   0.00-1.00   sec  70.7 KBytes   579 Kbits/sec    0   14.1 KBytes
+		// [  5]   1.00-2.00   sec  0.00 Bytes  0.00 bits/sec    0   14.1 KBytes
+		// [  5]   2.00-3.00   sec  0.00 Bytes  0.00 bits/sec    0   14.1 KBytes
+		// [  5]   3.00-4.00   sec  0.00 Bytes  0.00 bits/sec    0   14.1 KBytes
+		// [  5]   4.00-5.00   sec  0.00 Bytes  0.00 bits/sec    0   14.1 KBytes
+		// [  5]   5.00-6.00   sec  0.00 Bytes  0.00 bits/sec    1   1.41 KBytes
+		// [  5]   6.00-7.00   sec  0.00 Bytes  0.00 bits/sec    0   1.41 KBytes
+		// [  5]   7.00-8.00   sec  0.00 Bytes  0.00 bits/sec    0   1.41 KBytes
+		// [  5]   8.00-9.00   sec  0.00 Bytes  0.00 bits/sec    0   1.41 KBytes
+		// [  5]   9.00-10.00  sec  0.00 Bytes  0.00 bits/sec    0   1.41 KBytes
+		// - - - - - - - - - - - - - - - - - - - - - - - - -
+		// [ ID] Interval           Transfer     Bitrate         Retr
+		// [  5]   0.00-10.00  sec  70.7 KBytes  57.9 Kbits/sec    1             sender
+		// [  5]   0.00-10.69  sec  0.00 Bytes  0.00 bits/sec                  receiver
+
+		// iperf Done.
+
+		log.Trace(string(out))
+
+		measured := -1.0
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.Contains(line, "receiver") {
+				log.Tracef("found line: %s", line)
+				p := strings.Fields(line)
+				log.Debug("found fields: ", p)
+				log.Tracef("found bandwidth %s", p[6])
+				measured, err = strconv.ParseFloat(p[6], 64)
+				if err != nil {
+					t.Error(err)
+				}
+				break
+			}
+		}
+
+		if bandwidth == -1 {
+			t.Errorf("bandwidth from %d to %d could not be determined", vms[A].id, vms[B].id)
+		}
+
+		// bandwidth should not be out of a 20% range
+		// bandwidth is hard!
+		minbandwidth := float64(bandwidth) * 0.80
+		maxbandwidth := float64(bandwidth) * 1.20
+		if measured < minbandwidth || measured > maxbandwidth {
+			t.Errorf("bandwidth from %d to %d is not as expected: %.2f instead of %d", vms[A].id, vms[B].id, measured, bandwidth)
+		}
+
+	}
+
+	x(A, B)
+	x(B, A)
+
+}
+
+func TestModifyBandwidth(t *testing.T) {
+	A, B := 0, 1
+	// testModifyBandwidth(t, A, B, 100)
+	// testModifyBandwidth(t, A, B, 500)
+	// testModifyBandwidth(t, A, B, 1000)
+	testModifyBandwidth(t, A, B, 10000)
+	testModifyBandwidth(t, A, B, 100000)
+	testModifyBandwidth(t, A, B, 1000000)
+	testModifyBandwidth(t, A, B, 10000000)
 }
 
 // check that blocking a link works
