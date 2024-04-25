@@ -149,8 +149,10 @@ def make_update_request_iter(
                             group=_machineID_group(target),
                             id=_machineID_id(target),
                         ),
-                        latency=typing.cast(int, celestial.types.Link_latency_us(link)),
-                        bandwidth=typing.cast(
+                        latency_us=typing.cast(
+                            int, celestial.types.Link_latency_us(link)
+                        ),
+                        bandwidth_kbits=typing.cast(
                             int, celestial.types.Link_bandwidth_kbits(link)
                         ),
                         blocked=False,

@@ -46,7 +46,7 @@ func (l Link) String() string {
 		return "blocked"
 	}
 
-	return fmt.Sprintf("%dus %dbps (next: %s)", l.Latency, l.Bandwidth, l.Next.String())
+	return fmt.Sprintf("%dus %dkbps (next: %s)", l.LatencyUs, l.BandwidthKbps, l.Next.String())
 }
 
 func path(a, b MachineID, n NetworkState) (PathInfo, error) {
@@ -67,8 +67,8 @@ func path(a, b MachineID, n NetworkState) (PathInfo, error) {
 		return p, nil
 	}
 
-	p.Latency = n[a][b].Latency
-	p.Bandwidth = n[a][b].Bandwidth
+	p.LatencyUs = n[a][b].LatencyUs
+	p.BandwidthKbps = n[a][b].BandwidthKbps
 	p.Segments = make([]SegmentInfo, 0)
 
 	for a != b {
@@ -80,10 +80,10 @@ func path(a, b MachineID, n NetworkState) (PathInfo, error) {
 		}
 
 		s := SegmentInfo{
-			Source:    a,
-			Target:    hop.Next,
-			Latency:   n[a][hop.Next].Latency,
-			Bandwidth: n[a][hop.Next].Bandwidth,
+			Source:        a,
+			Target:        hop.Next,
+			LatencyUs:     n[a][hop.Next].LatencyUs,
+			BandwidthKbps: n[a][hop.Next].BandwidthKbps,
 		}
 
 		p.Segments = append(p.Segments, s)

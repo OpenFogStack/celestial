@@ -88,8 +88,8 @@ message StateUpdateRequest {
         bool blocked = 1;
         MachineID source = 2;
         MachineID target = 3;
-        uint32 latency = 4;
-        uint64 bandwidth = 5;
+        uint32 latency_us = 4;
+        uint64 bandwidth_kbps = 5;
         // used for path reconstruction
         MachineID next = 6;
         MachineID prev = 7;

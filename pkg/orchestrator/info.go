@@ -43,19 +43,19 @@ type ConstellationInfo struct {
 }
 
 type SegmentInfo struct {
-	Source    MachineID
-	Target    MachineID
-	Latency   uint32
-	Bandwidth uint64
+	Source        MachineID
+	Target        MachineID
+	LatencyUs     uint32
+	BandwidthKbps uint64
 }
 
 type PathInfo struct {
-	Source    MachineID
-	Target    MachineID
-	Latency   uint32
-	Bandwidth uint64
-	Segments  []SegmentInfo
-	Blocked   bool
+	Source        MachineID
+	Target        MachineID
+	LatencyUs     uint32
+	BandwidthKbps uint64
+	Segments      []SegmentInfo
+	Blocked       bool
 }
 
 func (o *Orchestrator) InfoGetIPAddressByID(id MachineID) (net.IP, error) {

@@ -30,9 +30,9 @@ type Link struct {
 	// Blocked is true if the link is blocked
 	Blocked bool
 	// Latency in microseconds
-	Latency uint32
-	// Bandwidth in bytes per second
-	Bandwidth uint64
+	LatencyUs uint32
+	// Bandwidth in kilobytes per second
+	BandwidthKbps uint64
 
 	// used for path reconstruction
 	Next MachineID

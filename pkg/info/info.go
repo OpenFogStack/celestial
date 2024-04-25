@@ -406,8 +406,8 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !p.Blocked {
-		s.Delay = p.Latency
-		s.Bandwidth = p.Bandwidth
+		s.DelayUs = p.LatencyUs
+		s.BandwidthKbps = p.BandwidthKbps
 		s.Segments = make([]Segment, len(p.Segments))
 
 		for j, seg := range p.Segments {
@@ -425,8 +425,8 @@ func (i *infoserver) getPath(w http.ResponseWriter, r *http.Request) {
 					ID:    seg.Target.Id,
 					Name:  targetName,
 				},
-				Delay:     seg.Latency,
-				Bandwidth: seg.Bandwidth,
+				DelayUs:       seg.LatencyUs,
+				BandwidthKbps: seg.BandwidthKbps,
 			}
 		}
 	} else {

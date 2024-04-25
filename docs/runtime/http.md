@@ -210,8 +210,8 @@ Returns:
     "shell": 1,
     "id": 10,
   },
-  "delay": 10000,
-  "bandwidth": 10000,
+  "delay_us": 10000,
+  "bandwidth_kbits": 10000,
   "blocked": false,
   "segments": [
     {
@@ -223,8 +223,8 @@ Returns:
         "shell": 1,
         "id": 9,
       },
-      "delay": 4000,
-      "bandwidth": 20000,
+      "delay_us": 4000,
+      "bandwidth_kbits": 20000,
     },
     {
       "source":{
@@ -235,11 +235,11 @@ Returns:
         "shell": 1,
         "id": 10,
       },
-      "delay": 6000,
-      "bandwidth": 10000,
+      "delay_us": 6000,
+      "bandwidth_kbits": 10000,
     },
   ],
 }
 ```
 
-Note that `delay` is in microseconds and `bandwidth` in kbit/s.
+Note that `delay_us` is in microseconds and `bandwidth_kbits` in kbit/s.

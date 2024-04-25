@@ -144,8 +144,8 @@ func TestMain(m *testing.M) {
 			},
 			Host: 0,
 			Config: &celestial.InitRequest_Machine_MachineConfig{
-				VcpuCount: 1,
-				Ram:       128,
+				VcpuCount: 4,
+				Ram:       4096,
 				DiskSize:  1024,
 				RootImage: rootfs,
 				Kernel:    kernel,
@@ -388,8 +388,8 @@ func testModifyLinks(t *testing.T, A int, B int, latency int) {
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
-				Latency:   uint32(latency * 1000), // convert to microseconds
-				Bandwidth: 10000,
+				LatencyUs:     uint32(latency * 1000), // convert to microseconds
+				BandwidthKbps: 10000,
 				Next: &celestial.MachineID{
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
@@ -475,8 +475,8 @@ func testModifyBandwidth(t *testing.T, A int, B int, bandwidth int) {
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
 				},
-				Latency:   1000, //1 * 1000, // convert to microseconds
-				Bandwidth: uint64(bandwidth),
+				LatencyUs:     1000, //1 * 1000, // convert to microseconds
+				BandwidthKbps: uint64(bandwidth),
 				Next: &celestial.MachineID{
 					Group: uint32(vms[B].group),
 					Id:    uint32(vms[B].id),
@@ -503,8 +503,8 @@ func testModifyBandwidth(t *testing.T, A int, B int, bandwidth int) {
 		cTarget := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[B].ip.String(), "iperf3", "-s", "--one-off")
 
 		// start iperf3 on source:
-		// ssh root@[ip1] iperf3 -c [ip2] -f k -b [bandwidth]k -u
-		cSource := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "iperf3", "-c", vms[B].ip.String(), "-f", "k", "-b", fmt.Sprintf("%dk", bandwidth), "-u")
+		// ssh root@[ip1] iperf3 -c [ip2] -f k -u -b [bandwidth]k
+		cSource := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "iperf3", "-c", vms[B].ip.String(), "-f", "k", "-u", "-b", fmt.Sprintf("%dk", bandwidth))
 
 		go cTarget.CombinedOutput()
 

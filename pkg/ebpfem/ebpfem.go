@@ -124,7 +124,7 @@ func (v *vm) getHBD(target net.IPNet) *handleKbpsDelay {
 	return hbd
 }
 
-func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, bandwidth uint64) error {
+func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, bandwidthKbits uint64) error {
 	e.RLock()
 	v, ok := e.vms[source]
 	e.RUnlock()
@@ -140,7 +140,7 @@ func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, b
 
 	hbd := v.getHBD(target)
 
-	hbd.throttleRateKbps = uint32(bandwidth)
+	hbd.throttleRateKbps = uint32(bandwidthKbits)
 
 	ips, err := parseNetToLongs(target)
 
@@ -149,7 +149,7 @@ func (e *EBPFem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, b
 	}
 
 	for _, ip := range ips {
-		log.Tracef("updating bandwidth for %d to %d", ip, bandwidth)
+		log.Tracef("updating bandwidth for %d to %d", ip, bandwidthKbits)
 		err = v.objs.IP_HANDLE_KBPS_DELAY.Put(ip, hbd)
 		if err != nil {
 			return errors.WithStack(err)

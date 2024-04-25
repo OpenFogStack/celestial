@@ -210,18 +210,18 @@ func (s *Server) Update(stream celestial.Celestial_UpdateServer) error {
 				}
 
 				ns[a][b] = &orchestrator.Link{
-					Latency:   n.Latency,
-					Bandwidth: n.Bandwidth,
-					Blocked:   false,
+					LatencyUs:     n.LatencyUs,
+					BandwidthKbps: n.BandwidthKbps,
+					Blocked:       false,
 					Next: orchestrator.MachineID{
 						Group: uint8(n.Next.Group),
 						Id:    n.Next.Id,
 					},
 				}
 				ns[b][a] = &orchestrator.Link{
-					Latency:   n.Latency,
-					Bandwidth: n.Bandwidth,
-					Blocked:   false,
+					LatencyUs:     n.LatencyUs,
+					BandwidthKbps: n.BandwidthKbps,
+					Blocked:       false,
 					Next: orchestrator.MachineID{
 						Group: uint8(n.Prev.Group),
 						Id:    n.Prev.Id,

@@ -238,22 +238,22 @@ func (o *Orchestrator) Update(s *State) error {
 					o.State.NetworkState[source][target].Next = l.Next
 				}
 
-				if l.Latency != o.State.NetworkState[source][target].Latency {
-					log.Tracef("changing latency %s -> %s from %d to %d", source, target, l.Latency, o.State.NetworkState[source][target].Latency)
-					err := o.virt.SetLatency(source, target, l.Latency)
+				if l.LatencyUs != o.State.NetworkState[source][target].LatencyUs {
+					log.Tracef("changing latency %s -> %s from %d to %d", source, target, l.LatencyUs, o.State.NetworkState[source][target].LatencyUs)
+					err := o.virt.SetLatency(source, target, l.LatencyUs)
 					if err != nil {
 						e = errors.WithStack(err)
 					}
-					o.State.NetworkState[source][target].Latency = l.Latency
+					o.State.NetworkState[source][target].LatencyUs = l.LatencyUs
 				}
 
-				if l.Bandwidth != o.State.NetworkState[source][target].Bandwidth {
-					log.Tracef("setting bandwidth %s -> %s to %d", source, target, l.Bandwidth)
-					err := o.virt.SetBandwidth(source, target, l.Bandwidth)
+				if l.BandwidthKbps != o.State.NetworkState[source][target].BandwidthKbps {
+					log.Tracef("setting bandwidth %s -> %s to %d", source, target, l.BandwidthKbps)
+					err := o.virt.SetBandwidth(source, target, l.BandwidthKbps)
 					if err != nil {
 						e = errors.WithStack(err)
 					}
-					o.State.NetworkState[source][target].Bandwidth = l.Bandwidth
+					o.State.NetworkState[source][target].BandwidthKbps = l.BandwidthKbps
 				}
 			}
 		}(m, ls)

@@ -240,8 +240,8 @@ class StateUpdateRequest(google.protobuf.message.Message):
         BLOCKED_FIELD_NUMBER: builtins.int
         SOURCE_FIELD_NUMBER: builtins.int
         TARGET_FIELD_NUMBER: builtins.int
-        LATENCY_FIELD_NUMBER: builtins.int
-        BANDWIDTH_FIELD_NUMBER: builtins.int
+        LATENCY_US_FIELD_NUMBER: builtins.int
+        BANDWIDTH_KBPS_FIELD_NUMBER: builtins.int
         NEXT_FIELD_NUMBER: builtins.int
         PREV_FIELD_NUMBER: builtins.int
         blocked: builtins.bool
@@ -249,8 +249,8 @@ class StateUpdateRequest(google.protobuf.message.Message):
         def source(self) -> global___MachineID: ...
         @property
         def target(self) -> global___MachineID: ...
-        latency: builtins.int
-        bandwidth: builtins.int
+        latency_us: builtins.int
+        bandwidth_kbps: builtins.int
         @property
         def next(self) -> global___MachineID:
             """used for path reconstruction"""
@@ -262,13 +262,13 @@ class StateUpdateRequest(google.protobuf.message.Message):
             blocked: builtins.bool = ...,
             source: global___MachineID | None = ...,
             target: global___MachineID | None = ...,
-            latency: builtins.int = ...,
-            bandwidth: builtins.int = ...,
+            latency_us: builtins.int = ...,
+            bandwidth_kbps: builtins.int = ...,
             next: global___MachineID | None = ...,
             prev: global___MachineID | None = ...,
         ) -> None: ...
         def HasField(self, field_name: typing_extensions.Literal["next", b"next", "prev", b"prev", "source", b"source", "target", b"target"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["bandwidth", b"bandwidth", "blocked", b"blocked", "latency", b"latency", "next", b"next", "prev", b"prev", "source", b"source", "target", b"target"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["bandwidth_kbps", b"bandwidth_kbps", "blocked", b"blocked", "latency_us", b"latency_us", "next", b"next", "prev", b"prev", "source", b"source", "target", b"target"]) -> None: ...
 
     MACHINE_DIFFS_FIELD_NUMBER: builtins.int
     NETWORK_DIFFS_FIELD_NUMBER: builtins.int

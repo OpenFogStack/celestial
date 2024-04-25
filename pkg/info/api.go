@@ -42,18 +42,18 @@ type Constellation struct {
 }
 
 type Segment struct {
-	Source    Identifier `json:"source"`
-	Target    Identifier `json:"target"`
-	Delay     uint32     `json:"delay,omitempty"`
-	Bandwidth uint64     `json:"bandwidth,omitempty"`
+	Source        Identifier `json:"source"`
+	Target        Identifier `json:"target"`
+	DelayUs       uint32     `json:"delay_us,omitempty"`
+	BandwidthKbps uint64     `json:"bandwidth_kbps,omitempty"`
 }
 
 // Path is returned by `/path/{source_group}/{source_id}/{target_group}/{target_id}`.
 type Path struct {
-	Source    Identifier `json:"source"`
-	Target    Identifier `json:"target"`
-	Delay     uint32     `json:"delay,omitempty"`
-	Bandwidth uint64     `json:"bandwidth,omitempty"`
-	Blocked   bool       `json:"blocked,omitempty"`
-	Segments  []Segment  `json:"segments"`
+	Source        Identifier `json:"source"`
+	Target        Identifier `json:"target"`
+	DelayUs       uint32     `json:"delay_us,omitempty"`
+	BandwidthKbps uint64     `json:"bandwidth_kbits,omitempty"`
+	Blocked       bool       `json:"blocked,omitempty"`
+	Segments      []Segment  `json:"segments"`
 }
