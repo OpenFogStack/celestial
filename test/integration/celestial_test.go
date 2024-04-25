@@ -506,7 +506,9 @@ func testModifyBandwidth(t *testing.T, A int, B int, bandwidth int) {
 		// ssh root@[ip1] iperf3 -c [ip2] -f k -u -b [bandwidth]k
 		cSource := exec.Command("ssh", "-i", key, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "root@"+vms[A].ip.String(), "iperf3", "-c", vms[B].ip.String(), "-f", "k", "-u", "-b", fmt.Sprintf("%dk", bandwidth))
 
-		go cTarget.CombinedOutput()
+		go func() {
+			_, _ = cTarget.CombinedOutput()
+		}()
 
 		time.Sleep(2 * time.Second)
 
