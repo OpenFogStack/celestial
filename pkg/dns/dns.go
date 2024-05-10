@@ -37,6 +37,9 @@ type Server struct {
 // https://gist.github.com/walm/0d67b4fb2d5daf3edd4fad3e13b162cb
 
 func (d *Server) getIPFromDNS(qName string) (string, error) {
+	// lowercase everything, just in case
+	qName = strings.ToLower(qName)
+
 	labels := dns.SplitDomainName(qName)
 
 	if len(labels) != 3 {
