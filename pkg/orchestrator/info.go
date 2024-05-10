@@ -19,6 +19,7 @@ package orchestrator
 
 import (
 	"net"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -73,7 +74,15 @@ func (o *Orchestrator) InfoGetIPAddressByID(id MachineID) (net.IP, error) {
 }
 
 func (o *Orchestrator) InfoGetIPAddressByName(name string) (net.IP, error) {
-	id, ok := o.machineNames[name]
+	var id MachineID
+	ok := false
+
+	for m, i := range o.machineNames {
+		if strings.EqualFold(m, name) {
+			id = i
+			ok = true
+		}
+	}
 
 	if !ok {
 		return net.IP{}, errors.Errorf("machine with name %s not found", name)
