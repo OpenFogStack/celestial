@@ -43,7 +43,7 @@ RUN wget http://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION_MAJOR}.${ALPINE_
 
 # install dependencies in minirootfs
 RUN cp /etc/resolv.conf ./rootfs/etc/resolv.conf && \
-    chroot ./rootfs/ apk -X "http://dl-5.alpinelinux.org/alpine/latest-stable/main" -U --allow-untrusted --root / --initdb add \
+    chroot ./rootfs/ apk -X "http://dl-5.alpinelinux.org/alpine/v${ALPINE_VERSION_MAJOR}.${ALPINE_VERSION_MINOR}/main" -U --allow-untrusted --root / --initdb add \
     openrc \
     ca-certificates \
     alpine-base \
