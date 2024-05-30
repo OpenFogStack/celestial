@@ -27,9 +27,11 @@ PROJECT_NAME := "celestial"
 PKG := "github.com/OpenFogStack/$(PROJECT_NAME)"
 GO_FILES := $(shell find . -name '*.go' | grep -v _test.go)
 
-.PHONY: build proto ebpf celestial-make satgen-docker rootfsbuilder
+.PHONY: build proto ebpf containers celestial-make satgen-docker rootfsbuilder
 
 build: celestial.bin
+
+containers: celestial-make satgen-docker rootfsbuilder
 
 proto: proto/celestial/celestial.pb.go proto/celestial/celestial_grpc.pb.go proto/celestial/celestial_pb2.py proto/celestial/celestial_pb2.pyi proto/celestial/celestial_pb2_grpc.py proto/celestial/celestial_pb2_grpc.pyi
 proto/celestial/celestial.pb.go proto/celestial/celestial_grpc.pb.go proto/celestial/celestial_pb2.py proto/celestial/celestial_pb2.pyi proto/celestial/celestial_pb2_grpc.py proto/celestial/celestial_pb2_grpc.pyi: proto/celestial/celestial.proto proto/celestial/__init__.py ## build proto files
