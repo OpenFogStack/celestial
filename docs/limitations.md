@@ -80,3 +80,33 @@ prevents Firecracker networking to work.
 Even uninstalling Docker did not help us with this.
 If you have Docker installed on your host server, find a fresh host server to
 run Celestial on.
+
+### Memory
+
+Celestial suspends microVMs for satellites that move outside the bounding box.
+Suspending rather than stopping lets Celestial resume (unsuspend) those microVMs
+seamlessly if a satellite moves back into the bounding box (usually after completing)
+an orbit.
+Firecracker suspends processes to memory, i.e., while the process no longer performs
+any work, any memory pages claimed by the microVM will remain in memory.
+For longer emulation runs, this can of course clutter your available memory with
+useless information.
+It is advisable to enable swapping on your host machines with a sufficiently
+large swap space.
+While swapping should normally not be used on servers, this is a different case:
+For suspended microVMs, your host can simply move the unused memory pages to
+your hard drive in case of memory pressure.
+On your host, enable memory swapping like this:
+
+```sh
+# create an, e.g., 64GB swap file
+sudo fallocate -l 64G /swapfile
+# set permissions
+sudo chmod 600 /swapfile
+# make this file a swapping area
+sudo mkswap /swapfile
+# enable swapping
+sudo swapon /swapfile
+```
+
+These settings do not persist across reboots.
