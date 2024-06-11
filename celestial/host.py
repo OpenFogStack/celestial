@@ -52,11 +52,16 @@ class Host:
 
         :return: The response from the host.
         """
-        request = proto.celestial.celestial_pb2.RegisterRequest(host=self.num)
+        try:
+            request = proto.celestial.celestial_pb2.RegisterRequest(host=self.num)
 
-        response: proto.celestial.celestial_pb2.RegisterResponse = self.stub.Register(
-            request
-        )
+            response: proto.celestial.celestial_pb2.RegisterResponse = (
+                self.stub.Register(request)
+            )
+
+        except Exception as e:
+            logging.error(f"Error registering host {self.num}: {e}")
+            exit(1)
 
         # others currently not used
         self.peer_public_key = response.peer_public_key
