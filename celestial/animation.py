@@ -272,6 +272,16 @@ class Animation:
  
     """
 
+    def _updateAnimation(self, obj: typing.Any, event: typing.Any) -> None:
+        """
+        This function is a wrapper to call the updateAnimation function with a lock.
+
+        :param obj: The object that generated the event, probably vtk render window.
+        :param event: The event that triggered this function.
+        """
+        with self.lock:
+            self.updateAnimation(obj, event)
+
     def updateAnimation(self, obj: typing.Any, event: typing.Any) -> None:
         """
         This function takes in new position data and updates the render window
@@ -450,7 +460,8 @@ class Animation:
         self.interactor.Initialize()
         # set up a timer to call the update function at a max rate
         # of every 7 ms (~144 hz)
-        self.interactor.AddObserver("TimerEvent", self.updateAnimation)
+        self.lock = td.Lock()
+        self.interactor.AddObserver("TimerEvent", self._updateAnimation)
         self.interactor.CreateRepeatingTimer(self.frequency)
 
         # start the model
@@ -867,21 +878,23 @@ class Animation:
             # or update status of a shell
             command = received_data["type"]
             if command == "time":
-                self.current_simulation_time = received_data["time"]
-                # print(f"Animation: time is now {self.current_simulation_time}")
+                with self.lock:
+                    self.current_simulation_time = received_data["time"]
+                    # print(f"Animation: time is now {self.current_simulation_time}")
             if command == "shell":
-                shell = received_data["shell"]
-                # print(f"Animation: updating shell {shell}")
-                self.sat_positions[shell] = received_data["sat_positions"]
-                # print(
-                #     f"Animation: updated shell {shell} sat positions: {self.sat_positions[shell]}"
-                # )
-                self.links[shell] = received_data["links"]
-                # print(f"Animation: updated shell {shell} links: {self.links[shell]}")
-                self.gst_links[shell] = received_data["gst_links"]
-                # print(
-                #     f"Animation: updated shell {shell} gst links: {self.gst_links[shell]}"
-                # )
+                with self.lock:
+                    shell = received_data["shell"]
+                    # print(f"Animation: updating shell {shell}")
+                    self.sat_positions[shell] = received_data["sat_positions"]
+                    # print(
+                    #     f"Animation: updated shell {shell} sat positions: {self.sat_positions[shell]}"
+                    # )
+                    self.links[shell] = received_data["links"]
+                    # print(f"Animation: updated shell {shell} links: {self.links[shell]}")
+                    self.gst_links[shell] = received_data["gst_links"]
+                    # print(
+                    #     f"Animation: updated shell {shell} gst links: {self.gst_links[shell]}"
+                    # )
 
-                if shell == 0:
-                    self.gst_positions = received_data["gst_positions"]
+                    if shell == 0:
+                        self.gst_positions = received_data["gst_positions"]
