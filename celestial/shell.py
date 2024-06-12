@@ -717,8 +717,9 @@ class Shell:
             link_array[isl_idx]["distance_m"] = np.uint32(d)
 
         gst_link_id = 0
+        MAX_INT32 = 2**31 - 1
         for gst in gst_array:
-            shortest_d = np.uint32(np.inf)
+            shortest_d = MAX_INT32
 
             for sat_idx in range(total_sats):
                 # calculate distance
@@ -739,11 +740,12 @@ class Shell:
                     gst["conn_type"]
                     == celestial.config.GroundStationConnectionType.ONE.value
                 ):
+                    # print(shortest_d, d)
                     if d > shortest_d:
                         continue
 
-                    # but can't overwrite if we're haven't written anything yet
-                    if shortest_d != np.uint32(np.inf):
+                    # but can't overwrite if we haven't written anything yet
+                    if shortest_d != MAX_INT32:
                         gst_link_id -= 1
 
                     shortest_d = d
