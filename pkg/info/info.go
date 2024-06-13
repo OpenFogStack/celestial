@@ -129,12 +129,12 @@ func (i *infoserver) getInfo(w http.ResponseWriter, r *http.Request) {
 
 		for _, n := range g.Nodes {
 			s.Shells[g.Group-1].Sats[n.ID.ID.Id] = Node{
-				Type: "sat",
+				Type:   "sat",
+				Active: n.Active,
 				Identifier: Identifier{
 					Shell: n.ID.ID.Group,
 					ID:    n.ID.ID.Id,
 				},
-				Active: n.Active,
 			}
 		}
 
@@ -178,12 +178,12 @@ func (i *infoserver) getShell(w http.ResponseWriter, r *http.Request) {
 
 	for _, n := range g.Nodes {
 		s.Sats = append(s.Sats, Node{
-			Type: "sat",
+			Type:   "sat",
+			Active: n.Active,
 			Identifier: Identifier{
 				Shell: n.ID.ID.Group,
 				ID:    n.ID.ID.Id,
 			},
-			Active: n.Active,
 		})
 	}
 
@@ -235,7 +235,8 @@ func (i *infoserver) getSat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s := Node{
-		Type: "sat",
+		Type:   "sat",
+		Active: n.Active,
 		Identifier: Identifier{
 			Shell: n.ID.ID.Group,
 			ID:    n.ID.ID.Id,
