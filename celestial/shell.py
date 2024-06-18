@@ -717,7 +717,7 @@ class Shell:
             link_array[isl_idx]["distance_m"] = np.uint32(d)
 
         gst_link_id = 0
-        MAX_INT32 = 2**31 - 1
+        MAX_INT32 = np.uint32(np.iinfo(np.uint32).max)
         for gst in gst_array:
             shortest_d = MAX_INT32
 

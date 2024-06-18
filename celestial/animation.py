@@ -253,6 +253,8 @@ class Animation:
         self.gst_actor = types.SimpleNamespace()
         self.gst_link_actor = types.SimpleNamespace()
 
+        self.lock = td.Lock()
+
         # print(f"Animation: initializing with {self.gst_num} ground stations")
 
         self.makeGstActor(self.gst_num)
@@ -460,7 +462,7 @@ class Animation:
         self.interactor.Initialize()
         # set up a timer to call the update function at a max rate
         # of every 7 ms (~144 hz)
-        self.lock = td.Lock()
+
         self.interactor.AddObserver("TimerEvent", self._updateAnimation)
         self.interactor.CreateRepeatingTimer(self.frequency)
 
