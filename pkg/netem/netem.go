@@ -83,6 +83,7 @@ func checkCommands() (err error) {
 
 type Netem struct {
 	vms map[orchestrator.MachineID]*vm
+	sync.RWMutex
 }
 
 func init() {
@@ -106,6 +107,8 @@ func (n *Netem) Stop() error {
 	wg := sync.WaitGroup{}
 	var e error
 
+	n.Lock()
+	defer n.Unlock()
 	for _, v := range n.vms {
 		wg.Add(1)
 		go func(v *vm) {
@@ -139,9 +142,12 @@ func (n *Netem) Register(id orchestrator.MachineID, netIf string) error {
 	// necessary to add to our list and prepare everything that needs to run once
 
 	// check that machine does not already exist
+	n.RLock()
 	if _, ok := n.vms[id]; ok {
+		n.RUnlock()
 		return errors.Errorf("machine %d-%d already exists", id.Group, id.Id)
 	}
+	n.RUnlock()
 
 	log.Tracef("registering machine %d-%d", id.Group, id.Id)
 
@@ -167,7 +173,9 @@ func (n *Netem) Register(id orchestrator.MachineID, netIf string) error {
 		return err
 	}
 
+	n.Lock()
 	n.vms[id] = v
+	n.Unlock()
 
 	return nil
 }
@@ -175,7 +183,10 @@ func (n *Netem) Register(id orchestrator.MachineID, netIf string) error {
 func (n *Netem) checkLink(source orchestrator.MachineID, target net.IPNet) error {
 	// check that a link exists between source and target
 	// if not, create it
-	if _, ok := n.vms[source].links[fromIPNet(target)]; ok {
+	n.RLock()
+	v := n.vms[source]
+	n.RUnlock()
+	if _, ok := v.links[fromIPNet(target)]; ok {
 		// exists, all fine!
 		return nil
 	}
@@ -186,13 +197,15 @@ func (n *Netem) checkLink(source orchestrator.MachineID, target net.IPNet) error
 		return err
 	}
 
-	n.vms[source].links[fromIPNet(target)] = &link{tcIndex: index}
+	v.links[fromIPNet(target)] = &link{tcIndex: index}
 
 	return nil
 }
 
 func (n *Netem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, bandwidthKbps uint64) error {
+	n.RLock()
 	v, ok := n.vms[source]
+	n.RUnlock()
 
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
@@ -213,13 +226,15 @@ func (n *Netem) SetBandwidth(source orchestrator.MachineID, target net.IPNet, ba
 		return err
 	}
 
-	n.vms[source].links[fromIPNet(target)].bandwidthKbps = bandwidthKbps
+	v.links[fromIPNet(target)].bandwidthKbps = bandwidthKbps
 
 	return nil
 }
 
 func (n *Netem) SetLatency(source orchestrator.MachineID, target net.IPNet, latencyUs uint32) error {
+	n.RLock()
 	v, ok := n.vms[source]
+	n.RUnlock()
 
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
@@ -240,13 +255,15 @@ func (n *Netem) SetLatency(source orchestrator.MachineID, target net.IPNet, late
 		return err
 	}
 
-	n.vms[source].links[fromIPNet(target)].latencyUs = latencyUs
+	v.links[fromIPNet(target)].latencyUs = latencyUs
 
 	return nil
 }
 
 func (n *Netem) UnblockLink(source orchestrator.MachineID, target net.IPNet) error {
+	n.RLock()
 	v, ok := n.vms[source]
+	n.RUnlock()
 
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
@@ -267,13 +284,15 @@ func (n *Netem) UnblockLink(source orchestrator.MachineID, target net.IPNet) err
 		return err
 	}
 
-	n.vms[source].links[fromIPNet(target)].blocked = false
+	v.links[fromIPNet(target)].blocked = false
 
 	return nil
 }
 
 func (n *Netem) BlockLink(source orchestrator.MachineID, target net.IPNet) error {
+	n.RLock()
 	v, ok := n.vms[source]
+	n.RUnlock()
 
 	if !ok {
 		return errors.Errorf("machine %d-%d does not exist", source.Group, source.Id)
@@ -294,7 +313,7 @@ func (n *Netem) BlockLink(source orchestrator.MachineID, target net.IPNet) error
 		return err
 	}
 
-	n.vms[source].links[fromIPNet(target)].blocked = true
+	v.links[fromIPNet(target)].blocked = true
 
 	return nil
 }
