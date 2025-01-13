@@ -990,8 +990,8 @@ class Shell:
                     )  # type: ignore
                 )
 
-                path_matrix[i, j]["bandwidth_kbits"] = d
-                # path_matrix[j, i]["bandwidth_kbits"] = d
+                path_matrix[i, j]["bandwidth_kbits"] = b
+                # path_matrix[j, i]["bandwidth_kbits"] = b
 
     @staticmethod
     @numba.njit  # type: ignore
